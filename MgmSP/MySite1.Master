@@ -1,0 +1,76 @@
+﻿<%@ Master Language="VB" AutoEventWireup="false" CodeBehind="MySite1.master.vb" Inherits="MgmSP.MySite1" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<head runat="server">
+    <title>Jet工廠資訊系統V2.4.8 debugHost</title>
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+    <style type="text/css">
+        .style1
+        {
+            width: 100%;
+        }
+        .style2
+        {
+            width: 180px;
+        }
+        .style3
+        {
+        }
+        .auto-style1 {
+            width: 98%;
+        }
+        .auto-style2 {
+            width: 100%;
+            margin-bottom: 140px;
+        }
+        .auto-style3 {
+            width: 138px;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+    <div>
+    </div>
+        <table style="text-align:center" class="auto-style2">
+            <tr>
+                <td rowspan="2" class="auto-style3">
+                    <asp:Image ID="Image1" runat="server" ImageUrl="~/image/jetlog.jpg" 
+                        Width="140px" Height="47px" />
+                </td>
+                <td class="style3" valign="bottom">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;</td>
+            </tr>
+            <tr>
+                <td class="style3" valign="bottom">
+                    <asp:Table ID="TSubMenu" runat="server" HorizontalAlign="Left">
+                    </asp:Table>
+                </td>
+            </tr>
+            <tr>
+                <td valign = "top" class="auto-style3">
+                    <asp:Table ID="TMainMenu" runat="server" HorizontalAlign="Center" Width="130px">
+                    </asp:Table>
+                </td>
+                <td valign = "top" class="style3">
+    <div> 
+        <table style="text-align:left" class="auto-style1"> 
+            <tr>
+                <td style="vertical-align: top">
+        <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
+        
+        </asp:ContentPlaceHolder>
+                </td>
+            </tr>
+        </table> 
+    </div> 
+                </td>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>

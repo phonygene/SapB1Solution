@@ -1,0 +1,619 @@
+列出資料夾 PATH
+磁碟區序號為 A028-3E6F
+C:.
+│  SapB1Solution.sln
+│  SapB1Solution.suo
+│  UpgradeLog.htm
+│  _project_tree.txt
+│  
+├─ (2)
+├─Backup
+│  │  SapB1Solution.sln
+│  │  UpgradeLog.htm
+│  │  
+│  ├─Backup
+│  │  │  SapB1Solution.sln
+│  │  │  
+│  │  └─MgmSP
+│  │      │  Default.aspx
+│  │      │  Default.aspx.designer.vb
+│  │      │  Default.aspx.vb
+│  │      │  Index.aspx
+│  │      │  Index.aspx.designer.vb
+│  │      │  Index.aspx.vb
+│  │      │  MgmSP.vbproj
+│  │      │  MgmSP.vbproj.user
+│  │      │  MySite1.Master
+│  │      │  MySite1.Master.designer.vb
+│  │      │  MySite1.Master.vb
+│  │      │  sp.aspx
+│  │      │  sp.aspx.designer.vb
+│  │      │  sp.aspx.vb
+│  │      │  test.aspx
+│  │      │  test.aspx.designer.vb
+│  │      │  test.aspx.vb
+│  │      │  Web.config
+│  │      │  
+│  │      ├─App_Code
+│  │      │      FunClass.vb
+│  │      │      
+│  │      ├─App_Data
+│  │      ├─My Project
+│  │      │  │  Application.Designer.vb
+│  │      │  │  Application.myapp
+│  │      │  │  AssemblyInfo.vb
+│  │      │  │  Resources.Designer.vb
+│  │      │  │  Resources.resx
+│  │      │  │  Settings.Designer.vb
+│  │      │  │  Settings.settings
+│  │      │  │  
+│  │      │  └─MyExtensions
+│  │      │          MyWebExtension.vb
+│  │      │          
+│  │      ├─usermgm
+│  │      │      addsapid.aspx
+│  │      │      addsapid.aspx.designer.vb
+│  │      │      addsapid.aspx.vb
+│  │      │      login.aspx
+│  │      │      login.aspx.designer.vb
+│  │      │      login.aspx.vb
+│  │      │      logout.aspx
+│  │      │      logout.aspx.designer.vb
+│  │      │      logout.aspx.vb
+│  │      │      pwdchange.aspx
+│  │      │      pwdchange.aspx.designer.vb
+│  │      │      pwdchange.aspx.vb
+│  │      │      rolemodify.aspx
+│  │      │      rolemodify.aspx.designer.vb
+│  │      │      rolemodify.aspx.vb
+│  │      │      useradd.aspx
+│  │      │      useradd.aspx.designer.vb
+│  │      │      useradd.aspx.vb
+│  │      │      userlist.aspx
+│  │      │      userlist.aspx.designer.vb
+│  │      │      userlist.aspx.vb
+│  │      │      usermodify.aspx
+│  │      │      usermodify.aspx.designer.vb
+│  │      │      usermodify.aspx.vb
+│  │      │      
+│  │      └─wo
+│  │              issuedwoinfo.aspx
+│  │              issuedwoinfo.aspx.designer.vb
+│  │              issuedwoinfo.aspx.vb
+│  │              moadd_sys.aspx
+│  │              moadd_sys.aspx.designer.vb
+│  │              moadd_sys.aspx.vb
+│  │              molist.aspx
+│  │              molist.aspx.designer.vb
+│  │              molist.aspx.vb
+│  │              wolist.aspx
+│  │              wolist.aspx.designer.vb
+│  │              wolist.aspx.vb
+│  │              
+│  └─MgmSP
+│      │  Default.aspx
+│      │  Default.aspx.designer.vb
+│      │  Default.aspx.vb
+│      │  Index.aspx
+│      │  Index.aspx.designer.vb
+│      │  Index.aspx.vb
+│      │  MgmSP.vbproj
+│      │  MgmSP.vbproj.user
+│      │  MySite1.Master
+│      │  MySite1.Master.designer.vb
+│      │  MySite1.Master.vb
+│      │  sp.aspx
+│      │  sp.aspx.designer.vb
+│      │  sp.aspx.vb
+│      │  test.aspx
+│      │  test.aspx.designer.vb
+│      │  test.aspx.vb
+│      │  Web.config
+│      │  
+│      ├─App_Code
+│      │      FunClass.vb
+│      │      
+│      ├─App_Data
+│      ├─bin
+│      │      Interop.SAPbobsCOM.dll
+│      │      
+│      ├─My Project
+│      │  │  Application.Designer.vb
+│      │  │  Application.myapp
+│      │  │  AssemblyInfo.vb
+│      │  │  Resources.Designer.vb
+│      │  │  Resources.resx
+│      │  │  Settings.Designer.vb
+│      │  │  Settings.settings
+│      │  │  
+│      │  └─MyExtensions
+│      │          MyWebExtension.vb
+│      │          
+│      ├─obj
+│      │  └─Debug
+│      │      │  DesignTimeResolveAssemblyReferencesInput.cache
+│      │      │  Interop.SAPbobsCOM.dll
+│      │      │  MgmSP.vbproj.AssemblyReference.cache
+│      │      │  MgmSP.vbproj.ResolveComReference.cache
+│      │      │  
+│      │      └─TempPE
+│      │              My Project.Application.Designer.vb.dll
+│      │              My Project.Resources.Designer.vb.dll
+│      │              
+│      ├─usermgm
+│      │      addsapid.aspx
+│      │      addsapid.aspx.designer.vb
+│      │      addsapid.aspx.vb
+│      │      login.aspx
+│      │      login.aspx.designer.vb
+│      │      login.aspx.vb
+│      │      logout.aspx
+│      │      logout.aspx.designer.vb
+│      │      logout.aspx.vb
+│      │      pwdchange.aspx
+│      │      pwdchange.aspx.designer.vb
+│      │      pwdchange.aspx.vb
+│      │      rolemodify.aspx
+│      │      rolemodify.aspx.designer.vb
+│      │      rolemodify.aspx.vb
+│      │      useradd.aspx
+│      │      useradd.aspx.designer.vb
+│      │      useradd.aspx.vb
+│      │      userlist.aspx
+│      │      userlist.aspx.designer.vb
+│      │      userlist.aspx.vb
+│      │      usermodify.aspx
+│      │      usermodify.aspx.designer.vb
+│      │      usermodify.aspx.vb
+│      │      
+│      └─wo
+│              issuedwoinfo.aspx
+│              issuedwoinfo.aspx.designer.vb
+│              issuedwoinfo.aspx.vb
+│              moadd_sys.aspx
+│              moadd_sys.aspx.designer.vb
+│              moadd_sys.aspx.vb
+│              molist.aspx
+│              molist.aspx.designer.vb
+│              molist.aspx.vb
+│              wolist.aspx
+│              wolist.aspx.designer.vb
+│              wolist.aspx.vb
+│              
+├─MgmSP
+│  │  Default.aspx
+│  │  Default.aspx.designer.vb
+│  │  Default.aspx.vb
+│  │  Global.asax
+│  │  Global.asax.vb
+│  │  Index.aspx
+│  │  Index.aspx.designer.vb
+│  │  Index.aspx.vb
+│  │  invalid.aspx
+│  │  invalid.aspx.designer.vb
+│  │  invalid.aspx.vb
+│  │  kkk.aspx
+│  │  kkk.aspx.designer.vb
+│  │  kkk.aspx.vb
+│  │  MgmSP.vbproj
+│  │  MgmSP.vbproj.user
+│  │  MySite1.Master
+│  │  MySite1.Master.designer.vb
+│  │  MySite1.Master.vb
+│  │  packages.config
+│  │  pdfCombined.pdf
+│  │  pdfExample.pdf
+│  │  pdfExample1.pdf
+│  │  rrr.aspx
+│  │  rrr.aspx.designer.vb
+│  │  rrr.aspx.vb
+│  │  Web.config
+│  │  Web.sitemap
+│  │  
+│  ├─App_Code
+│  ├─App_Data
+│  ├─AttachFile
+│  │  ├─CLFormFile
+│  │  ├─QC
+│  │  │  └─DW
+│  │  └─SignOffsFormFiles
+│  │      ├─loa333
+│  │      │  └─21
+│  │      │          1_簽核主檔(1)_R24-I-08-03.pdf
+│  │      │          1_簽核主檔(2)_1_簽核主檔(1)_R24-I-08-03_Stamped.pdf
+│  │      │          1_簽核附檔(2)_CA26-T-00105.xlsx
+│  │      │          
+│  │      ├─ltx
+│  │      │  └─23
+│  │      │          9_簽核主檔(0)_Stamped.pdf
+│  │      │          
+│  │      └─ron
+│  │          ├─1
+│  │          │      2_簽核主檔(0)_Stamped.pdf
+│  │          │      4_簽核(加)主檔(1)_Stamped.pdf
+│  │          │      5_簽核(加)主檔(2)_Stamped.pdf
+│  │          │      5_簽核附檔(1)_R24-I-03-01_Stamped.pdf
+│  │          │      
+│  │          ├─100
+│  │          │      16_加簽核補充附檔(1)_樺漢-1台6500S規格單_Stamped.pdf
+│  │          │      8_加簽核補充附檔(1)_R24-I-03-01_Stamped.pdf
+│  │          │      
+│  │          ├─101
+│  │          ├─12
+│  │          │      21_簽核主檔(0)_Stamped.pdf
+│  │          │      
+│  │          ├─21
+│  │          │      3_簽核主檔(1)_3_簽核主檔(1)_矽品／捷瑩-32台7500TZ規格單(2025年分批交貨)_Stamped.pdf
+│  │          │      3_簽核主檔(1)_矽品／捷瑩-32台7500TZ規格單(2025年分批交貨).pdf
+│  │          │      
+│  │          ├─23
+│  │          │      11_簽核(返還)主檔(1)_Stamped.pdf
+│  │          │      28_簽核主檔(0)_Stamped.pdf
+│  │          │      
+│  │          ├─24
+│  │          │      10_簽核(還回)主檔(1)_Stamped.pdf
+│  │          │      
+│  │          └─49
+│  │                  3_簽核(加)主檔(2)_Stamped.pdf
+│  │                  3_簽核附檔(1)_PREM／TESLA-1台7500ResoluteXL規格單(更改解析度為15um)_Stamped.pdf
+│  │                  eachprice_test1.xlsx
+│  │                  
+│  ├─bin
+│  │      AjaxControlToolkit.dll
+│  │      ExcelDataReader.DataSet.dll
+│  │      ExcelDataReader.DataSet.pdb
+│  │      ExcelDataReader.DataSet.xml
+│  │      ExcelDataReader.dll
+│  │      ExcelDataReader.pdb
+│  │      ExcelDataReader.xml
+│  │      ICSharpCode.SharpZipLib.dll
+│  │      itextsharp.dll
+│  │      MgmSP.dll
+│  │      MgmSP.dll.config
+│  │      MgmSP.pdb
+│  │      MgmSP.xml
+│  │      Newtonsoft.Json.dll
+│  │      Newtonsoft.Json.xml
+│  │      
+│  ├─cnc
+│  │      cncitems.aspx
+│  │      cncitems.aspx.designer.vb
+│  │      cncitems.aspx.vb
+│  │      cncmain.aspx
+│  │      cncmain.aspx.designer.vb
+│  │      cncmain.aspx.vb
+│  │      
+│  ├─commcode
+│  │      CommSignOff.vb
+│  │      CommUtil.vb
+│  │      ShowData.aspx
+│  │      ShowData.aspx.designer.vb
+│  │      ShowData.aspx.vb
+│  │      
+│  ├─Connected Services
+│  ├─fd
+│  │      freport.aspx
+│  │      freport.aspx.designer.vb
+│  │      freport.aspx.vb
+│  │      
+│  ├─hr
+│  │      leave.aspx
+│  │      leave.aspx.designer.vb
+│  │      leave.aspx.vb
+│  │      workevent.aspx
+│  │      workevent.aspx.designer.vb
+│  │      workevent.aspx.vb
+│  │      
+│  ├─image
+│  │      jetlog.jpg
+│  │      jetlog80%.jpg
+│  │      jetword.jpg
+│  │      ok1.jpg
+│  │      okpdf.jpg
+│  │      rj1.jpg
+│  │      rjpdf.jpg
+│  │      skip.jpg
+│  │      skip1.jpg
+│  │      
+│  ├─jFonts
+│  │      kaiu.ttf
+│  │      msjh.ttc
+│  │      msjhbd.ttc
+│  │      msjhl.ttc
+│  │      
+│  ├─My Project
+│  │  │  Application.Designer.vb
+│  │  │  Application.myapp
+│  │  │  AssemblyInfo.vb
+│  │  │  Resources.Designer.vb
+│  │  │  Resources.resx
+│  │  │  Settings.Designer.vb
+│  │  │  Settings.settings
+│  │  │  
+│  │  └─MyExtensions
+│  │          MyWebExtension.vb
+│  │          
+│  ├─obj
+│  │  └─Debug
+│  │      │  .NETFramework,Version=v4.0.AssemblyAttributes.vb
+│  │      │  DesignTimeResolveAssemblyReferencesInput.cache
+│  │      │  Interop.SAPbobsCOM.dll
+│  │      │  MgmSP.dll
+│  │      │  MgmSP.pdb
+│  │      │  MgmSP.Resources.resources
+│  │      │  MgmSP.vbproj.AssemblyReference.cache
+│  │      │  MgmSP.vbproj.CopyComplete
+│  │      │  MgmSP.vbproj.CoreCompileInputs.cache
+│  │      │  MgmSP.vbproj.FileListAbsolute.txt
+│  │      │  MgmSP.vbproj.GenerateResource.cache
+│  │      │  MgmSP.vbproj.ResolveComReference.cache
+│  │      │  MgmSP.xml
+│  │      │  ResolveAssemblyReference.cache
+│  │      │  
+│  │      └─TempPE
+│  │              My Project.Application.Designer.vb.dll
+│  │              My Project.Resources.Designer.vb.dll
+│  │              
+│  ├─pu
+│  │      qv.aspx
+│  │      qv.aspx.designer.vb
+│  │      qv.aspx.vb
+│  │      
+│  ├─qc
+│  │      iqc.aspx
+│  │      iqc.aspx.designer.vb
+│  │      iqc.aspx.vb
+│  │      qc.aspx
+│  │      qc.aspx.designer.vb
+│  │      qc.aspx.vb
+│  │      
+│  ├─rd
+│  │      mcoderule.aspx
+│  │      mcoderule.aspx.designer.vb
+│  │      mcoderule.aspx.vb
+│  │      
+│  ├─renderdir
+│  │      renderedpage.html
+│  │      
+│  ├─sales
+│  │      forecastpo.aspx
+│  │      forecastpo.aspx.designer.vb
+│  │      forecastpo.aspx.vb
+│  │      
+│  ├─signoff
+│  │      agnsetup.aspx
+│  │      agnsetup.aspx.designer.vb
+│  │      agnsetup.aspx.vb
+│  │      cLsignoff.aspx
+│  │      cLsignoff.aspx.designer.vb
+│  │      cLsignoff.aspx.vb
+│  │      jetlog.gif
+│  │      jetlog.jpg
+│  │      printform.aspx
+│  │      printform.aspx.designer.vb
+│  │      printform.aspx.vb
+│  │      showpdf.aspx
+│  │      showpdf.aspx.designer.vb
+│  │      showpdf.aspx.vb
+│  │      signflowexclude.aspx
+│  │      signflowexclude.aspx.designer.vb
+│  │      signflowexclude.aspx.vb
+│  │      signoff.aspx
+│  │      signoff.aspx.designer.vb
+│  │      signoff.aspx.vb
+│  │      signoffsetup.aspx
+│  │      signoffsetup.aspx.designer.vb
+│  │      signoffsetup.aspx.vb
+│  │      signofftodo.aspx
+│  │      signofftodo.aspx.designer.vb
+│  │      signofftodo.aspx.vb
+│  │      signofftool.aspx
+│  │      signofftool.aspx.designer.vb
+│  │      signofftool.aspx.vb
+│  │      signoffvip.aspx
+│  │      signoffvip.aspx.designer.vb
+│  │      signoffvip.aspx.vb
+│  │      
+│  ├─spare
+│  │      sp.aspx
+│  │      sp.aspx.designer.vb
+│  │      sp.aspx.vb
+│  │      spmaterial.aspx
+│  │      spmaterial.aspx.designer.vb
+│  │      spmaterial.aspx.vb
+│  │      spold.aspx
+│  │      spold.aspx.designer.vb
+│  │      spold.aspx.vb
+│  │      
+│  ├─usermgm
+│  │      addsapid.aspx
+│  │      addsapid.aspx.designer.vb
+│  │      addsapid.aspx.vb
+│  │      login.aspx
+│  │      login.aspx.designer.vb
+│  │      login.aspx.vb
+│  │      logout.aspx
+│  │      logout.aspx.designer.vb
+│  │      logout.aspx.vb
+│  │      pwdchange.aspx
+│  │      pwdchange.aspx.designer.vb
+│  │      pwdchange.aspx.vb
+│  │      rolemodify.aspx
+│  │      rolemodify.aspx.designer.vb
+│  │      rolemodify.aspx.vb
+│  │      rolesetup.aspx
+│  │      rolesetup.aspx.designer.vb
+│  │      rolesetup.aspx.vb
+│  │      useradd.aspx
+│  │      useradd.aspx.designer.vb
+│  │      useradd.aspx.vb
+│  │      userlist.aspx
+│  │      userlist.aspx.designer.vb
+│  │      userlist.aspx.vb
+│  │      usermodify.aspx
+│  │      usermodify.aspx.designer.vb
+│  │      usermodify.aspx.vb
+│  │      
+│  └─wo
+│          issuedwoinfo.aspx
+│          issuedwoinfo.aspx.designer.vb
+│          issuedwoinfo.aspx.vb
+│          moadd_sys.aspx
+│          moadd_sys.aspx.designer.vb
+│          moadd_sys.aspx.vb
+│          molist.aspx
+│          molist.aspx.designer.vb
+│          molist.aspx.vb
+│          pcmaterial.aspx
+│          pcmaterial.aspx.designer.vb
+│          pcmaterial.aspx.vb
+│          wolist.aspx
+│          wolist.aspx.designer.vb
+│          wolist.aspx.vb
+│          wostamodify.aspx
+│          wostamodify.aspx.designer.vb
+│          wostamodify.aspx.vb
+│          wostatus.aspx
+│          wostatus.aspx.designer.vb
+│          wostatus.aspx.vb
+│          
+└─packages
+    ├─AjaxControlToolkit.20.1.0
+    │  │  .signature.p7s
+    │  │  AjaxControlToolkit.20.1.0.nupkg
+    │  │  readme.txt
+    │  │  
+    │  ├─Content
+    │  │      Web.config.transform
+    │  │      
+    │  └─lib
+    │      └─net40
+    │              AjaxControlToolkit.dll
+    │              
+    ├─ExcelDataReader.3.6.0
+    │  │  .signature.p7s
+    │  │  ExcelDataReader.3.6.0.nupkg
+    │  │  
+    │  └─lib
+    │      ├─net20
+    │      │      ExcelDataReader.dll
+    │      │      ExcelDataReader.pdb
+    │      │      ExcelDataReader.xml
+    │      │      
+    │      ├─net45
+    │      │      ExcelDataReader.dll
+    │      │      ExcelDataReader.pdb
+    │      │      ExcelDataReader.xml
+    │      │      
+    │      ├─netstandard1.3
+    │      │      ExcelDataReader.dll
+    │      │      ExcelDataReader.pdb
+    │      │      ExcelDataReader.xml
+    │      │      
+    │      └─netstandard2.0
+    │              ExcelDataReader.dll
+    │              ExcelDataReader.pdb
+    │              ExcelDataReader.xml
+    │              
+    ├─ExcelDataReader.DataSet.3.6.0
+    │  │  .signature.p7s
+    │  │  ExcelDataReader.DataSet.3.6.0.nupkg
+    │  │  
+    │  └─lib
+    │      ├─net20
+    │      │      ExcelDataReader.DataSet.dll
+    │      │      ExcelDataReader.DataSet.pdb
+    │      │      ExcelDataReader.DataSet.xml
+    │      │      
+    │      ├─net35
+    │      │      ExcelDataReader.DataSet.dll
+    │      │      ExcelDataReader.DataSet.pdb
+    │      │      ExcelDataReader.DataSet.xml
+    │      │      
+    │      └─netstandard2.0
+    │              ExcelDataReader.DataSet.dll
+    │              ExcelDataReader.DataSet.pdb
+    │              ExcelDataReader.DataSet.xml
+    │              
+    ├─iTextSharp-LGPL.4.1.6
+    │  │  .signature.p7s
+    │  │  iTextSharp-LGPL.4.1.6.nupkg
+    │  │  
+    │  └─lib
+    │          iTextSharp.dll
+    │          
+    ├─Microsoft.AspNet.WebApi.5.2.7
+    │      .signature.p7s
+    │      Microsoft.AspNet.WebApi.5.2.7.nupkg
+    │      
+    ├─Microsoft.AspNet.WebApi.Core.5.2.7
+    │  │  .signature.p7s
+    │  │  Microsoft.AspNet.WebApi.Core.5.2.7.nupkg
+    │  │  
+    │  ├─Content
+    │  │      web.config.transform
+    │  │      
+    │  └─lib
+    │      └─net45
+    │              System.Web.Http.dll
+    │              System.Web.Http.xml
+    │              
+    ├─Newtonsoft.Json.12.0.2
+    │  │  .signature.p7s
+    │  │  LICENSE.md
+    │  │  Newtonsoft.Json.12.0.2.nupkg
+    │  │  
+    │  └─lib
+    │      ├─net20
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─net35
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─net40
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─net45
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─netstandard1.0
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─netstandard1.3
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─netstandard2.0
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      ├─portable-net40+sl5+win8+wp8+wpa81
+    │      │      Newtonsoft.Json.dll
+    │      │      Newtonsoft.Json.xml
+    │      │      
+    │      └─portable-net45+win8+wp8+wpa81
+    │              Newtonsoft.Json.dll
+    │              Newtonsoft.Json.xml
+    │              
+    └─SharpZipLib.0.86.0
+        │  .signature.p7s
+        │  SharpZipLib.0.86.0.nupkg
+        │  
+        └─lib
+            ├─11
+            │      ICSharpCode.SharpZipLib.dll
+            │      
+            ├─20
+            │      ICSharpCode.SharpZipLib.dll
+            │      
+            ├─SL3
+            │      SharpZipLib.Silverlight3.dll
+            │      
+            └─SL4
+                    SharpZipLib.Silverlight4.dll
+                    

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  devwin:
+    image: mcr.microsoft.com/dotnet/framework/sdk:4.8
+    working_dir: C:/workspace
+    command: powershell -NoLogo -NoProfile -Command "Write-Host 'DotNet Framework SDK container ready'; powershell"
+    volumes:
+      # 把主機專案掛到容器
+      - "C:/Projects/SapB1Solution:C:/workspace"
+      # NuGet 快取（讓還原速度快一點）
+      - "sapb1_nuget_cache:C:/Users/ContainerUser/.nuget/packages"
+      # 建置輸出用 artifacts，避免干擾主機的 bin/obj
+      - "sapb1_artifacts:C:/workspace/.artifacts"
+    tty: true
+    stdin_open: true
+
+volumes:
+  sapb1_nuget_cache:
+  sapb1_artifacts:

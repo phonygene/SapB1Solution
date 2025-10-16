@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<siteMap xmlns="http://schemas.microsoft.com/AspNet/SiteMap-File-1.0" >
+    <siteMapNode url="Index.aspx" title="首頁" description="說明">
+        <siteMapNode url="" title="帳號管理" description="">
+            <siteMapNode url="~/usermgm/userlist.aspx" title="帳號顯示" description="" />
+            <siteMapNode url="~/usermgm/useradd.aspx" title="帳號新增" description="" />
+        </siteMapNode>       
+        <siteMapNode url="" title="資料查詢" description="">
+            <siteMapNode url="" title="各式查詢功能" description="" />
+            <siteMapNode url="" title="ModelBom查詢" description="" />
+        </siteMapNode>
+        <siteMapNode url="" title="倉儲管理" description="">
+            <siteMapNode url="" title="備品狀況" description="">
+                <siteMapNode url="sp.aspx?seq=1" title="從銷售單(所有未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=2" title="從銷售單(ICT未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=3" title="從銷售單(AOI未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=4" title="從銷售單(其它未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=5" title="從工單(所有未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=6" title="從工單(ICT未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=7" title="從工單(AOI未結)" description="" />
+                <siteMapNode url="sp.aspx?seq=8" title="從銷售單號查詢" description="" />
+                <siteMapNode url="sp.aspx?seq=9" title="從工單號查詢" description="" />
+            </siteMapNode>
+        </siteMapNode>
+        <siteMapNode url="" title="製造系統" description="">
+            <siteMapNode url="" title="實用功能" description="">
+                <siteMapNode url="" title="指定料件資料查詢" description="" />
+                <siteMapNode url="" title="模組比對" description="" />
+                <siteMapNode url="" title="缺料報表(階層展開)" description="" />                    　　　　　
+            </siteMapNode>
+            <siteMapNode url="" title="工單種類管理" description="">
+                <siteMapNode url="" title="在線工單管理" description="" />
+                <siteMapNode url="" title="成品備庫工單管理" description="" />
+                <siteMapNode url="" title="半成品備庫工單管理" description="" />                    　　　　　
+            </siteMapNode>
+        </siteMapNode>
+        <siteMapNode url="" title="採購系統" description="">
+            <siteMapNode url="" title="採購預估" description=""/>  
+        </siteMapNode>
+        <siteMapNode url="" title="財務系統" description="">
+            <siteMapNode url="" title="機台成本" description=""/>
+            <siteMapNode url="" title="銷售收入及成本" description=""/>
+        </siteMapNode>
+        <siteMapNode url="" title="研發系統" description="">
+            <siteMapNode url="" title="Bom建立" description=""/>
+        </siteMapNode>
+        <siteMapNode url="" title="客服系統" description="">
+            <siteMapNode url="" title="機台問題反映" description=""/>
+        </siteMapNode>
+        <siteMapNode url="" title="品管系統" description="">
+            <siteMapNode url="" title="ECN管理" description=""/>
+        </siteMapNode>
+        <siteMapNode url="" title="業務系統" description="">
+            <siteMapNode url="" title="聯絡單" description="">
+                <siteMapNode url="" title="機台聯絡單" description="">
+                    <siteMapNode url="" title="AOI聯絡單" description=""/>
+                    <siteMapNode url="" title="ICT聯絡單" description=""/>
+                </siteMapNode>
+                <siteMapNode url="" title="備品聯絡單" description=""/>
+            </siteMapNode>
+        </siteMapNode>
+        <siteMapNode url="" title="人事系統" description="">
+
+        </siteMapNode>
+    </siteMapNode>
+</siteMap>

@@ -1,0 +1,1560 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+MgmSP
+</name>
+</assembly>
+<members>
+<member name="T:MgmSP.My.MyWebExtension">
+ <summary>
+ 用來定義可用於 Web 專案 My 命名空間中之屬性的模組。
+ </summary>
+ <remarks></remarks>
+</member>
+<member name="P:MgmSP.My.MyWebExtension.Computer">
+ <summary>
+ 傳回主機電腦的相關資訊。
+ </summary>
+</member>
+<member name="P:MgmSP.My.MyWebExtension.User">
+ <summary>
+ 傳回目前 Web 使用者的資訊。
+ </summary>
+</member>
+<member name="P:MgmSP.My.MyWebExtension.Request">
+ <summary>
+ 傳回 Request 物件。
+ </summary>
+</member>
+<member name="P:MgmSP.My.MyWebExtension.Response">
+ <summary>
+ 傳回 Response 物件。
+ </summary>
+</member>
+<member name="P:MgmSP.My.MyWebExtension.Log">
+ <summary>
+ 傳回 Asp 記錄物件。
+ </summary>
+</member>
+<member name="T:MgmSP.My.Resources.Resources">
+<summary>
+  用於查詢當地語系化字串等的強類型資源類別。
+</summary>
+</member>
+<member name="P:MgmSP.My.Resources.Resources.ResourceManager">
+<summary>
+  傳回這個類別使用的快取的 ResourceManager 執行個體。
+</summary>
+</member>
+<member name="P:MgmSP.My.Resources.Resources.Culture">
+<summary>
+  覆寫目前執行緒的 CurrentUICulture 屬性，對象是所有
+  使用這個強類型資源類別的資源查閱。
+</summary>
+</member>
+<member name="F:MgmSP.cncitems._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncitems._HyperMenuT">
+<summary>
+HyperMenuT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncitems._InfoT">
+<summary>
+InfoT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncitems._CncAddItemT">
+<summary>
+CncAddItemT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncitems._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncmain._CncAddT">
+<summary>
+CncAddT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncmain._CncFilterT">
+<summary>
+CncFilterT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cncmain._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.ShowData._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.ShowData._HyperMenuT">
+<summary>
+HyperMenuT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.ShowData._InfoT">
+<summary>
+InfoT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.ShowData._CncAddItemT">
+<summary>
+CncAddItemT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.ShowData._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._Button1">
+<summary>
+Button1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._TextBox1">
+<summary>
+TextBox1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._TextBox2">
+<summary>
+TextBox2 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._CheckBox1">
+<summary>
+CheckBox1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP._Default._ListBox1">
+<summary>
+ListBox1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.freport._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.freport._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.leave._FTDDL">
+<summary>
+FTDDL 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.leave._FilterT">
+<summary>
+FilterT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.leave._AddT">
+<summary>
+AddT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.leave._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.leave._UpdT">
+<summary>
+UpdT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.workevent._Button1">
+<summary>
+Button1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.workevent._FileUpload1">
+<summary>
+FileUpload1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.invalid._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.invalid._InfoT">
+<summary>
+InfoT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.kkk._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.kkk._lb_db_time">
+<summary>
+lb_db_time 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.kkk._lb_sys_time">
+<summary>
+lb_sys_time 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.kkk._lb_memo">
+<summary>
+lb_memo 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.kkk._custom_script">
+<summary>
+custom_script 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._head">
+<summary>
+head 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._Image1">
+<summary>
+Image1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._TSubMenu">
+<summary>
+TSubMenu 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._TMainMenu">
+<summary>
+TMainMenu 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.MySite1._ContentPlaceHolder1">
+<summary>
+ContentPlaceHolder1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.iqc._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.iqc._CT">
+<summary>
+CT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.iqc._iframeContent">
+<summary>
+iframeContent 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._DDLFun">
+<summary>
+DDLFun 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._FTIMC">
+<summary>
+FTIMC 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._FTIMS">
+<summary>
+FTIMS 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._FTIQCC">
+<summary>
+FTIQCC 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._FTIQCS">
+<summary>
+FTIQCS 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.qc._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.rrr._Head1">
+<summary>
+Head1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.rrr._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.rrr._DropDownList1">
+<summary>
+DropDownList1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._HyperMenuT">
+<summary>
+HyperMenuT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._MachineOption">
+<summary>
+MachineOption 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._infoT">
+<summary>
+infoT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._ListT">
+<summary>
+ListT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.forecastpo._UpdT">
+<summary>
+UpdT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.agnsetup._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._FT_0">
+<summary>
+FT_0 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._HT">
+<summary>
+HT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._HeadT">
+<summary>
+HeadT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._CommT">
+<summary>
+CommT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._FT_m">
+<summary>
+FT_m 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._AddT">
+<summary>
+AddT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._FormLogoTitleT">
+<summary>
+FormLogoTitleT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._ContentT">
+<summary>
+ContentT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._iframeContent">
+<summary>
+iframeContent 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._FT_1">
+<summary>
+FT_1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._ItemT">
+<summary>
+ItemT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._SignT">
+<summary>
+SignT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.cLsignoff._CT">
+<summary>
+CT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.printform._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.printform._FormLogoTitleT">
+<summary>
+FormLogoTitleT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.printform._contentT">
+<summary>
+contentT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.printform._SignT">
+<summary>
+SignT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signflowexclude._backsignsetup">
+<summary>
+backsignsetup 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signflowexclude._DET">
+<summary>
+DET 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoff._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoff._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoffsetup._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoffsetup._CT">
+<summary>
+CT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._contentT">
+<summary>
+contentT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._DDLFormType">
+<summary>
+DDLFormType 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._DDLInCharge">
+<summary>
+DDLInCharge 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._DDLTrace">
+<summary>
+DDLTrace 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftodo._iframeContent">
+<summary>
+iframeContent 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._Label3">
+<summary>
+Label3 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._DDLDelSIgnUser">
+<summary>
+DDLDelSIgnUser 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._DDLReplaceSignUser">
+<summary>
+DDLReplaceSignUser 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._Label2">
+<summary>
+Label2 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._BtnSignAnalysis">
+<summary>
+BtnSignAnalysis 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._BtnSignModify">
+<summary>
+BtnSignModify 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signofftool._MesLB">
+<summary>
+MesLB 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoffvip._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.signoffvip._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm2._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spmaterial._DDLWhs">
+<summary>
+DDLWhs 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spmaterial._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spmaterial._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spold._FTDDL">
+<summary>
+FTDDL 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spold._FilterT">
+<summary>
+FilterT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spold._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.spold._AddT">
+<summary>
+AddT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._Panel1">
+<summary>
+Panel1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._sapidtxt">
+<summary>
+sapidtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._Label2">
+<summary>
+Label2 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._sappwdtxt">
+<summary>
+sappwdtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._errmsg">
+<summary>
+errmsg 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.addsapid._addbtn">
+<summary>
+addbtn 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._Label3">
+<summary>
+Label3 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._ServerText">
+<summary>
+ServerText 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._Label4">
+<summary>
+Label4 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._DDLServer">
+<summary>
+DDLServer 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._Label5">
+<summary>
+Label5 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._DDLWhs">
+<summary>
+DDLWhs 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._idtxt">
+<summary>
+idtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._Label2">
+<summary>
+Label2 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._pwdtxt">
+<summary>
+pwdtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._errmsg">
+<summary>
+errmsg 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.login._loginbtn">
+<summary>
+loginbtn 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.logout._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._Panel1">
+<summary>
+Panel1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._oldpwdtxt">
+<summary>
+oldpwdtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._Label2">
+<summary>
+Label2 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._newpwdtxt">
+<summary>
+newpwdtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._Label3">
+<summary>
+Label3 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._cnewpwdtxt">
+<summary>
+cnewpwdtxt 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._errmsg">
+<summary>
+errmsg 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pwdchange._modifybtn">
+<summary>
+modifybtn 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.rolemodify._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.rolesetup._RT">
+<summary>
+RT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm3._DDLArea">
+<summary>
+DDLArea 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm3._DDLDept">
+<summary>
+DDLDept 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm3._usergv">
+<summary>
+usergv 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm4._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.WebForm5._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+將移動欄位宣告從設計檔案修改為程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.issuedwoinfo._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.issuedwoinfo._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.moadd_sys._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.molist._FilterT">
+<summary>
+FilterT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.molist._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.molist._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pcmaterial._FT">
+<summary>
+FT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.pcmaterial._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wostamodify._form1">
+<summary>
+form1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wostamodify._HyperMenuT">
+<summary>
+HyperMenuT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wostamodify._WoStatusT">
+<summary>
+WoStatusT 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wostatus._Table1">
+<summary>
+Table1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._DDLWoFun">
+<summary>
+DDLWoFun 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._DDLAlter">
+<summary>
+DDLAlter 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._Label1">
+<summary>
+Label1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._reqdate_text">
+<summary>
+reqdate_text 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._reqdate_text_CalendarExtender">
+<summary>
+reqdate_text_CalendarExtender 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._ExecuteBtn">
+<summary>
+ExecuteBtn 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._IssueWoCheck">
+<summary>
+IssueWoCheck 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._IssuedAutoCheck">
+<summary>
+IssuedAutoCheck 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+<member name="F:MgmSP.wolist._gv1">
+<summary>
+gv1 控制項。
+</summary>
+<remarks>
+自動產生的欄位。
+若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+</remarks>
+</member>
+</members>
+</doc>
