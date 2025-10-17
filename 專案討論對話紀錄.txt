@@ -1,0 +1,1918 @@
+我有一個簡單的vb .net專案，我想要使用ChatGPT為我分析專案架構與程式邏輯，讓它協助我在原本的專案架構下新增新的功能，例如當我要新增功能的時候，我應該使用那些使用者登入相關的功能或模組來管理使用者登入狀態Session，還有，這個系統是為了增強sap b1功能所建置，它會抓取sap b1 的資料庫資料，在平台上進一步處理之後寫回，所以我也要知道，當我要抓取系統資料，我應該用那些方法和模板來顯示給使用者，最後，當我要寫入資料到系統，我又該使用哪些方法，我希望使用ChatGPT協助我先徹底分析整個專案的架構，再一步步建置我要的新功能或優化專案，免得我在對原架構一知半解的情況下加東加西，把系統變成醜不拉機的縫合怪，更慘的是加入了臭蟲和漏洞。
+ChatGPT 說：
+已思考 1m 32s
+
+太好了！這件事可以做得很有系統，而且不用把專案改到面目全非。下面給你一份「最小成本、最高可維護度」的實戰藍圖：先把現有 VB.NET 專案完整盤點，再定義一組固定的擴充“接縫”（extension seams），之後新增功能就只要沿著這些接縫走，風格一致、風險最低。
+
+一、請先把這些輸出給我（一次到位清單）
+
+把你專案根目錄執行以下任一指令，產生檔案樹與關鍵設定，貼上或上傳即可。我會用這些做架構與邏輯總體解析。
+
+Windows CMD（最簡單）
+
+tree /F > _project_tree.txt
+
+
+PowerShell（含關鍵設定）
+
+Get-ChildItem -Recurse | Select-Object FullName | Out-File _project_tree.txt
+Get-Content .\*.sln, .\**\*.vbproj, .\**\Web.config, .\**\App.config -ErrorAction SilentlyContinue | Out-File _project_configs_snippet.txt
+
+
+同時附上（若有）：
+
+使用者登入/驗證相關檔：Login.aspx(.vb)、Global.asax(.vb)、BasePage.vb、Auth*、Session*、Membership*
+
+資料存取層：Repository、DAL、SqlHelper、Sbo*（DI API 包裝）
+
+商業邏輯層：Service 或 Manager 類別
+
+UI 主要頁面與共用控制（WinForms 的 MainForm.vb / Web 的 MasterPage.master、UserControl）
+
+拿到這些後，我會回你一份清晰的「現況架構地圖 + 模組關聯圖 + 資料流/呼叫流」，再據此設計你的功能擴充接縫。
+
+二、參考架構藍圖（不重構也能落地）
+
+無論你是 WinForms 或 ASP.NET WebForms，都建議採 3.5 層式（UI / Application(Service) / Domain(Models) / Infrastructure(DAL+DI API)）：
+
+/App
+  /UI                  ' WinForms 或 WebForms
+  /Application         ' 用例服務（Use Cases）：授權、流程、驗證
+  /Domain              ' DTO/Models + 規則（輕量）
+  /Infrastructure
+      /DataAccess      ' MSSQL 讀取（SqlClient，唯讀）
+      /SboDiApi        ' SAP B1 DI API 寫入（交易一致性）
+  /CrossCutting        ' 設定、記錄、Error handling、Mapping
+
+
+原則
+
+讀（Read）：對 SAP B1 資料庫（公司庫 + SBO-COMMON）用 唯讀 SQL（System.Data.SqlClient，全部參數化）。
+
+寫（Write）：一律走 DI API（Documents、BusinessPartners、JournalEntries…），確保過帳規則、內建驗證、事件正確觸發。
+
+交易：DI API 的 StartTransaction/EndTransaction 包住一組業務操作；嚴禁跨越多個 UI 按鈕或多個 HTTP 請求。
+
+三、登入 / Session 管理（選你的型態）
+3-1 WinForms（多為內網工具）
+
+建一個全域使用者內容（不靠 ASP.NET Session）：
+
+' /CrossCutting/Security/UserContext.vb
+Option Strict On
+Option Explicit On
+
+Public Module UserContext
+    Public Property UserId As String
+    Public Property UserName As String
+    Public Property Roles As String() = {}
+    Public ReadOnly Property IsAuthenticated As Boolean
+        Get
+            Return Not String.IsNullOrEmpty(UserId)
+        End Get
+    End Property
+End Module
+
+
+UI 進入點（例如 MainForm_Load）檢查 UserContext.IsAuthenticated，否則彈登入窗體。
+
+權限控制：在 Application 層提供 Authorize(role) 方法，UI 在動作前呼叫。
+
+3-2 ASP.NET WebForms（老專案常見）
+
+FormsAuthentication + Session，搭配 BasePage 做集中守門：
+
+' /UI/Web/BasePage.vb
+Option Strict On : Option Explicit On
+Imports System.Web.Security
+
+Public Class BasePage
+    Inherits System.Web.UI.Page
+
+    Protected Overrides Sub OnInit(e As EventArgs)
+        MyBase.OnInit(e)
+        If (Context.User Is Nothing OrElse Not Context.User.Identity.IsAuthenticated) Then
+            Response.Redirect("~/Login.aspx?returnUrl=" & Server.UrlEncode(Request.RawUrl))
+        End If
+    End Sub
+End Class
+
+
+登入成功後簽發票證 + 載入角色：
+
+' /UI/Web/Login.aspx.vb（成功驗證帳密之後）
+Dim ticket = New FormsAuthenticationTicket(1, userId, DateTime.Now, DateTime.Now.AddMinutes(60), False, String.Join(",", roles))
+Dim enc = FormsAuthentication.Encrypt(ticket)
+Dim cookie = New HttpCookie(FormsAuthentication.FormsCookieName, enc) With {.HttpOnly = True}
+Response.Cookies.Add(cookie)
+Response.Redirect(FormsAuthentication.GetRedirectUrl(userId, False))
+
+
+要點：
+
+啟用 Sliding Expiration、Cookie HttpOnly（若有 HTTPS 再加 Secure）。
+
+Session 裡只放必要識別（UserId、顯示名、角色）；資料不要放 Session。
+
+可抽一個 AuthService 給 UI 呼叫，同時產出審計 Log。
+
+四、讀資料（MSSQL 2005，優先 CTE）
+
+連線字串放 App.config/Web.config。Data Access 一律走 Using + 參數化：
+
+' /Infrastructure/DataAccess/SqlHelper.vb
+Option Strict On : Option Explicit On
+Imports System.Data.SqlClient
+Imports System.Configuration
+
+Public NotInheritable Class SqlHelper
+    Private Sub New()
+    End Sub
+
+    Public Shared Function Query(Of T)(sql As String, binder As Func(Of SqlDataReader, T), ParamArray parameters As SqlParameter()) As List(Of T)
+        Dim list As New List(Of T)
+        Dim cs = ConfigurationManager.ConnectionStrings("SboCompanyDb").ConnectionString
+        Using cn As New SqlConnection(cs), cmd As New SqlCommand(sql, cn)
+            cmd.Parameters.AddRange(parameters)
+            cn.Open()
+            Using rd = cmd.ExecuteReader()
+                While rd.Read()
+                    list.Add(binder(rd))
+                End While
+            End Using
+        End Using
+        Return list
+    End Function
+End Class
+
+
+查詢樣版（CTE；以銷售訂單為例，讀欄/列）：
+
+;WITH R AS (
+    SELECT 
+        T0.DocEntry,
+        T0.DocNum,
+        T0.CardCode,
+        T0.CardName,
+        T0.DocDate,
+        T1.LineNum,
+        T1.ItemCode,
+        T1.Dscription,
+        T1.Quantity,
+        T1.Price,
+        (T1.Quantity * T1.Price) AS LineTotal
+    FROM ORDR T0
+    INNER JOIN RDR1 T1 ON T0.DocEntry = T1.DocEntry
+    WHERE T0.DocDate BETWEEN @From AND @To
+      AND (@CardCode = '' OR T0.CardCode = @CardCode)
+)
+SELECT * FROM R
+ORDER BY DocDate DESC, DocEntry, LineNum;
+
+
+2005 OK、可擴充分頁、條件組合；所有條件皆用參數。
+
+五、顯示模板（使用者端友善）
+
+WinForms
+
+BindingSource + DataGridView（欄 = Columns、列 = Rows），關鍵是只綁定 DTO，UI 不要直接綁 DataTable 以免耦合。
+
+' /UI/WinForms/OrdersForm.vb 片段
+Dim data = orderService.GetOrders(dtoFilter) ' 回 DTO List(Of OrderRow)
+Dim bs As New BindingSource() With {.DataSource = data}
+DataGridView1.AutoGenerateColumns = False
+DataGridView1.DataSource = bs
+
+
+WebForms
+
+GridView/Repeater + 伺服端分頁（避免一次載太多列），日期/金額統一 DataFormatString；查詢條件放在上方的「條件區」。
+
+六、回寫資料到 SAP（DI API，交易一致性）
+
+連線與交易樣板
+
+' /Infrastructure/SboDiApi/SboConnection.vb
+Option Strict On : Option Explicit On
+Imports SAPbobsCOM
+
+Public Class SboConnection
+    Public Shared Function Connect(companyDb As String, server As String, licenseServer As String, user As String, pwd As String) As Company
+        Dim c As New Company With {
+            .Server = server,
+            .CompanyDB = companyDb,
+            .DbServerType = BoDataServerTypes.dst_MSSQL2005,
+            .UserName = user,
+            .Password = pwd,
+            .language = BoSuppLangs.ln_English,
+            .LicenseServer = licenseServer
+        }
+        Dim ret = c.Connect()
+        If ret <> 0 Then
+            Dim err, msg As String
+            c.GetLastError(err, msg)
+            Throw New ApplicationException($"DI API Connect failed: {err} - {msg}")
+        End If
+        Return c
+    End Function
+End Class
+
+
+寫入（以新增發票為例；注意：範例僅示意）
+
+' /Application/ArInvoiceService.vb
+Option Strict On : Option Explicit On
+Imports SAPbobsCOM
+
+Public Class ArInvoiceService
+    Private ReadOnly _company As Company
+    Public Sub New(company As Company)
+        _company = company
+    End Sub
+
+    Public Sub CreateInvoice(dto As ArInvoiceDto)
+        If Not _company.InTransaction Then _company.StartTransaction()
+        Try
+            Dim oInv = CType(_company.GetBusinessObject(BoObjectTypes.oInvoices), Documents)
+            oInv.CardCode = dto.CardCode
+            oInv.DocDate = dto.DocDate
+
+            For Each l In dto.Lines
+                oInv.Lines.ItemCode = l.ItemCode
+                oInv.Lines.Quantity = l.Qty
+                oInv.Lines.Price = l.Price
+                oInv.Lines.Add()
+            Next
+
+            Dim ret = oInv.Add()
+            If ret <> 0 Then
+                Dim err, msg As String
+                _company.GetLastError(err, msg)
+                Throw New ApplicationException($"Add Invoice failed: {err} - {msg}")
+            End If
+
+            _company.EndTransaction(BoWfTransOpt.wf_Commit)
+        Catch
+            If _company.InTransaction Then _company.EndTransaction(BoWfTransOpt.wf_RollBack)
+            Throw
+        End Try
+    End Sub
+End Class
+
+
+關鍵規範：
+
+讀用 SQL、寫用 DI API；
+
+一個用例 = 一個 DI 交易（Start → Commit/Rollback）；
+
+失敗要 bubble up，UI 統一顯示友善錯誤並寫入 Log（含 DI error code）；
+
+所有金額/稅率與科目以 SAP 主檔/設定為準，不要硬編。
+
+七、加新功能的「固定流程」（Playbook）
+
+每次擴充都照這 8 步走，系統就不會變縫合怪：
+
+定義用例（輸入過濾條件、UI 欄位、權限需求、例外狀況）
+
+新增 DTO（Domain 層）
+
+Repository 方法（Infrastructure/DataAccess，只讀 SQL；優先 CTE）
+
+Service 方法（Application 層：授權、驗證、流程）
+
+（若寫入）Sbo Service（DI API 交易 + 錯誤處理）
+
+UI 綁定（欄寬、格式、分頁、輸入驗證）
+
+記錄與審計（Log：誰在什麼時間對什麼單據做了什麼）
+
+回歸測試腳本（最少涵蓋成功/失敗/邊界）
+
+Repository 範例（讀）
+
+' /Infrastructure/DataAccess/OrderRepository.vb
+Option Strict On : Option Explicit On
+Imports System.Data.SqlClient
+
+Public Class OrderRepository
+    Public Function GetOrders(fromDate As Date, toDate As Date, Optional cardCode As String = "") As List(Of OrderRow)
+        Const sql = "
+;WITH R AS (
+  SELECT T0.DocEntry, T0.DocNum, T0.CardCode, T0.CardName, T0.DocDate,
+         T1.LineNum, T1.ItemCode, T1.Dscription, T1.Quantity, T1.Price,
+         (T1.Quantity*T1.Price) AS LineTotal
+  FROM ORDR T0
+  JOIN RDR1 T1 ON T0.DocEntry=T1.DocEntry
+  WHERE T0.DocDate BETWEEN @From AND @To
+    AND (@CardCode='' OR T0.CardCode=@CardCode)
+)
+SELECT * FROM R ORDER BY DocDate DESC, DocEntry, LineNum;"
+        Return SqlHelper.Query(sql,
+            Function(r) New OrderRow With {
+                .DocEntry = r.GetInt32(0),
+                .DocNum = r.GetInt32(1),
+                .CardCode = r.GetString(2),
+                .CardName = r.GetString(3),
+                .DocDate = r.GetDateTime(4),
+                .LineNum = r.GetInt32(5),
+                .ItemCode = r.GetString(6),
+                .Dscription = r.GetString(7),
+                .Quantity = r.GetDecimal(8),
+                .Price = r.GetDecimal(9),
+                .LineTotal = r.GetDecimal(10)
+            },
+            New SqlParameter("@From", fromDate),
+            New SqlParameter("@To", toDate),
+            New SqlParameter("@CardCode", If(cardCode, String.Empty)))
+    End Function
+End Class
+
+八、穩定與安全清單（務必落地）
+
+連線最小權限：讀資料用唯讀帳號；DI API 用具名、可審計的 SAP 帳號。
+
+參數化 SQL（禁止字串拼接）；CommandTimeout 合理設定。
+
+統一錯誤處理：Infrastructure 拋出具體、Application 翻譯成業務語意、UI 友善顯示。
+
+記錄（Log）：動作、使用者、來源機、DI error code、影響 DocEntry。
+
+設定管理：App.config/Web.config + 加密敏感字串（aspnet_regiis -pef 適用 Web）。
+
+欄/列規範：UI 所見欄（Columns）與列（Rows）命名一致，避免混亂。
+
+效能：查詢分頁；避免一次載數萬列；必要時先查「彙總」再 Drill-down。
+
+相容性：SQL 2005：使用 CTE、避免 MERGE、避免新語法。
+
+九、下一步（你可以直接這樣做）
+
+依「一次到位清單」輸出 _project_tree.txt 與 _project_configs_snippet.txt，外加登入/資料存取/DI API 相關檔案。
+
+告訴我你想先做的第一個新功能（一句話描述即可，例如「增加一個頁面：依期間、客戶等條件查詢銷售訂單，點列可直接產生送貨單」）。
+
+我會回你：
+
+專案現況架構圖（模組、依賴、資料流）；
+
+擴充接縫設計（要新增哪些檔、放哪個資料夾、命名與範本）；
+
+首個功能的端到端腳手架（SQL CTE 查詢 + Service + UI 綁定 + DI API 寫入雛型）。
+
+如此一來，你可以在不破壞原架構的前提下，逐步把功能堆疊起來，而且每次擴充都走同一套流程，長期可維護。
+
+需要我先產一份標準目錄骨架 + 範本檔給你直接放進專案嗎？（含 SqlHelper、OrderRepository、ArInvoiceService、BasePage/UserContext 範本與共用錯誤處理模組）。你一貼我就能對你的實際專案做準確比對並給出精準調整指引。
+
+（2025年09月19日15時54分，台北）
+
+你說：
+_project_tree.txt
+文件
+Web.config
+檔案
+Index.aspx.vb
+檔案
+Index.aspx
+檔案
+Global.asax
+檔案
+Global.asax.vb
+檔案
+CommSignOff.vb
+檔案
+CommUtil.vb
+檔案
+ShowData.aspx
+檔案
+ShowData.aspx.vb
+檔案
+OK，請先為我分析專案的重要檔案，然後我希望你直接從新增第一個功能一步步教我，分析中如果覺得還需要我補充什麼檔案請告訴我並協助我取得它(例如資料庫Table的架構)，等我補上你需要的所有檔案與資訊之後再開始，不要在資訊不全的情況下急著開始，謝謝。
+ChatGPT 說：
+已思考 4m 20s
+
+太好了，我先用你提供的檔案做了一輪「不動程式碼」的總體盤點，先把現況講清楚，再列出還缺哪些關鍵檔與資料（我也附上快速取得的方法）。等你補齊後，我們再正式進入「第一個新功能」的端到端規劃與腳手架。
+
+專案快速總覽（依你目前上傳的檔案）
+
+這是一個 ASP.NET WebForms（.NET 4.0） 的網站專案，根目錄為 MgmSP，有多個功能子資料夾（如 commcode、signoff、usermgm、wo 等），且使用多個套件（AjaxControlToolkit、ExcelDataReader、iTextSharp、Newtonsoft.Json 等）。
+
+關鍵檔案與路徑能看到：Global.asax / Global.asax.vb、Index.aspx / Index.aspx.vb、以及通用元件 commcode/CommUtil.vb、commcode/CommSignOff.vb、顯示頁 commcode/ShowData.aspx(.vb) 等。
+
+bin 目錄可以看到相依 DLL，包含 AjaxControlToolkit.dll、ExcelDataReader*.dll、iTextSharp.dll、Newtonsoft.Json.dll 等。
+
+以下是我針對你上傳的程式檔做的「重點解剖」（只點出結構與風險，不會改程式或新增功能）：
+
+1) Web.config（站台設定）
+
+有 FormsAuthentication 與 sessionState timeout="30" 的配置；httpRuntime 有放大上傳大小與逾時（maxRequestLength="102400", executionTimeout="600"）。
+
+compilation debug="true"（建議正式機關掉）。
+
+connectionStrings 目前明文含 sa 帳密（強烈建議移除、最小權限分離、正式機加密）。
+
+我只描述現象，不貼明文內容，避免外洩。
+
+2) Global.asax / Global.asax.vb（應用程式層初始與排程）
+
+以 Application 變數 放了站台根 URL（Application("http")，現在是 http://localhost:50601/）與上傳根路徑 Application("localdir") = "C:\sapupload\"，啟動時建立多個目錄（本機與 Server.MapPath 皆有）。
+
+使用 System.Timers.Timer 在背景 thread 觸發每日 06:00 的「簽核 push」：CommSignOff.SignOffPush(Application("http"), 1) 與 CommSignOff.ToDoListPush(...)。
+
+這種 AppDomain 內的排程 在 IIS 回收、AppPool 重啟時不保證準時或可靠，未來我們會建議改成 Windows 工作排程（Task Scheduler）→ 呼叫站台 API 端點 的模式，可靠度高很多。
+
+有 Application("user_sessions") 的 Session 計數器（單純統計）。
+
+3) Index.aspx / Index.aspx.vb（首頁／控制台）
+
+Page_Load 會讀 QueryString 的 act 來顯示訊息（如 signfinish、setsap、modifypwd）。
+
+權限讀取：perm = CommUtil.GetAssignRight("sg300", Session("s_id")) → 代表你的權限模型是 (pid, userId) → permission 字串。
+
+有一段流程會檢查 CommSignOff.ArchiveCheck() 的結果，並以 SQL 查 [@XSFTT] 這個 SAP B1 自訂表（UDT） 來顯示未設定提醒。
+
+設計上屬於「首頁訊息匯流」角色，但目前沒有 統一的登入守門（BasePage），登入驗證應該分散在 usermgm/login.aspx 等頁面。
+
+4) commcode/CommUtil.vb（共用工具）
+
+包含 MSSQL 連線初始化（本機 jtdb 與 SAP 公司庫）、SAP DI API 連線（SAPbobsCOM.Company）、以及多個 SelectXXX 資料提取方法與 GridView 欄位建置 範例（BOM、WO 顯示）。
+
+多數 SQL 是用 字串串接 建構（⚠️ SQL Injection 風險），且以 sa/高權限連線（⚠️ 權限極大）。
+
+權限查詢 GetAssignRight(sysid, s_id) 讀取本機 dbo.user_permissionnew 表（需要此表結構）。
+
+DI API 連線資訊內嵌（⚠️ 建議改為設定檔＋最小權限 DB 帳號，正式機加密）。
+
+5) commcode/CommSignOff.vb（簽核流程核心）
+
+體積很大（>100KB），包含 簽核推播、PDF 組版、流程計算 等邏輯，亦有 從非 Page 類別取 Session 的寫法（例如 Session("usingwhs")），這在沒有 HttpContext.Current 的情況下會出現 NRE／執行緒相容性問題。
+
+內含 啟動系統進程（Process.Start） 打開 URL 的用法（Web 伺服器上不適合，IIS 背後沒有互動桌面）。未來應改成 伺服端產出→回傳檔案連結 或 排程呼叫 API → 由瀏覽器下載。
+
+6) commcode/ShowData.aspx(.vb)（共用顯示頁）
+
+透過 dtype QueryString 切換顯示（BOM/WO），實作上用 CommUtil.ShowBomData(gv1, ...) 等方法把查詢結果繫結到 GridView。
+
+屬於「通用資料展示模板」，之後我們可以把它抽象化為 標準查詢→DTO→Grid 綁定 的樣板，避免頁頁都寫一次。
+
+我需要你再提供／確認的關鍵資訊（一次整理）
+
+你說「資訊不全就先不要開始做新功能」，OK—我先把需要的清單與最快取得方式都列好；你補上後我再出手把第一個功能端到端搭起來。
+
+A. 登入／授權機制的檔案
+
+usermgm/login.aspx 與 login.aspx.vb（目前看不到實際登入流程與 Session 設置）
+
+usermgm/logout.aspx(.vb)（登出流程）
+
+usermgm/rolesetup.aspx(.vb) 或其他角色授權頁（若有）
+
+MySite1.Master(.vb)（主版頁是否有依登入狀態切換功能表）
+
+Web.sitemap（導覽結構與可能的權限節點）
+👉 取得方式：請直接上傳上述檔案原始碼即可（和你剛剛上傳方式相同）。
+
+B. 本機資料庫（jtdb）與 SAP 公司庫的表結構
+
+為了安全與穩定地導入「統一查詢樣板 + CTE + 參數化」，我需要以下最少集合：
+
+本機 DB jtdb
+
+dbo.user_permissionnew 的結構（欄名、型別、PK/UK）與 3~5 筆匿名範例資料。
+
+若有使用者主檔（如 dbo.users 或類似）也請提供。
+
+SAP 公司庫（例如 JTTST1）
+
+所有你程式有查到的 自訂表（UDT） 的結構（至少 [@XSFTT]、[@UPSP]）。
+
+之後第一個新功能要用到的 標準表（例如 ORDR/RDR1 或其他），也請把欄位清單與索引提供。
+
+👉 最快取得腳本（SQL Server 2005 相容）
+（請在對應資料庫執行並把結果貼上或另存文字檔上傳）
+
+-- 1) 顯示表欄位與型別（適用一般表與 SAP UDT）
+SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'user_permissionnew'  -- 或改成 @XSFTT, @UPSP 等
+ORDER BY ORDINAL_POSITION;
+
+-- 2) 主鍵/索引（簡要）
+EXEC sp_helpindex 'dbo.user_permissionnew';
+
+-- 3) 表定義摘要
+EXEC sp_help 'dbo.user_permissionnew';
+
+-- 4) 取前幾筆匿名資料（注意遮蔽個資）
+SELECT TOP 5 * FROM dbo.[user_permissionnew];
+
+-- SAP UDT 範例：請改表名後照跑
+SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = '@XSFTT';
+
+EXEC sp_help 'dbo.[@XSFTT]';
+SELECT TOP 5 * FROM dbo.[@XSFTT];
+
+
+若你有多公司庫（TST/PRD），請告訴我正式與測試分流方式（Web.config 的 SapSQLConnection 指向哪一個；Session("usingdb") 或其他變數如何切換）。
+
+C. 連線與部署環境
+
+Web.config：是否有「正式機版本」？（目前看起來是開發線上混用；正式機需 debug="false"、customErrors="On"、connectionStrings 加密）
+
+IIS 應用程式集區（.NET v4.0、Integrated Mode？）
+
+是否有 HTTPS 與正式網域？（Application("http") 未來會改用 Request.Url.GetLeftPart(UriPartial.Authority) 或設定檔）
+
+SAP DI API 版本、License Server、公司庫名稱（供連線模板用；不用給密碼）
+
+先行風險與可快速改善（不改功能、不破架構）
+
+這些是「不動功能 / 不動 UI」即可做的安全與穩定性提升；等你確認後，我可以幫你一次給出安全修改 PR 的建議差異稿。
+
+移除 sa 明文與高權限連線：
+
+為「讀取」與「寫入（僅 DI API 需 SAP 帳號）」分別建立最小權限帳號。
+
+正式機 connectionStrings 用 aspnet_regiis -pef connectionStrings 加密。
+
+所有 SQL 改為參數化（2005 OK），並統一超時與錯誤處理。
+
+關閉正式機 debug="true"、開啟 customErrors，記錄到檔/DB。
+
+移除 Web 伺服器上的 Process.Start，以「伺服端產出檔案 → 使用者下載」或「排程器呼叫 API」替代。
+
+排程：把 Timer 改為 Windows 工作排程 → 呼叫受保護的 API（或最少用 Application_Start 保險重排，但最佳仍是外部排程）。
+
+集中登入守門：建立 BasePage 檢查登入（或 URL 授權），將零散 Session 檢查集中化（不動任何功能頁流程）。
+
+我建議的「第一個新功能」候選（等你補齊資訊後再選）
+
+我不會先做，先讓你挑：
+
+統一登入守門 + 權限宣告化：BasePage + [Authorize("sgXXX: m/n/d")] 輕量實作（WebForms 可用自訂屬性/Helper），把現有的 Session("s_id") 與 GetAssignRight 變成一條線。
+
+通用查詢樣板（CTE + 參數化 + 分頁）套進 ShowData：讓所有資料查詢頁用同一模板（欄=欄、列=列），先挑一張你最常查的表（例如 ORDR/RDR1 或 WO 清單）做示範。
+
+簽核推播外移為 API + 工作排程：保留 CommSignOff 的邏輯，但讓觸發與執行脫鉤，可靠且可監控。
+
+下一步（請你直接回我以下內容）
+
+上傳 A 節所列的登入／授權相關檔案（尤其 usermgm/login.aspx.vb、logout.aspx.vb、MySite1.Master.vb、Web.sitemap）。
+
+在 B 節對應資料庫執行腳本，把結果貼上或上傳文字檔（至少 user_permissionnew、[@XSFTT]、以及你第一個想做的功能會用到的標準表）。
+
+確認 C 節的部署環境資訊（正式機／測試機、IIS、HTTPS、SAP 版本）。
+
+收到這些後，我會：
+
+產出你的現況架構圖（模組、資料流、呼叫關係）
+
+提出第一個功能的三版腳手架（讀、顯示、回寫／若選擇的是登入守門，則提供最小侵入實作）
+
+附上安全修補建議的修改點（差異稿/片段），保證不破壞既有功能
+
+需要我另外給一套 「資料表結構自動匯出」的小工具 SQL（把某些表的欄位、索引、外鍵一次匯成 CSV）嗎？若要，我可以先給一版 SQL 2005 相容 的腳本，讓你一鍵產出要給我的欄位清單與索引摘要。
+
+（2025年09月19日16時10分，台北）
+
+你說：
+addsapid.aspx.vb
+檔案
+login.aspx
+檔案
+login.aspx.vb
+檔案
+logout.aspx
+檔案
+logout.aspx.vb
+檔案
+rolesetup.aspx
+檔案
+rolesetup.aspx.vb
+檔案
+addsapid.aspx
+檔案
+MySite1.Master.vb
+檔案
+Web.sitemap
+檔案
+以下是你給我的query查詢的結果，由上到下依序，每一段由空欄隔開。
+如果還有我漏掉沒給的請再告訴我，
+我的第一階段是要新增一個功能，掛到這個平台上，
+請先不要急著建議我優化原先的功能或是補強漏洞與安全性，
+請先確定是否得到足夠的資訊，然後我會告訴你我想要的第一個功能是什麼，
+我們再開始討論如何進行，謝謝。
+
+num	int	NULL	NO
+id	varchar	15	NO
+pid	varchar	15	NO
+permission	varchar	15	NO
+
+PK_user_permissionnew	clustered, unique, primary key located on PRIMARY	num
+
+user_permissionnew	dbo	user table	2022-09-04 10:06:58.083
+
+num	int	no	4	10   	0    	no	(n/a)	(n/a)	NULL
+id	varchar	no	15	     	     	no	no	no	Chinese_Taiwan_Stroke_CI_AS
+pid	varchar	no	15	     	     	no	no	no	Chinese_Taiwan_Stroke_CI_AS
+permission	varchar	no	15	     	     	no	no	no	Chinese_Taiwan_Stroke_CI_AS
+
+num	1	1	0
+
+sfid	smallint	NULL	NO
+sfname	nvarchar	50	NO
+sftype	tinyint	NULL	NO
+sftypenote	nvarchar	30	NO
+deptcode	varchar	50	NO
+todoflag	tinyint	NULL	NO
+selfform	tinyint	NULL	NO
+
+@XSFTT	dbo	user table	2024-05-08 11:38:50.983
+
+sfid	smallint	no	2	5    	0    	no	(n/a)	(n/a)	NULL
+sfname	nvarchar	no	100	     	     	no	(n/a)	(n/a)	Chinese_PRC_CI_AS
+sftype	tinyint	no	1	3    	0    	no	(n/a)	(n/a)	NULL
+sftypenote	nvarchar	no	60	     	     	no	(n/a)	(n/a)	Chinese_PRC_CI_AS
+deptcode	varchar	no	50	     	     	no	no	no	Chinese_PRC_CI_AS
+todoflag	tinyint	no	1	3    	0    	no	(n/a)	(n/a)	NULL
+selfform	tinyint	no	1	3    	0    	no	(n/a)	(n/a)	NULL
+
+Code	nvarchar	8	NO
+Name	nvarchar	30	NO
+U_model	nvarchar	-1	YES
+U_cspec	nvarchar	-1	YES
+U_cusname	nvarchar	-1	YES
+U_sales_area	nvarchar	-1	YES
+U_amount	smallint	NULL	YES
+U_shipdate	datetime	NULL	YES
+U_createdate	datetime	NULL	YES
+U_sales_person	nvarchar	-1	YES
+U_camera_pixel	nvarchar	-1	YES
+U_resolution	nvarchar	-1	YES
+U_comment	nvarchar	-1	YES
+U_status	nvarchar	-1	YES
+U_mtype	nvarchar	-1	YES
+U_updcount	smallint	NULL	YES
+U_lastupdmemo	nvarchar	-1	YES
+U_ptype	smallint	NULL	YES
+U_shiploc	nvarchar	-1	YES
+
+@UPSP	dbo	user table	2022-05-06 07:39:59.083
+
+Code	nvarchar	no	16	     	     	no	(n/a)	(n/a)	Chinese_PRC_CI_AS
+Name	nvarchar	no	60	     	     	no	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_model	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_cspec	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_cusname	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_sales_area	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_amount	smallint	no	2	5    	0    	yes	(n/a)	(n/a)	NULL
+U_shipdate	datetime	no	8	     	     	yes	(n/a)	(n/a)	NULL
+U_createdate	datetime	no	8	     	     	yes	(n/a)	(n/a)	NULL
+U_sales_person	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_camera_pixel	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_resolution	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_comment	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_status	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_mtype	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_updcount	smallint	no	2	5    	0    	yes	(n/a)	(n/a)	NULL
+U_lastupdmemo	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+U_ptype	smallint	no	2	5    	0    	yes	(n/a)	(n/a)	NULL
+U_shiploc	nvarchar	no	-1	     	     	yes	(n/a)	(n/a)	Chinese_PRC_CI_AS
+ChatGPT 說：
+已思考 26s
+
+收到你提供的檔案與查詢結果，我先確認目前「能掌握到的關鍵點」與「可能還需要的小補件」。我不會建議優化或補強任何現有功能，僅做是否足夠啟動第一個新功能規劃的核對。
+
+我已經掌握的重點
+
+專案型態：ASP.NET WebForms（.NET 4.0）。有 Global.asax(.vb) 與首頁 Index.aspx(.vb)，以及通用頁面 ShowData.aspx(.vb)、共用元件 commcode/CommUtil.vb、commcode/CommSignOff.vb、主版頁 MySite1.Master.vb、登入/登出/角色頁 login.aspx(.vb), logout.aspx(.vb), rolesetup.aspx(.vb)、新增 SAP ID addsapid.aspx(.vb)、Web.sitemap（導覽）。
+
+登入/Session：Web.config 使用 FormsAuthentication（timeout=60），sessionState timeout=30。Index.aspx.vb 會讀取使用者識別與權限（由 CommUtil.GetAssignRight(pid, s_id) 提供）。
+
+權限模型：本機 DB 的 dbo.user_permissionnew（num PK, id, pid, permission）。CommUtil.GetAssignRight 以 (pid, id) 取回對應的 permission。
+
+共用顯示模板：ShowData.aspx.vb 以 dtype 切換，透過 CommUtil.ShowBomData、ShowWoData 綁 GridView（之後可直接套你要的新功能之查詢結果）。
+
+站台層級設定：Global.asax.vb 設定 Application("http") 與 Application("localdir")、建立必要資料夾，並用計時器在 06:00 觸發簽核推送（呼叫 CommSignOff）。
+
+與 SAP 的介接：讀取面（SQL 查詢）與顯示模板在 CommUtil/ShowData；寫入面（DI API）相關類別在 CommUtil/CommSignOff 內。
+
+你提供的資料表結構：
+
+dbo.user_permissionnew（本機權限表）。
+
+SAP UDT [@XSFTT]（簽核/提醒設定相關）。
+
+SAP UDT [@UPSP]（含客製欄位 U_model/U_cspec…等）。
+
+目前已足夠開始規劃第一個新功能的部分
+
+只要你的第一個功能主要是「增一個查詢或操作頁」掛在既有平台（例如：查某些單據 → 顯示給使用者 → 視需要做寫回），就已經夠我起手規劃端到端腳手架（UI/查詢/顯示/必要時 DI API 寫入），因為：
+
+我已看到你的登入/Session 與權限取得方式（FormsAuth + GetAssignRight）。
+
+我也有現成可沿用的顯示頁範式（ShowData + GridView），可直接套你要的資料欄/列；
+
+寫入若要用 DI API，CommUtil/CommSignOff 的連線/呼叫範式也已在專案中。
+
+可能還需要的極簡補件（視你的第一個功能而定）
+
+以下不是要你現在就提供，而是當你說出「第一個功能」時，我才挑必要的跟你要。先把清單列在這裡，你一看就知道我會怎麼拿資料，不用來回猜：
+
+目標資料表結構（只限於新功能會用到的那幾張表）：
+
+若是 SAP 標準表（如 ORDR/RDR1、OINV/INV1…）：請給 欄位清單（INFORMATION_SCHEMA.COLUMNS 結果）即可；
+
+若是 SAP UDT/UDF：也請給欄位清單。
+
+若需要做「查詢條件下拉」之類的 UI，請提供該下拉來源表的欄位清單（例如客戶、倉別、人員）。
+（你已經示範過一次怎麼提供，我會用相同方式解析。）
+
+公司庫代號 與 你平台如何選庫 的方式（例如用 Session("usingdb") 或固定一個 DB）。不需要提供任何密碼，只要名字（像 SBOTST / SBOPRD）即可。
+
+（若新功能包含寫入 SAP）請告訴我要寫入的單據類型（例如：送貨、發票、內部對帳…），我會用你專案既有的 DI API 方式建雛形。
+
+總之：等你說出「第一個功能」是什麼後，我只會向你索取那個功能必要的表結構小清單，然後就能直接開始規劃與動工（沿用你現有的頁面模板與習慣）。
+
+你可以告訴我第一個新功能是什麼了！
+（範例：「新增一個『銷售訂單查詢』頁：依日期/客戶查 ORDR/RDR1，顯示欄位 A..N，並可勾選多列一鍵產生送貨單」。這樣我就知道要跟你要 ORDR/RDR1 的欄位清單，及是否需要 ODLN/DLN1 的寫入雛形。）
+
+（2025年09月19日16時28分，台北）
+
+你說：
+我想在這邊定義之後會用到的物件格式，
+例如目前定義的單據
+物件名稱為：B1交易
+B1交易物件 
+有新增/搜尋/更新模式
+交易的表單介面都一模一樣，
+不同模式下欄位顏色會有所變化。
+顏色有：
+1.可編輯色(預設白，除非欄位設定特別指定)
+2.不可指定色(預設灰，除非欄位設定特別指定)
+3.搜尋色(預設黃，除非欄位設定特別指定)
+	新增模式：
+		最開始進入表單時預設為新增模式，所有可輸入的欄位為可編輯色，不可輸入的欄位為不可指定色，
+		搜尋模式：進入搜尋模式後，原先在新增模式中可輸入的欄位變為搜尋色，不可輸入的欄位為不可指定色，
+					使用者在任何一個搜尋色欄位輸入值都會視同該欄位的篩選條件值，
+					當使用者輸入完以後，就會以每個有使用者輸入值的欄位與值做為篩選條件搜尋系統單據。
+		更新模式：使用者調出歷史單據時視同更新模式，所有可更新欄位為可編輯色且可編輯，不可更新欄位為不可指定色，且不可編輯。
+子物件有
+表頭
+表身
+	頁籤
+		1.內容(B1的服務類型採購單明細)
+		2.物流
+		3.會計
+		4.附件
+		
+		欄位：
+			主檔訊息欄位(必連結系統主檔資料)
+				雙擊主檔訊息欄位會彈出主檔資料的資訊視窗
+			交易訊息欄位
+			
+				欄位資料類型：
+					文字欄位
+					日期欄位(帶日期選擇控件)(預設選擇當天)
+					物件
+					CheckBox
+					清單(主檔訊息清單/交易訊息清單)
+					Radio Button
+
+				訊息欄位的屬性
+					1.Searchable：可搜尋/不可搜尋
+					2.Updatable：可更新/不可更新
+					3.Editable：可編輯/不可編輯
+					4.Selectable：可指定/不可指定
+					5.有有效值/無有效值
+						有效值清單
+					6.有預設值/無預設值
+						5-1.從有效值擇一指定預設值代碼
+						5-2.預設系統查詢，根據條件觸發系統查詢取值
+					7.有連結子明細表單/無連結子明細表單(雙擊欄位彈出子明細表單的視窗)
+					8.必填/可選
+
+B1交易物件
+	表頭物件
+		欄位物件
+	表身物件
+		頁籤物件
+			欄位物件
+
+物件階層以縮排整理，請為我詳閱後統整，並用Json格式表示，
+規格若有矛盾或明顯的錯誤或其它建議請提出來讓我修正或參考。
+ChatGPT 說：
+已思考 6s
+
+太好了！我先把你描述的「B1交易」整理成可落地的 JSON 規格（Schema + 範例），之後任何新功能／單據都能沿用同一套格式與行為規則。最後我也列出幾個可能的矛盾與需要釐清點，你確認後我再微調。
+
+B1交易：物件規格（Schema）
+{
+  "object": "B1Transaction",
+  "version": "1.0.0",
+  "modes": ["create", "search", "update"],
+  "ui": {
+    "colors": {
+      "editable": "#FFFFFF",
+      "nonSelectable": "#D9D9D9",
+      "search": "#FFF2CC"
+    },
+    "modeBehavior": {
+      "create": {
+        "defaultFieldColor": "editable",
+        "readOnlyFieldColor": "nonSelectable",
+        "fieldStateRules": [
+          { "when": "field.editable === true", "color": "editable" },
+          { "when": "field.editable === false", "color": "nonSelectable" }
+        ]
+      },
+      "search": {
+        "defaultFieldColor": "search",
+        "readOnlyFieldColor": "nonSelectable",
+        "fieldStateRules": [
+          { "when": "field.searchable === true", "color": "search" },
+          { "when": "field.searchable === false", "color": "nonSelectable" }
+        ],
+        "filteringRule": "Any non-empty search-colored field becomes a filter condition"
+      },
+      "update": {
+        "defaultFieldColor": "editable",
+        "readOnlyFieldColor": "nonSelectable",
+        "fieldStateRules": [
+          { "when": "field.updatable === true", "color": "editable" },
+          { "when": "field.updatable === false", "color": "nonSelectable" }
+        ]
+      }
+    }
+  },
+  "structure": {
+    "header": {
+      "type": "DocumentHeader",
+      "fields": []
+    },
+    "body": {
+      "type": "DocumentBody",
+      "tabs": [
+        { "code": "content", "name": "內容", "fields": [] },
+        { "code": "logistics", "name": "物流", "fields": [] },
+        { "code": "accounting", "name": "會計", "fields": [] },
+        { "code": "attachments", "name": "附件", "fields": [] }
+      ]
+    }
+  },
+  "fieldModel": {
+    "commonProps": [
+      "code", "label", "dataType",
+      "searchable", "updatable", "editable", "selectable",
+      "hasValidValues", "validValuesSource",
+      "hasDefaultValue", "defaultValue",
+      "defaultByQuery", "defaultQuerySpec",
+      "linkedChildForm", "required",
+      "isMasterLinked", "onDoubleClick"
+    ],
+    "dataTypes": [
+      "text",
+      "date",
+      "objectRef",
+      "checkbox",
+      "list",
+      "radio"
+    ],
+    "validValuesSourceSpec": {
+      "type": "staticOrQuery",
+      "static": [{ "code": "A", "name": "顯示名稱A" }],
+      "query": {
+        "source": "masterOrTx",
+        "table": "OCRD",
+        "keyColumn": "CardCode",
+        "textColumn": "CardName",
+        "filters": []
+      }
+    },
+    "defaultQuerySpec": {
+      "query": "SELECT TOP 1 Value FROM SomeTable WHERE Cond=@cond",
+      "params": [{ "name": "@cond", "source": "context.userId" }]
+    },
+    "onDoubleClickSpec": {
+      "open": "masterInfo|childForm",
+      "target": "OCRD|customChildFormCode"
+    }
+  }
+}
+
+範例：以「服務類型採購單」風格的 B1 交易定義（最小可用）
+{
+  "object": "B1Transaction",
+  "meta": {
+    "docType": "ServicePurchase",
+    "title": "服務採購交易"
+  },
+  "modes": ["create", "search", "update"],
+  "ui": {
+    "colors": {
+      "editable": "#FFFFFF",
+      "nonSelectable": "#D9D9D9",
+      "search": "#FFF2CC"
+    }
+  },
+  "structure": {
+    "header": {
+      "fields": [
+        {
+          "code": "DocNum",
+          "label": "單號",
+          "dataType": "text",
+          "searchable": true,
+          "updatable": false,
+          "editable": false,
+          "selectable": false,
+          "hasValidValues": false,
+          "hasDefaultValue": false,
+          "required": false,
+          "isMasterLinked": false
+        },
+        {
+          "code": "CardCode",
+          "label": "供應商代碼",
+          "dataType": "objectRef",
+          "searchable": true,
+          "updatable": true,
+          "editable": true,
+          "selectable": true,
+          "hasValidValues": true,
+          "validValuesSource": {
+            "type": "query",
+            "query": {
+              "source": "master",
+              "table": "OCRD",
+              "keyColumn": "CardCode",
+              "textColumn": "CardName",
+              "filters": [{ "column": "CardType", "op": "=", "value": "S" }]
+            }
+          },
+          "hasDefaultValue": false,
+          "required": true,
+          "isMasterLinked": true,
+          "onDoubleClick": { "open": "masterInfo", "target": "OCRD" }
+        },
+        {
+          "code": "DocDate",
+          "label": "文件日期",
+          "dataType": "date",
+          "searchable": true,
+          "updatable": true,
+          "editable": true,
+          "selectable": true,
+          "hasValidValues": false,
+          "hasDefaultValue": true,
+          "defaultValue": "today",
+          "required": true,
+          "isMasterLinked": false
+        }
+      ]
+    },
+    "body": {
+      "tabs": [
+        {
+          "code": "content",
+          "name": "內容",
+          "fields": [
+            {
+              "code": "ItemDesc",
+              "label": "服務說明",
+              "dataType": "text",
+              "searchable": true,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": false,
+              "hasDefaultValue": false,
+              "required": true,
+              "isMasterLinked": false
+            },
+            {
+              "code": "Quantity",
+              "label": "數量",
+              "dataType": "text",
+              "searchable": true,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": false,
+              "hasDefaultValue": false,
+              "required": true,
+              "isMasterLinked": false
+            },
+            {
+              "code": "Price",
+              "label": "單價",
+              "dataType": "text",
+              "searchable": true,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": false,
+              "hasDefaultValue": false,
+              "required": true,
+              "isMasterLinked": false
+            }
+          ]
+        },
+        {
+          "code": "logistics",
+          "name": "物流",
+          "fields": [
+            {
+              "code": "ShipToCode",
+              "label": "收貨地",
+              "dataType": "list",
+              "searchable": true,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": true,
+              "validValuesSource": {
+                "type": "query",
+                "query": {
+                  "source": "master",
+                  "table": "CRD1",
+                  "keyColumn": "Address",
+                  "textColumn": "Address",
+                  "filters": [{ "column": "CardCode", "op": "=", "valueFromField": "CardCode" }]
+                }
+              },
+              "hasDefaultValue": false,
+              "required": false,
+              "isMasterLinked": true,
+              "onDoubleClick": { "open": "masterInfo", "target": "CRD1" }
+            }
+          ]
+        },
+        {
+          "code": "accounting",
+          "name": "會計",
+          "fields": [
+            {
+              "code": "TaxCode",
+              "label": "稅碼",
+              "dataType": "list",
+              "searchable": true,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": true,
+              "validValuesSource": {
+                "type": "query",
+                "query": {
+                  "source": "master",
+                  "table": "OVTG",
+                  "keyColumn": "Code",
+                  "textColumn": "Name",
+                  "filters": []
+                }
+              },
+              "hasDefaultValue": true,
+              "defaultByQuery": true,
+              "defaultQuerySpec": {
+                "query": "SELECT TOP 1 Code FROM OVTG WHERE Inactive='N' ORDER BY Code",
+                "params": []
+              },
+              "required": true,
+              "isMasterLinked": false
+            }
+          ]
+        },
+        {
+          "code": "attachments",
+          "name": "附件",
+          "fields": [
+            {
+              "code": "Attachment",
+              "label": "附件上傳",
+              "dataType": "objectRef",
+              "searchable": false,
+              "updatable": true,
+              "editable": true,
+              "selectable": true,
+              "hasValidValues": false,
+              "hasDefaultValue": false,
+              "required": false,
+              "isMasterLinked": false,
+              "linkedChildForm": "AttachmentDialog"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+需要你確認或修正的地方（規格矛盾／易混淆點）
+
+「不可指定色」的語義
+
+你同時定義了 editable（可打字）與 selectable（可選擇有效值/彈窗挑選）。
+
+「不可指定色」看起來是不可互動（包含不能輸入也不能挑選）。我先把它當作只讀色（nonSelectable），對應 editable=false 或 selectable=false 的欄位上色。
+👉 是否同意：「不可指定色 = 只讀不可互動」？若你要區分「可看但不可打字、仍可挑選清單」的情境，我可以再加一種「可選不可打字色」。
+
+搜尋模式下的欄位行為
+
+你定義「新增模式中可輸入的欄位 → 搜尋模式時改為搜尋色」。我已套用成：searchable=true 的欄位才變黃、且非空值即成為條件。
+👉 是否有欄位可輸入但不可當搜尋條件？如果有，我們就讓該欄位 searchable=false，搜尋模式就會是灰色而不是黃色。
+
+「物件」資料型別
+
+我將它解讀為 objectRef（連到主檔或子窗體）並用 isMasterLinked=true + onDoubleClick.open="masterInfo" 表示雙擊彈出主檔詳情；若是要開啟子明細表單則用 linkedChildForm。
+👉 確認：objectRef 的雙擊預設行為是「主檔詳情」，若欄位還要能打開子窗體就另外放 linkedChildForm。
+
+有效值 vs 清單
+
+你同時有「清單」型欄位與「有效值」屬性。我目前是：
+
+dataType="list" = 以清單互動（固定或查詢取得）。
+
+hasValidValues=true + validValuesSource = 有有效值來源（可給 list/checkbox/radio 使用）。
+👉 確認這樣的切分（型別決定互動方式；有效值決定來源）是否符合你的直覺？
+
+預設值兩種來源
+
+你定義了「5-1 從有效值擇一」「5-2 由系統查詢」。我已拆成：
+
+hasDefaultValue + defaultValue（靜態，如 "today" 或某個代碼）；
+
+defaultByQuery=true + defaultQuerySpec（動態查詢）。
+👉 若同欄位同時存在兩者，優先權要怎麼定？我暫定：defaultByQuery 優先。
+
+更新模式的可編輯規則
+
+你寫「所有可更新欄位為可編輯色且可編輯」。我對應成 updatable=true 的欄位在 update 模式會是白色、可動作；否則灰色。
+👉 若某欄位在 create 可編輯、但在 update 應固定不可改，請在欄位層級加 updatable=false。
+
+如果以上規格你覺得 OK，或要我在 JSON 中再加入更多欄位屬性（例如：格式化規則、精度、小數位、最小/最大長度、跨欄位驗證規則、欄位對應到 SAP 表/欄位的 mapping ），你直接告訴我即可。我再幫你把 Schema 擴充完整，然後我們就能用這套結構來「宣告」你的第一個新功能頁面欄位與行為。
+
+等你回覆確認／修正點後，請說出你想做的第一個功能，我會根據這份 JSON 規格，直接產出該功能的欄位宣告 + 查詢/顯示/（若需）寫入的腳手架，而且完全沿用你現有平台的風格與習慣。
+
+（2025年09月23日13時54分，台北）
+
+你說：
+1.我要的不可選是希望使用者無法將Cursor移至該欄位，讓他們在按Tab的時候也會自動跳過它，節省Tab切換的時間，也避免使用者意外選到了該欄，卻無法輸入的煩躁情況。
+2.searchable=true 的欄位才變黃 沒有錯。
+有，有的欄位會是可輸入，但不可當搜尋條件。
+3.打開主檔會是直接點該主檔明細欄位，打開子明細表會是在明細同列的其它欄位或是表頭的主檔欄位旁邊的按鈕，點擊時會根據表頭主檔/單號或明細同列的主檔等Key值或其他資訊來決定開啟的子明細表內容，並不會需要使用者選擇或是根據情況判斷雙擊時的行為。
+4.是
+5.這邊是互斥的，承4. 有效值來源就會定義是固定有效值，還是從系統查詢取得有效值，所以選擇了固定就不會是查詢，選擇查詢就不會是固定，若選擇的方式無法取得資料，清單就應為空白，checkbox或Radio就應該不顯示任何選項或方框。轉而顯示"資料取得錯誤，請聯絡系統管理員"
+6. 這裡比較特別，請先協助我釐清這個問題：
+一般來說，我應該在物件上設定各種模式的屬性狀態，
+還是說物件只有預設的狀態，而在切換模式的Function裡面設定每個屬性在每個模式應切換到哪個狀態？
+ChatGPT 說：
+
+超清楚，感謝補充！我先把你的 1–5 點吸收進統一的 JSON 物件規格，並回答第 6 點該怎麼設計「模式狀態」的最佳做法。以下內容只針對物件定義與行為規格，不涉及任何既有功能優化或補強。
+
+一、更新後的 JSON 規格（核心片段）
+
+目標：同一份宣告可支援「新增/搜尋/更新」三種模式；欄位可以 可編輯（editable）、可指定（selectable）、可聚焦/可 Tab 停留（focusable） 各自獨立；搜尋模式僅 searchable=true 的欄會變黃並當作條件；「不可選」= 無法聚焦＋Tab 自動跳過。
+
+{
+  "object": "B1Transaction",
+  "version": "1.0.1",
+  "modes": ["create", "search", "update"],
+  "ui": {
+    "theme": {
+      "colorEditable": "#FFFFFF",
+      "colorReadonly": "#D9D9D9",
+      "colorSearch": "#FFF2CC"
+    },
+    "tab": {
+      "autoSkipNonFocusable": true,
+      "order": []  // 可選：自訂整體 Tab 順序（以欄位 code 排序）
+    }
+  },
+  "structure": {
+    "header": { "fields": [] },
+    "body": {
+      "tabs": [
+        { "code": "content", "name": "內容", "fields": [] },
+        { "code": "logistics", "name": "物流", "fields": [] },
+        { "code": "accounting", "name": "會計", "fields": [] },
+        { "code": "attachments", "name": "附件", "fields": [] }
+      ]
+    }
+  },
+  "fieldModel": {
+    "props": {
+      "code": "欄位代碼",
+      "label": "標籤",
+      "dataType": "text|date|objectRef|checkbox|list|radio",
+      "searchable": "bool",
+      "updatable": "bool",
+      "editable": "bool",
+      "selectable": "bool",
+      "focusable": "bool",
+      "required": "bool",
+      "isMasterLinked": "bool",
+      "valueSource": {
+        "type": "none|static|query",
+        "static": [{ "code": "A", "name": "顯示A" }],
+        "query": {
+          "table": "來源表或視圖",
+          "keyColumn": "代碼欄",
+          "textColumn": "名稱欄",
+          "filters": []
+        },
+        "onError": {
+          "fallback": "empty", 
+          "message": "資料取得錯誤，請聯絡系統管理員"
+        }
+      },
+      "defaultValue": null,
+      "defaultQuery": null,
+      "actions": {
+        "click": "none|openMasterInfo",
+        "adjacentButtons": [
+          {
+            "code": "OpenChild",
+            "label": "開子明細",
+            "opens": "childForm",
+            "paramsFrom": "header|row",
+            "paramMap": { "DocEntry": "DocEntry", "CardCode": "CardCode" }
+          }
+        ]
+      }
+    }
+  },
+  "modePolicies": {
+    "create": {
+      "fieldDefaults": {
+        "color": "editable",
+        "editable": true,
+        "focusable": true,
+        "selectable": true
+      },
+      "stateRules": [
+        { "when": "field.editable == false", "set": { "color": "readonly", "focusable": false } }
+      ]
+    },
+    "search": {
+      "fieldDefaults": {
+        "color": "readonly",
+        "editable": false,
+        "focusable": false,
+        "selectable": false
+      },
+      "stateRules": [
+        { "when": "field.searchable == true", "set": { "color": "search", "focusable": true } }
+      ],
+      "filteringRule": "非空且 color==search 的欄值 → 組合成查詢條件"
+    },
+    "update": {
+      "fieldDefaults": {
+        "color": "readonly",
+        "editable": false,
+        "focusable": false,
+        "selectable": false
+      },
+      "stateRules": [
+        { "when": "field.updatable == true", "set": { "color": "editable", "editable": true, "focusable": true } }
+      ]
+    }
+  }
+}
+
+說明（對應你的 1–5 點）
+
+不可選 = 不能聚焦/不能停留：以 focusable=false 表示，Tab 自動跳過（autoSkipNonFocusable=true）。
+
+搜尋模式：只有 searchable=true 的欄變黃（colorSearch）且 focusable=true，其他欄為唯讀灰。
+
+欄可輸入但不可搜尋：宣告 editable=true、searchable=false；在搜尋模式仍是灰＋不可聚焦。
+
+主檔與子明細開啟方式：
+
+點擊欄位本身 → actions.click="openMasterInfo"
+
+同列或表頭旁邊的按鈕 → actions.adjacentButtons（用 paramsFrom 與 paramMap 指定帶入鍵值）。
+
+有效值來源互斥：valueSource.type 僅能為 static 或 query 其一；若查不到或錯誤 → 依 onError 顯示訊息且不顯示選項。
+
+二、欄位定義「最小實例」（片段）
+
+展示「可輸入但不可搜尋」與「搜尋專用欄位」同時存在時的狀態切換。
+
+{
+  "structure": {
+    "header": {
+      "fields": [
+        {
+          "code": "CardCode",
+          "label": "主檔：客戶代碼",
+          "dataType": "objectRef",
+          "isMasterLinked": true,
+          "editable": true,
+          "updatable": true,
+          "searchable": false,
+          "selectable": true,
+          "focusable": true,
+          "actions": { "click": "openMasterInfo" },
+          "valueSource": {
+            "type": "query",
+            "query": { "table": "OCRD", "keyColumn": "CardCode", "textColumn": "CardName", "filters": [{ "column": "CardType", "op": "=", "value": "C" }] },
+            "onError": { "fallback": "empty", "message": "資料取得錯誤，請聯絡系統管理員" }
+          }
+        },
+        {
+          "code": "CardNameLike",
+          "label": "搜尋：客戶名稱包含",
+          "dataType": "text",
+          "editable": false,
+          "updatable": false,
+          "searchable": true,
+          "selectable": false,
+          "focusable": true
+        }
+      ]
+    }
+  }
+}
+
+
+create：CardCode 白色可編輯可挑；CardNameLike 灰（不可編輯）。
+
+search：CardCode 因 searchable=false → 灰＆不可聚焦；CardNameLike 黃色可聚焦，輸入值會成為 Like 條件。
+
+update：CardCode 因 updatable=true → 白色可編輯；CardNameLike 灰。
+
+三、第 6 點：模式狀態應該怎麼設計？
+
+你問的是宣告 vs 程式邏輯的分工。我建議採 「預設屬性 + 模式覆寫表」的宣告式混合，理由：
+
+A. 全宣告（每欄位把三種模式都寫死）
+
+優點：一目了然。
+
+缺點：重複多、容易不一致（維護成本高）。
+
+B. 全程式（欄位只寫預設，切換模式時用 Function 逐欄覆寫）
+
+優點：彈性大。
+
+缺點：規則分散在程式，日後很難追；不同頁面可能行為漂移。
+
+C. 混合（建議）
+
+在 JSON 寫欄位的基礎屬性（editable/searchable/updatable/selectable/focusable），
+
+另在 JSON 寫一份模式覆寫表（modePolicies），是通用規則（如：search 模式讓 searchable=true 的欄位 → 黃色＋可聚焦；其他欄灰＋不可聚焦）。
+
+UI 引擎切換模式時，依序套用：
+
+欄位基礎屬性（每欄位自身宣告）
+
+模式預設（fieldDefaults）
+
+模式規則（stateRules）
+形成最終狀態（色彩/可編輯/可聚焦/可指定）。
+
+這樣做的好處：
+
+一致性：同模式下所有頁面行為一致（因為 modePolicies 是全域規則）。
+
+可覆寫：個別欄位只要改自身宣告，就能自然落入通用規則（必要時再給「例外」欄位加 modeOverride，我們也可預留此擴充）。
+
+可測試：規則表可做單元測試與快照比對。
+
+若你同意，我就以 C. 混合方案 作為後續所有 B1 交易頁的唯一規範。
+之後若有少數欄位需要在特定模式特例化，我會在欄位加 modeOverride（可選）：
+
+"modeOverride": {
+  "search": { "focusable": false }, 
+  "update": { "editable": false }
+}
+
+四、需要你確認的 3 件事
+
+「不可選 = 無法聚焦（focusable=false）＋ Tab 跳過」—這定義是否完全符合你的期待？
+
+「主檔」採欄位點擊開主檔，「子明細」採旁邊按鈕帶參數開窗—本規格是否無需「雙擊」語義？
+
+採用 混合方案（預設屬性 + modePolicies 規則） 作為後續唯一規範，可以嗎？
+
+確認後我就可以用這份規格，幫你把第一個功能的「欄位宣告 JSON＋查詢/顯示（含搜尋模式）骨架」一次產出。你只要告訴我：
+
+這個功能的名稱（掛在哪個節點下）、
+
+要查/寫的 SAP 表或 UDT（我再向你要必要的欄位清單），
+
+以及每個頁籤的欄位要哪些（先列 5–10 個關鍵欄即可）。
+
+（2025年09月24日10時04分，台北）
+
+你說：
+1.是
+2.
+想更新子視窗開啟的定義：
+2-1.雙擊主檔欄位開啟主檔視窗
+    例如雙擊項目代碼開啟項目主檔視窗
+2-2.雙擊子明細欄位開啟子明細視窗
+    (重要)，例如費用申請單，使用者會需要在一張單的明細輸入多張憑證(例如統一發票)號碼，當使用者雙擊發票號碼的時候，應彈出子明細視窗，讓使用者可以輸入此張發票的明細。
+2-3.雙擊子報表欄位開啟子報表
+    例如雙擊價格欄位時，彈出最後價格報表視窗，根據表頭的供應商、文件過帳日期、表身同列的項目代碼等Key/篩選條件顯示相關資料。
+
+3.是，請採用混合方案。
+ChatGPT 說：
+已思考 11s
+
+太好了，我把你的新規則（2-1～2-3）整合進我們的宣告式規格，並採用你同意的「混合方案：欄位預設屬性 + 全域 modePolicies 覆寫」。下面是更新後的 JSON 規格（核心）與最小實例，供你之後直接沿用。
+
+B1交易 物件規格（v1.1 — 含雙擊行為）
+{
+  "object": "B1Transaction",
+  "version": "1.1.0",
+  "modes": ["create", "search", "update"],
+  "ui": {
+    "theme": {
+      "colorEditable": "#FFFFFF",
+      "colorReadonly": "#D9D9D9",
+      "colorSearch": "#FFF2CC"
+    },
+    "tab": {
+      "autoSkipNonFocusable": true,
+      "order": []
+    }
+  },
+  "structure": {
+    "header": { "type": "DocumentHeader", "fields": [] },
+    "body": {
+      "type": "DocumentBody",
+      "tabs": [
+        { "code": "content", "name": "內容", "fields": [] },
+        { "code": "logistics", "name": "物流", "fields": [] },
+        { "code": "accounting", "name": "會計", "fields": [] },
+        { "code": "attachments", "name": "附件", "fields": [] }
+      ]
+    }
+  },
+  "fieldModel": {
+    "props": {
+      "code": "欄位代碼",
+      "label": "標籤",
+      "dataType": "text|date|objectRef|checkbox|list|radio",
+      "searchable": "bool",
+      "updatable": "bool",
+      "editable": "bool",
+      "selectable": "bool",
+      "focusable": "bool",
+      "required": "bool",
+      "isMasterLinked": "bool",
+
+      "valueSource": {
+        "type": "none|static|query",
+        "static": [{ "code": "A", "name": "顯示A" }],
+        "query": {
+          "table": "來源表或視圖",
+          "keyColumn": "代碼欄",
+          "textColumn": "名稱欄",
+          "filters": []
+        },
+        "onError": {
+          "fallback": "empty",
+          "message": "資料取得錯誤，請聯絡系統管理員"
+        }
+      },
+
+      "defaultValue": null,
+      "defaultQuery": null,
+
+      "actions": {
+        "doubleClick": {
+          "type": "none|openMasterInfo|openChildDetailForm|openChildReport",
+          "paramsFrom": "header|row",
+          "paramMap": { "DocEntry": "DocEntry", "CardCode": "CardCode", "ItemCode": "ItemCode" }
+        },
+        "adjacentButtons": [
+          {
+            "code": "OpenChild",
+            "label": "開子明細",
+            "action": "openChildDetailForm",
+            "paramsFrom": "row",
+            "paramMap": { "DocEntry": "DocEntry", "LineNum": "LineNum" }
+          }
+        ]
+      }
+    }
+  },
+
+  "modePolicies": {
+    "create": {
+      "fieldDefaults": { "color": "editable", "editable": true,  "focusable": true,  "selectable": true },
+      "stateRules":   [ { "when": "field.editable == false", "set": { "color": "readonly", "focusable": false } } ]
+    },
+    "search": {
+      "fieldDefaults": { "color": "readonly", "editable": false, "focusable": false, "selectable": false },
+      "stateRules":   [ { "when": "field.searchable == true", "set": { "color": "search",  "focusable": true  } } ],
+      "filteringRule": "非空且 color==search 的欄值 → 組合成查詢條件"
+    },
+    "update": {
+      "fieldDefaults": { "color": "readonly", "editable": false, "focusable": false, "selectable": false },
+      "stateRules":   [ { "when": "field.updatable == true", "set": { "color": "editable","editable": true, "focusable": true } } ]
+    }
+  }
+}
+
+雙擊行為（依你第 2 點補強）
+
+2-1 主檔欄位 → openMasterInfo（例：雙擊 ItemCode 開 OITM 主檔視窗）
+
+2-2 子明細欄位 → openChildDetailForm（例：雙擊 InvoiceNo 彈出「發票明細」子窗，帶入表頭/同列 key）
+
+2-3 子報表欄位 → openChildReport（例：雙擊 Price 彈出「最後價格報表」，帶入供應商、過帳日、項目代碼）
+
+參數注入統一用：
+
+paramsFrom: "header" 或 "row"（從表頭或該列取 key）
+
+paramMap: { "ReportVendor": "CardCode", "ReportDate": "DocDate", "ReportItem": "ItemCode" }
+
+最小實例（片段）
+{
+  "structure": {
+    "header": {
+      "fields": [
+        {
+          "code": "CardCode",
+          "label": "供應商代碼",
+          "dataType": "objectRef",
+          "isMasterLinked": true,
+          "editable": true,
+          "updatable": true,
+          "searchable": false,
+          "selectable": true,
+          "focusable": true,
+          "actions": {
+            "doubleClick": {
+              "type": "openMasterInfo",
+              "paramsFrom": "header",
+              "paramMap": { "CardCode": "CardCode" }
+            }
+          },
+          "valueSource": {
+            "type": "query",
+            "query": { "table": "OCRD", "keyColumn": "CardCode", "textColumn": "CardName",
+              "filters": [{ "column": "CardType", "op": "=", "value": "S" }]
+            },
+            "onError": { "fallback": "empty", "message": "資料取得錯誤，請聯絡系統管理員" }
+          },
+          "required": true
+        },
+        {
+          "code": "DocDate",
+          "label": "過帳日期",
+          "dataType": "date",
+          "editable": true,
+          "updatable": true,
+          "searchable": true,
+          "selectable": true,
+          "focusable": true,
+          "defaultValue": "today",
+          "required": true
+        }
+      ]
+    },
+    "body": {
+      "tabs": [
+        {
+          "code": "content",
+          "name": "內容",
+          "fields": [
+            {
+              "code": "ItemCode",
+              "label": "項目代碼",
+              "dataType": "objectRef",
+              "isMasterLinked": true,
+              "editable": true,
+              "updatable": true,
+              "searchable": true,
+              "selectable": true,
+              "focusable": true,
+              "actions": {
+                "doubleClick": {
+                  "type": "openMasterInfo",
+                  "paramsFrom": "row",
+                  "paramMap": { "ItemCode": "ItemCode" }
+                }
+              }
+            },
+            {
+              "code": "InvoiceNo",
+              "label": "發票號碼",
+              "dataType": "text",
+              "editable": true,
+              "updatable": true,
+              "searchable": true,
+              "selectable": true,
+              "focusable": true,
+              "actions": {
+                "doubleClick": {
+                  "type": "openChildDetailForm",
+                  "paramsFrom": "row",
+                  "paramMap": { "DocEntry": "DocEntry", "LineNum": "LineNum", "InvoiceNo": "InvoiceNo" }
+                }
+              }
+            },
+            {
+              "code": "Price",
+              "label": "單價",
+              "dataType": "text",
+              "editable": true,
+              "updatable": true,
+              "searchable": true,
+              "selectable": true,
+              "focusable": true,
+              "actions": {
+                "doubleClick": {
+                  "type": "openChildReport",
+                  "paramsFrom": "row",
+                  "paramMap": { "Vendor": "CardCode", "PostDate": "DocDate", "Item": "ItemCode" }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+小結與下一步
+
+「不可選」現已等同 不可聚焦（focusable=false），Tab 會自動跳過，完全符合你的 1。
+
+「雙擊」已細分為 主檔／子明細／子報表 三型，靠 doubleClick.type 與 paramsFrom + paramMap 控制。
+
+採用 混合方案（你同意的 3），後續所有頁面都能靠 modePolicies 保持一致行為；少數欄位如需特例，再用 modeOverride 擴充即可（我保留此欄位，等你有需求再加進 schema）。
+
+只要你告訴我第一個功能的目標（掛在哪個節點、要查/寫哪些 SAP 表或 UDT、每個頁籤的關鍵欄位 5–10 欄），我就用這份規格，直接幫你產出：
+
+該頁的 欄位宣告 JSON（含三種模式切換行為）
+
+查詢（CTE + 參數化，SQL 2005 相容） 與顯示綁定骨架
+
+（若需要寫入）DI API 寫入雛形 與欄/列對應
+
+等你下指令：第一個功能要做哪一頁！
+
+（2025年09月24日10時25分，台北）
+
+你說：
+我想先更新物件格式裡的欄位定義，把欄位中的7.有連結子明細表單/無連結子明細表單(雙擊欄位彈出子明細表單的視窗)更新為：
+					7.雙擊行為：
+						7-1.開啟主檔
+						7-2.開啟子明細表單
+						7-3.開啟報表
+ChatGPT 說：
+已停止思考
+你說：
+我想先更新物件格式裡的欄位定義，把欄位中的7.有連結子明細表單/無連結子明細表單(雙擊欄位彈出子明細表單的視窗)更新為：
+					7.雙擊行為：
+                        7-1.無
+						7-2.開啟主檔
+						7-3.開啟子明細表單
+						7-4.開啟報表
+ChatGPT 說：
+
+了解 ✅
+我已把「欄位定義」中的第 7 點更新為「雙擊行為」，明確拆分為 4 種狀態：
+
+更新後欄位屬性（片段）
+{
+  "fieldModel": {
+    "props": {
+      "code": "欄位代碼",
+      "label": "標籤",
+      "dataType": "text|date|objectRef|checkbox|list|radio",
+      "searchable": "bool",
+      "updatable": "bool",
+      "editable": "bool",
+      "selectable": "bool",
+      "focusable": "bool",
+      "required": "bool",
+      "isMasterLinked": "bool",
+
+      "valueSource": { /* 同前 */ },
+
+      "defaultValue": null,
+      "defaultQuery": null,
+
+      "actions": {
+        "doubleClick": {
+          "type": "none|openMasterInfo|openChildDetailForm|openChildReport",
+          "paramsFrom": "header|row",
+          "paramMap": {
+            "DocEntry": "DocEntry",
+            "LineNum": "LineNum",
+            "ItemCode": "ItemCode",
+            "CardCode": "CardCode"
+          }
+        }
+      }
+    }
+  }
+}
+
+四種雙擊行為
+
+none → 無動作（純顯示欄位，不觸發任何視窗）
+
+openMasterInfo → 開啟主檔（例如雙擊項目代碼 → 打開 OITM 主檔）
+
+openChildDetailForm → 開啟子明細表單（例如雙擊發票號碼 → 打開「發票明細」子窗）
+
+openChildReport → 開啟子報表（例如雙擊價格 → 打開「最後價格報表」，帶供應商/日期/項目條件）
+
+補充建議
+
+我保留 paramsFrom（來源：header 或 row）與 paramMap（實際帶入的鍵值對），這樣就能讓同一規格同時支援「表頭主檔」與「表身同列」的雙擊情境。
+
+如果你覺得 「子報表」跟「子明細」差別大，我們也能在 JSON 中再細分 subFormType: "detail"|"report"，但目前用 doubleClick.type 就能明確區分。
+
+要不要我幫你整理一個完整更新後的欄位屬性對照表（包含 1–8 點，每個屬性怎麼用、在 create/search/update 模式會怎麼變化），讓之後設計功能頁時直接有一份「欄位規格檔」可以複製？
+
+你說：
+OK
+ChatGPT 說：
+已思考 12s
+
+太好了！以下是完整更新後的「欄位屬性對照表」，已納入你剛剛確認的規則（不可選＝不可聚焦且 Tab 自動跳過、雙擊行為四種、混合模式套用）。
+
+B1 交易—欄位屬性對照表（v1.1）
+1) 欄位共同屬性（Field Props）
+
+code：字串；欄位代碼（唯一）。
+
+label：字串；顯示名稱。
+
+dataType：text | date | objectRef | checkbox | list | radio。
+
+searchable：布林；是否可作為搜尋條件（僅影響 Search 模式）。
+
+updatable：布林；Update 模式是否允許修改。
+
+editable：布林；Create 模式是否可輸入（基準屬性）。
+
+selectable：布林；是否可用「選取/挑選」的方式指定（例如清單或挑主檔）。
+
+focusable：布林；是否可聚焦、是否可停留在 Tab 流程中。false = Tab 自動跳過。
+
+required：布林；是否必填（不同模式可合併驗證規則）。
+
+isMasterLinked：布林；此欄是否連結到主檔資料（用於主檔資訊彈窗顯示）。
+
+valueSource：有效值來源（互斥）
+
+type: none | static | query（三選一）
+
+static: [{ code, name }] 固定有效值清單
+
+query: { table, keyColumn, textColumn, filters: [] } 系統查詢取得有效值
+
+onError: { fallback: "empty", message: "資料取得錯誤，請聯絡系統管理員" }
+
+defaultValue：靜態預設值（例如 "today"、"N"）。
+
+defaultQuery：動態預設值（例如 { query, params }）。
+
+actions.doubleClick：雙擊行為（四選一）
+
+type: none | openMasterInfo | openChildDetailForm | openChildReport
+
+paramsFrom: header | row（帶入參數來源）
+
+paramMap: {"DocEntry":"DocEntry","LineNum":"LineNum","ItemCode":"ItemCode","CardCode":"CardCode"}（鍵值對）
+
+actions.adjacentButtons：（可選）欄旁按鈕陣列，如需提供「顯示子明細/子報表」按鈕時使用。
+
+備註
+
+valueSource.type 必為互斥：選 static 就不會是 query；選 query 就不會是 static。查不到或錯誤 → 依 onError 顯示訊息且清單空白/不顯示選項。
+
+focusable=false ⇒ 不可聚焦、Tab 直接略過；符合你「不可選」定義。
+
+2) 模式（Mode）與狀態套用（混合方案）
+
+系統切換模式時，最終狀態由三層規則決定（依序覆寫）：
+
+欄位基礎屬性（editable/searchable/updatable/selectable/focusable）
+
+modePolicies.fieldDefaults（該模式預設）
+
+modePolicies.stateRules（條件覆寫）
+
+色彩主題（可全域改）
+
+colorEditable：#FFFFFF（可編輯色）
+
+colorReadonly：#D9D9D9（不可指定色/只讀）
+
+colorSearch：#FFF2CC（搜尋色）
+
+Create 模式
+
+預設：color=editable, editable=true, focusable=true, selectable=true
+
+規則：if field.editable == false → color=readonly, focusable=false
+
+典型效果：可輸入欄＝白色；不可輸入欄＝灰色且 Tab 跳過
+
+Search 模式
+
+預設：color=readonly, editable=false, focusable=false, selectable=false
+
+規則：if field.searchable == true → color=search, focusable=true
+
+典型效果：只有 searchable=true 的欄變黃且可聚焦，非空值會成為查詢條件；其他欄灰色且 Tab 跳過
+
+Update 模式
+
+預設：color=readonly, editable=false, focusable=false, selectable=false
+
+規則：if field.updatable == true → color=editable, editable=true, focusable=true
+
+典型效果：可更新欄＝白色可編輯；不可更新欄＝灰色且 Tab 跳過
+
+可選：若少數欄在特定模式要特例，可在欄位加 modeOverride（日後需要再加入到 schema）。
+
+3) Tab 行為
+
+全域設定：autoSkipNonFocusable=true → 所有 focusable=false 的欄位，Tab 自動略過。
+
+可選：ui.tab.order 以欄位 code 陣列指定 Tab 順序（未列者按預設順序接續）。
+
+4) 雙擊行為—定義
+
+none：無動作。
+
+openMasterInfo：開啟主檔（例：雙擊 ItemCode → OITM 主檔視窗）。
+
+openChildDetailForm：開啟子明細表單（例：雙擊 InvoiceNo → 「發票明細」子窗，可輸入同張憑證多筆細項）。
+
+openChildReport：開啟子報表（例：雙擊 Price → 「最後價格」報表；帶入 CardCode/DocDate/ItemCode）。
+
+5) 最小樣板（兩個欄位示例）
+{
+  "fields": [
+    {
+      "code": "CardCode",
+      "label": "供應商代碼",
+      "dataType": "objectRef",
+      "isMasterLinked": true,
+      "editable": true,
+      "updatable": true,
+      "searchable": false,
+      "selectable": true,
+      "focusable": true,
+      "actions": {
+        "doubleClick": {
+          "type": "openMasterInfo",
+          "paramsFrom": "header",
+          "paramMap": { "CardCode": "CardCode" }
+        }
+      },
+      "valueSource": {
+        "type": "query",
+        "query": {
+          "table": "OCRD",
+          "keyColumn": "CardCode",
+          "textColumn": "CardName",
+          "filters": [{ "column": "CardType", "op": "=", "value": "S" }]
+        },
+        "onError": { "fallback": "empty", "message": "資料取得錯誤，請聯絡系統管理員" }
+      },
+      "required": true
+    },
+    {
+      "code": "Price",
+      "label": "單價",
+      "dataType": "text",
+      "editable": true,
+      "updatable": true,
+      "searchable": true,
+      "selectable": true,
+      "focusable": true,
+      "actions": {
+        "doubleClick": {
+          "type": "openChildReport",
+          "paramsFrom": "row",
+          "paramMap": { "Vendor": "CardCode", "PostDate": "DocDate", "Item": "ItemCode" }
+        }
+      }
+    }
+  ]
+}
+
+
+如果這版對照表 OK，我就用它當作後續所有頁面的單一真相來源（Single Source of Truth）。
+你現在可以告訴我：第一個功能頁要掛在哪個節點、用到哪些表（標準表/UDT）與每個頁籤的關鍵欄位（先列 5–10 欄即可）。我會直接用這份規格幫你產生該頁的 欄位宣告 JSON + 查詢/顯示骨架（SQL 2005 相容，CTE＋參數化），必要時再附 DI API 寫入雛形。
