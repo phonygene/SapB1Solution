@@ -1,0 +1,622 @@
+{
+  "object": "B1Transaction",
+  "version": "1.1.0",
+  "meta": {
+    "docType": "ExpenseClaim",
+    "title": "費用申請單",
+    "description": "建立 AP Invoice 並寫入 MDR 發票明細中介表"
+  },
+  "modes": ["create", "search", "update"],
+
+  "dataBinding": {
+    "master": {
+      "table": "MGUIAP_Import",
+      "primaryKey": "ID"
+    },
+    "details": {
+      "invoiceDetail": {
+        "table": "MGUIAPDetail_Import",
+        "foreignKey": "ID",
+        "lineKey": "LineId"
+      }
+    }
+  },
+
+  "ui": {
+    "layout": {
+      "master": {
+        "title": "費用申請單表頭",
+        "fields": {
+          "ID": {
+            "label": "ID",
+            "type": "int",
+            "editable": false,
+            "searchable": true,
+            "updatable": false,
+            "required": false,
+            "visible": true,
+            "focusable": false,
+            "doubleClick": {"type": "None"}
+          },
+          "LineId": {
+            "label": "列號",
+            "type": "int",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "defaultValue": 1,
+            "doubleClick": {"type": "None"}
+          },
+          "U_DocEntry": {
+            "label": "AP 發票 DocEntry",
+            "type": "int",
+            "editable": false,
+            "searchable": true,
+            "updatable": false,
+            "required": false,
+            "visible": true,
+            "focusable": false,
+            "doubleClick": {
+              "type": "LinkToDoc",
+              "target": "APInvoice",
+              "paramsFrom": ["U_DocEntry"]
+            }
+          },
+          "U_OBJTYPE": {
+            "label": "物件類型",
+            "type": "string",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": false,
+            "focusable": false,
+            "defaultValue": "18",
+            "doubleClick": {"type": "None"}
+          },
+          "DocNum": {
+            "label": "AP 發票單號",
+            "type": "int",
+            "editable": false,
+            "searchable": true,
+            "updatable": false,
+            "required": false,
+            "visible": true,
+            "focusable": false,
+            "doubleClick": {"type": "None"}
+          },
+          "DocTotal": {
+            "label": "單據總金額",
+            "type": "decimal",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "format": "N2",
+            "doubleClick": {"type": "None"},
+            "calculation": {
+              "formula": "SUM(details.invoiceDetail.U_HWBAS + details.invoiceDetail.U_HWSTE)",
+              "dependencies": ["details.invoiceDetail.U_HWBAS", "details.invoiceDetail.U_HWSTE"]
+            }
+          },
+          "VatSum": {
+            "label": "發票稅額總金額",
+            "type": "decimal",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "format": "N2",
+            "doubleClick": {"type": "None"},
+            "calculation": {
+              "formula": "SUM(details.invoiceDetail.U_HWSTE)",
+              "dependencies": ["details.invoiceDetail.U_HWSTE"]
+            }
+          },
+          "CreateDate": {
+            "label": "建立日期",
+            "type": "datetime",
+            "editable": false,
+            "searchable": true,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "defaultValue": "GETDATE()",
+            "format": "yyyy-MM-dd HH:mm:ss",
+            "doubleClick": {"type": "None"}
+          },
+          "CreateBy": {
+            "label": "建立人",
+            "type": "string",
+            "editable": false,
+            "searchable": true,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "defaultValue": "SESSION.UserId",
+            "maxLength": 50,
+            "doubleClick": {"type": "None"}
+          },
+          "UpdateDate": {
+            "label": "更新日期",
+            "type": "datetime",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "defaultValue": "GETDATE()",
+            "format": "yyyy-MM-dd HH:mm:ss",
+            "doubleClick": {"type": "None"}
+          },
+          "UpdateBy": {
+            "label": "更新人",
+            "type": "string",
+            "editable": false,
+            "searchable": false,
+            "updatable": false,
+            "required": true,
+            "visible": true,
+            "focusable": false,
+            "defaultValue": "SESSION.UserId",
+            "maxLength": 50,
+            "doubleClick": {"type": "None"}
+          }
+        }
+      },
+
+      "details": [
+        {
+          "name": "invoiceDetail",
+          "title": "發票明細",
+          "type": "grid",
+          "fields": {
+            "LineId": {
+              "label": "列號",
+              "type": "int",
+              "editable": false,
+              "required": true,
+              "visible": true,
+              "focusable": false,
+              "autoIncrement": true,
+              "doubleClick": {"type": "None"}
+            },
+            "U_LIFNR": {
+              "label": "供應商代碼",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 20,
+              "doubleClick": {
+                "type": "ChooseFromList",
+                "target": "2-BP",
+                "paramsFrom": ["U_LIFNR"],
+                "paramMap": {"U_LIFNR": "CardCode"}
+              },
+              "validation": {
+                "checkExists": "SELECT CardCode FROM OCRD WHERE CardCode = @U_LIFNR AND CardType = 'S'"
+              }
+            },
+            "U_STCEG": {
+              "label": "統一編號",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 10,
+              "doubleClick": {
+                "type": "ChooseFromList",
+                "target": "UserVendorTaxId",
+                "paramsFrom": ["U_STCEG"],
+                "paramMap": {"U_STCEG": "TaxId"}
+              },
+              "validation": {
+                "pattern": "^[0-9]{8}$",
+                "message": "統一編號必須為 8 位數字"
+              }
+            },
+            "U_XBLNR": {
+              "label": "發票號碼",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 16,
+              "doubleClick": {"type": "None"},
+              "validation": {
+                "pattern": "^[A-Z]{2}[0-9]{8}$",
+                "message": "發票號碼格式：2 個大寫英文字母 + 8 個數字"
+              }
+            },
+            "U_ZFORM_CODE": {
+              "label": "發票類型",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 2,
+              "doubleClick": {"type": "None"},
+              "valueList": [
+                {"value": "21", "description": "三聯式發票"},
+                {"value": "22", "description": "二聯式發票"},
+                {"value": "25", "description": "三聯式收銀機發票、電子發票"},
+                {"value": "26", "description": "入帳免入帳單據以下可三聯式、電子式及統一發票"},
+                {"value": "27", "description": "入帳免入帳單據以下可二聯式發票、普通收據及免用統一發票"},
+                {"value": "28", "description": "載有稅額"}
+              ],
+              "defaultValue": "21"
+            },
+            "U_BLDAT": {
+              "label": "憑證日期",
+              "type": "datetime",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "format": "yyyy-MM-dd",
+              "doubleClick": {"type": "None"},
+              "defaultValue": "TODAY()"
+            },
+            "U_VATDATE": {
+              "label": "營業稅日期",
+              "type": "datetime",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "format": "yyyy-MM-dd",
+              "doubleClick": {"type": "None"},
+              "defaultValue": "TODAY()"
+            },
+            "U_HWBAS": {
+              "label": "未稅金額",
+              "type": "decimal",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "format": "N2",
+              "doubleClick": {"type": "None"},
+              "validation": {
+                "min": 0,
+                "message": "未稅金額必須大於等於 0"
+              }
+            },
+            "U_HWSTE": {
+              "label": "稅額",
+              "type": "decimal",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "format": "N2",
+              "doubleClick": {"type": "None"},
+              "calculation": {
+                "formula": "U_HWBAS * (U_TAX_TYPE == '1' ? 0.05 : 0)",
+                "dependencies": ["U_HWBAS", "U_TAX_TYPE"],
+                "autoCalculate": true
+              }
+            },
+            "U_TAX_TYPE": {
+              "label": "稅別",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 1,
+              "doubleClick": {"type": "None"},
+              "valueList": [
+                {"value": "1", "description": "應稅"},
+                {"value": "2", "description": "零稅"},
+                {"value": "3", "description": "免稅"}
+              ],
+              "defaultValue": "1"
+            },
+            "U_CUS_TYPE": {
+              "label": "客戶類型",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 1,
+              "doubleClick": {"type": "None"},
+              "valueList": [
+                {"value": "0", "description": "可扣抵發票"},
+                {"value": "1", "description": "進口廠商-進項憑證(進貨)"},
+                {"value": "2", "description": "進口廠商-非進項憑證(費用)"}
+              ],
+              "defaultValue": "0"
+            },
+            "U_AM_TYPE": {
+              "label": "金額類型",
+              "type": "string",
+              "editable": true,
+              "searchable": true,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 1,
+              "doubleClick": {"type": "None"},
+              "valueList": [
+                {"value": "1", "description": "可扣抵-存貨"},
+                {"value": "2", "description": "可扣抵-固定資產或費用"},
+                {"value": "3", "description": "不可扣抵-存貨"},
+                {"value": "4", "description": "不可扣抵-固定資產或費用"},
+                {"value": "5", "description": "海關"},
+                {"value": "6", "description": "借貸利息"}
+              ],
+              "defaultValue": "1"
+            },
+            "U_VATCODE": {
+              "label": "稅碼",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 8,
+              "doubleClick": {"type": "None"},
+              "defaultValue": "100"
+            },
+            "U_BUKRS": {
+              "label": "公司代碼",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 20,
+              "doubleClick": {"type": "None"},
+              "defaultValue": "100"
+            },
+            "U_MWSKZ": {
+              "label": "稅別代碼",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": true,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 3,
+              "doubleClick": {"type": "None"},
+              "defaultValue": "21"
+            },
+            "U_FA_DESC": {
+              "label": "固定資產說明",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": false,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 40,
+              "doubleClick": {"type": "None"}
+            },
+            "U_FA_QTY": {
+              "label": "固定資產數量",
+              "type": "decimal",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": false,
+              "visible": true,
+              "focusable": true,
+              "format": "N2",
+              "defaultValue": 0,
+              "doubleClick": {"type": "None"}
+            },
+            "U_FA_USE": {
+              "label": "固定資產用途",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": false,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 100,
+              "doubleClick": {"type": "None"}
+            },
+            "U_GatherMark": {
+              "label": "彙加註記",
+              "type": "string",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": false,
+              "visible": true,
+              "focusable": true,
+              "maxLength": 1,
+              "defaultValue": "N",
+              "doubleClick": {"type": "None"}
+            },
+            "U_ConsolidQty": {
+              "label": "彙加次數",
+              "type": "decimal",
+              "editable": true,
+              "searchable": false,
+              "updatable": true,
+              "required": false,
+              "visible": true,
+              "focusable": true,
+              "format": "N0",
+              "defaultValue": 0,
+              "doubleClick": {"type": "None"}
+            },
+            "U_DocEntry": {
+              "label": "AP 發票 DocEntry",
+              "type": "int",
+              "editable": false,
+              "searchable": false,
+              "updatable": false,
+              "required": false,
+              "visible": false,
+              "focusable": false,
+              "doubleClick": {"type": "None"}
+            },
+            "U_OBJTYPE": {
+              "label": "物件類型",
+              "type": "int",
+              "editable": false,
+              "searchable": false,
+              "updatable": false,
+              "required": true,
+              "visible": false,
+              "focusable": false,
+              "defaultValue": 18,
+              "doubleClick": {"type": "None"}
+            },
+            "U_BELNR": {
+              "label": "AP 發票單號",
+              "type": "string",
+              "editable": false,
+              "searchable": false,
+              "updatable": false,
+              "required": false,
+              "visible": false,
+              "focusable": false,
+              "doubleClick": {"type": "None"}
+            }
+          },
+          "gridSettings": {
+            "allowAdd": true,
+            "allowDelete": true,
+            "allowEdit": true,
+            "showLineNumbers": true,
+            "autoGenerateColumns": false
+          }
+        }
+      ]
+    },
+
+    "colorTheme": {
+      "editable": "#FFFFFF",
+      "readonly": "#F0F0F0",
+      "searchable": "#FFFFCC",
+      "required": "#FFEEEE",
+      "calculated": "#E8F4FD"
+    }
+  },
+
+  "modePolicies": {
+    "create": {
+      "fieldDefaults": {
+        "color": "editable",
+        "editable": true,
+        "focusable": true,
+        "selectable": true
+      },
+      "stateRules": [
+        {
+          "when": "field.editable == false",
+          "set": {
+            "color": "readonly",
+            "focusable": false
+          }
+        },
+        {
+          "when": "field.required == true",
+          "set": {
+            "color": "required"
+          }
+        },
+        {
+          "when": "field.calculation != null",
+          "set": {
+            "color": "calculated",
+            "editable": false,
+            "focusable": false
+          }
+        }
+      ]
+    },
+    "search": {
+      "fieldDefaults": {
+        "color": "readonly",
+        "editable": false,
+        "focusable": false,
+        "selectable": false
+      },
+      "stateRules": [
+        {
+          "when": "field.searchable == true",
+          "set": {
+            "color": "searchable",
+            "editable": true,
+            "focusable": true,
+            "selectable": true
+          }
+        }
+      ]
+    },
+    "update": {
+      "fieldDefaults": {
+        "color": "readonly",
+        "editable": false,
+        "focusable": false,
+        "selectable": false
+      },
+      "stateRules": [
+        {
+          "when": "field.updatable == true",
+          "set": {
+            "color": "editable",
+            "editable": true,
+            "focusable": true,
+            "selectable": true
+          }
+        },
+        {
+          "when": "field.required == true && field.updatable == true",
+          "set": {
+            "color": "required"
+          }
+        }
+      ]
+    }
+  }
+}
