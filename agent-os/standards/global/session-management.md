@@ -6,16 +6,25 @@
 **觸發**: 當使用者說 "Claude, sess on."
 
 **動作**:
-1. 讀取 `worklog/LastCheckPoint.log` 檔案
-2. 檢視最新的專案狀態與待辦事項
-3. 向使用者報告：
+1. **首先**讀取 `agent-os/SESSION_INIT.md` 了解初始化流程
+2. 依序讀取核心規範檔案：
+   - `agent-os/standards/global/communication-standards.md`
+   - `agent-os/standards/global/localization.md`
+   - `shopfloor/Claude_TMP/etc/README_協作模式說明.txt`
+3. 讀取專案狀態：
+   - `worklog/LastCheckPoint.log`
+   - `對話狀態_*.md`（如有）
+4. 向使用者報告：
    - 上次工作的時間點
-   - 當前專案狀態摘要
-   - 未完成的待辦事項
+   - 當前專案狀態摘要（完成度百分比）
+   - **立即需要確認的事項**（等待使用者執行的任務）
+   - 未完成的待辦事項（按優先順序）
    - 建議的下一步工作
-4. 準備好接續上次的工作進度
+5. 準備好接續上次的工作進度
 
 **用途**: 上班/開始工作
+
+**重要**：詳細的初始化步驟請參考 `agent-os/SESSION_INIT.md`
 
 #### Session Check 指令
 **觸發**: 當使用者說 "Claude, sess check."
