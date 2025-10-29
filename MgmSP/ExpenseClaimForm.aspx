@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm" %>
+﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm" %>
 <%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ajaxToolkit" %>
 
 <!DOCTYPE html>
@@ -135,11 +135,11 @@
 
             <!-- 工具列 -->
             <div class="toolbar">
-                <asp:Button ID="btnCreate" runat="server" Text="新增 (Create)" OnClick="btnCreate_Click" />
-                <asp:Button ID="btnSearch" runat="server" Text="搜尋 (Search)" OnClick="btnSearch_Click" />
-                <asp:Button ID="btnUpdate" runat="server" Text="更新 (Update)" OnClick="btnUpdate_Click" Enabled="false" />
-                <asp:Button ID="btnSave" runat="server" Text="儲存 (Save)" OnClick="btnSave_Click" />
-                <asp:Button ID="btnCancel" runat="server" Text="取消 (Cancel)" OnClick="btnCancel_Click" />
+                <asp:Button ID="btnCreate" runat="server" Text="新增 (Create)" />
+                <asp:Button ID="btnSearch" runat="server" Text="搜尋 (Search)" />
+                <asp:Button ID="btnUpdate" runat="server" Text="更新 (Update)" Enabled="false" />
+                <asp:Button ID="btnSave" runat="server" Text="儲存 (Save)" />
+                <asp:Button ID="btnCancel" runat="server" Text="取消 (Cancel)" />
             </div>
 
             <!-- 訊息區 -->
@@ -183,8 +183,8 @@
             <!-- 發票明細區 -->
             <div class="section">
                 <div class="section-header">
-                    發票明細
-                    <asp:Button ID="btnAddRow" runat="server" Text="新增列" OnClick="btnAddRow_Click" style="float: right; margin-top: -3px;" />
+                    <%--發票明細--%>
+                    <asp:Button ID="btnAddRow" runat="server" Text="新增列" style="float: right; margin-top: -3px;" />
                 </div>
                 <div class="section-body">
                     <div class="grid-container">
@@ -194,8 +194,6 @@
                             ForeColor="#333333"
                             GridLines="Both"
                             Width="100%"
-                            OnRowDataBound="gvInvoiceDetail_RowDataBound"
-                            OnRowCommand="gvInvoiceDetail_RowCommand"
                             DataKeyNames="LineId">
                             <AlternatingRowStyle BackColor="White" />
                             <Columns>

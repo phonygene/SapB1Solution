@@ -10,6 +10,37 @@ Imports SAPbobsCOM
 Public Class ExpenseClaimForm
     Inherits B1TransactionBase
 
+#Region "控制項宣告"
+
+    ' 表頭控制項
+    Protected WithEvents lblMode As System.Web.UI.HtmlControls.HtmlGenericControl
+    Protected WithEvents txtID As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtDocEntry As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtDocNum As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtDocTotal As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtVatSum As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtCreateDate As System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtCreateBy As System.Web.UI.WebControls.TextBox
+
+    ' 工具列按鈕
+    Protected WithEvents btnCreate As System.Web.UI.WebControls.Button
+    Protected WithEvents btnSearch As System.Web.UI.WebControls.Button
+    Protected WithEvents btnUpdate As System.Web.UI.WebControls.Button
+    Protected WithEvents btnSave As System.Web.UI.WebControls.Button
+    Protected WithEvents btnCancel As System.Web.UI.WebControls.Button
+    Protected WithEvents btnAddRow As System.Web.UI.WebControls.Button
+
+    ' 訊息與狀態
+    Protected WithEvents lblMessage As System.Web.UI.WebControls.Label
+    Protected WithEvents lblUser As System.Web.UI.WebControls.Label
+    Protected WithEvents lblTime As System.Web.UI.WebControls.Label
+    Protected WithEvents lblStatus As System.Web.UI.HtmlControls.HtmlGenericControl
+
+    ' GridView
+    Protected WithEvents gvInvoiceDetail As System.Web.UI.WebControls.GridView
+
+#End Region
+
 #Region "頁面生命週期"
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
@@ -93,20 +124,20 @@ Public Class ExpenseClaimForm
 
 #Region "模式切換"
 
-    Protected Sub btnCreate_Click(sender As Object, e As EventArgs)
+    Protected Sub btnCreate_Click(sender As Object, e As EventArgs) Handles btnCreate.Click
         SwitchMode("create")
         lblMode.InnerText = "模式：新增（Create）"
         btnUpdate.Enabled = False
         ClearForm()
     End Sub
 
-    Protected Sub btnSearch_Click(sender As Object, e As EventArgs)
+    Protected Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
         SwitchMode("search")
         lblMode.InnerText = "模式：搜尋（Search）"
         btnUpdate.Enabled = False
     End Sub
 
-    Protected Sub btnUpdate_Click(sender As Object, e As EventArgs)
+    Protected Sub btnUpdate_Click(sender As Object, e As EventArgs) Handles btnUpdate.Click
         SwitchMode("update")
         lblMode.InnerText = "模式：更新（Update）"
     End Sub
@@ -133,7 +164,7 @@ Public Class ExpenseClaimForm
     ''' <summary>
     ''' 新增列
     ''' </summary>
-    Protected Sub btnAddRow_Click(sender As Object, e As EventArgs)
+    Protected Sub btnAddRow_Click(sender As Object, e As EventArgs) Handles btnAddRow.Click
         Try
             Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
             If dt Is Nothing Then
@@ -171,7 +202,7 @@ Public Class ExpenseClaimForm
     ''' <summary>
     ''' GridView 列命令事件
     ''' </summary>
-    Protected Sub gvInvoiceDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+    Protected Sub gvInvoiceDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs) Handles gvInvoiceDetail.RowCommand
         If e.CommandName = "Delete" Then
             Try
                 Dim rowIndex As Integer = Convert.ToInt32(e.CommandArgument)
@@ -203,7 +234,7 @@ Public Class ExpenseClaimForm
     ''' <summary>
     ''' GridView 資料綁定事件
     ''' </summary>
-    Protected Sub gvInvoiceDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
+    Protected Sub gvInvoiceDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs) Handles gvInvoiceDetail.RowDataBound
         If e.Row.RowType = DataControlRowType.DataRow Then
             ' 可在此加入特殊處理，例如欄位顏色設定
         End If
@@ -320,7 +351,7 @@ Public Class ExpenseClaimForm
     ''' <summary>
     ''' 儲存按鈕事件
     ''' </summary>
-    Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+    Protected Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
         Try
             ' 驗證資料
             Dim errors As Dictionary(Of String, String) = ValidateMasterFields()
@@ -348,7 +379,7 @@ Public Class ExpenseClaimForm
     ''' <summary>
     ''' 取消按鈕事件
     ''' </summary>
-    Protected Sub btnCancel_Click(sender As Object, e As EventArgs)
+    Protected Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
         Response.Redirect(Request.RawUrl)
     End Sub
 
@@ -373,10 +404,10 @@ Public Class ExpenseClaimForm
 
             ' 1. 連接 SAP DI API
             oCompany = New Company()
-            Dim ret As Integer = InitSAPConnection("192.168.1.31", "JTTST1", "manager", "sap123")
+            Dim ret As Integer = InitSAPConnection("192.168.1.31", "JTTST1", "manager", "sap123", oCompany)
             If ret <> 0 Then
-                Dim errMsg As String
-                Dim errCode As Integer
+                Dim errMsg As String = String.Empty
+                Dim errCode As Integer = 0
                 oCompany.GetLastError(errCode, errMsg)
                 Throw New ApplicationException($"連接 SAP 失敗: {errCode} - {errMsg}")
             End If
@@ -407,8 +438,8 @@ Public Class ExpenseClaimForm
 
                 ret = oInvoice.Add()
                 If ret <> 0 Then
-                    Dim errMsg As String
-                    Dim errCode As Integer
+                    Dim errMsg As String = String.Empty
+                    Dim errCode As Integer = 0
                     oCompany.GetLastError(errCode, errMsg)
                     Throw New ApplicationException($"建立 AP Invoice 失敗: {errCode} - {errMsg}")
                 End If
@@ -549,10 +580,9 @@ Public Class ExpenseClaimForm
     End Sub
 
     ''' <summary>
-    ''' 初始化 SAP 連線（簡化版）
+    ''' 初始化 SAP 連線
     ''' </summary>
-    Private Function InitSAPConnection(server As String, companyDb As String, userName As String, password As String) As Integer
-        Dim oComp As New Company()
+    Private Function InitSAPConnection(server As String, companyDb As String, userName As String, password As String, ByRef oComp As Company) As Integer
         oComp.Server = server
         oComp.CompanyDB = companyDb
         oComp.UserName = userName
