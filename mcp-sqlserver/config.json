@@ -1,0 +1,118 @@
+{
+  "server_name": "sapb1-sql-mcp",
+  "version": "1.0.0",
+  "backup_strategies": {
+    "small": {
+      "max_size_mb": 100,
+      "rolling_limit": 30,
+      "daily_retain_days": 7,
+      "enabled": true,
+      "description": "適用於小型開發資料庫"
+    },
+    "medium": {
+      "max_size_mb": 1000,
+      "rolling_limit": 10,
+      "daily_retain_days": 7,
+      "enabled": true,
+      "description": "適用於中型測試資料庫"
+    },
+    "large": {
+      "max_size_mb": 10000,
+      "rolling_limit": 5,
+      "daily_retain_days": 3,
+      "enabled": true,
+      "description": "適用於大型生產資料庫"
+    },
+    "very_large": {
+      "max_size_mb": null,
+      "rolling_limit": 0,
+      "daily_retain_days": 1,
+      "enabled": false,
+      "description": "超大資料庫，建議使用專業備份方案"
+    }
+  },
+  "safe_mode": {
+    "require_transaction": true,
+    "max_affected_rows": 1000,
+    "readonly_tables": [],
+    "blacklist_keywords": [
+      "DROP DATABASE",
+      "DROP SCHEMA",
+      "TRUNCATE TABLE",
+      "ALTER DATABASE",
+      "EXEC xp_",
+      "EXEC sp_MSforeachtable"
+    ]
+  },
+  "operation_modes": {
+    "description": "定義不同操作的確認模式",
+    "modes": {
+      "direct": {
+        "code": 1,
+        "name": "直接執行",
+        "description": "收到要求後直接執行，不需確認",
+        "applies_to": [
+          "SELECT",
+          "查詢",
+          "讀取",
+          "檢視",
+          "列出"
+        ]
+      },
+      "confirm_with_sql": {
+        "code": 2,
+        "name": "顯示 SQL 並確認",
+        "description": "執行前必須回報完整 SQL 查詢語句，等待用戶確認",
+        "applies_to": [
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "CREATE",
+          "ALTER",
+          "DROP",
+          "MERGE",
+          "寫入",
+          "修改",
+          "刪除",
+          "新增",
+          "變更"
+        ]
+      },
+      "confirm_without_sql": {
+        "code": 3,
+        "name": "顯示操作並確認",
+        "description": "執行前回報操作描述（不含完整 SQL），等待用戶確認",
+        "applies_to": [
+          "BACKUP",
+          "RESTORE",
+          "備份",
+          "還原"
+        ]
+      }
+    },
+    "tool_mode_mapping": {
+      "sql_query": "direct",
+      "sql_write": "confirm_with_sql",
+      "get_table_info": "direct",
+      "list_tables": "direct",
+      "list_backups": "direct",
+      "restore_backup": "confirm_without_sql",
+      "get_db_status": "direct",
+      "create_backup": "confirm_without_sql"
+    },
+    "rules": {
+      "read_operations": {
+        "default_mode": "direct",
+        "description": "SELECT 等純讀取操作預設為模式 1（直接執行）"
+      },
+      "write_operations": {
+        "default_mode": "confirm_with_sql",
+        "description": "INSERT/UPDATE/DELETE 等寫入操作預設為模式 2（顯示 SQL 並確認）"
+      },
+      "critical_operations": {
+        "default_mode": "confirm_without_sql",
+        "description": "BACKUP/RESTORE 等關鍵操作預設為模式 3（顯示操作並確認）"
+      }
+    }
+  }
+}

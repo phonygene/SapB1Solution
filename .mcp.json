@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "sapb1-sql": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/home/jason/projects/vbnet/SapB1Solution/mcp-sqlserver",
+        "python",
+        "src/server.py"
+      ],
+      "env": {}
+    }
+  }
+}
