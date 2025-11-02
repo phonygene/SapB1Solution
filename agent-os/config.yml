@@ -1,6 +1,17 @@
+# Agent-OS Configuration
+# 版本：2.0.5
+# 最後編譯：2025-10-20 16:09:02
+# 最後更新：2025-11-02
+
 version: 2.0.5
 last_compiled: 2025-10-20 16:09:02
 profile: default
+
+# 多 Agent 模式設定
+# 注意：目前專案採用「輕量化使用」策略（決策 2, LastCheckPoint.log）
+# - 保留：Session 管理機制（sess on/check/wrap/off）、全域規範
+# - 不使用：多 Agent 系統（.claude/agents/）、產品開發 slash commands
+# - 保留原因：未來可能需要時可隨時啟用
 multi_agent_mode: true
 multi_agent_tool: claude-code
 single_agent_mode: false

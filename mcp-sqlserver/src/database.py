@@ -370,3 +370,35 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"列出資料表失敗: {str(e)}")
             raise
+
+    def execute_ddl(self, query: str) -> Tuple[bool, str]:
+        """執行 DDL 操作（CREATE, DROP, ALTER）
+
+        DDL 語句會自動提交，不需要手動 commit。
+
+        Args:
+            query: DDL SQL 語句
+
+        Returns:
+            (是否成功, 訊息)
+        """
+        conn = self.connect()
+
+        try:
+            logger.info(f"執行 DDL 操作: {query[:100]}...")
+
+            cursor = conn.cursor()
+            cursor.execute(query)
+
+            # DDL 語句不需要 commit，會自動提交
+            # 也不需要 rollback
+
+            msg = f"DDL 操作成功"
+            logger.info(msg)
+
+            return True, msg
+
+        except Exception as e:
+            error_msg = f"DDL 執行失敗: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return False, error_msg

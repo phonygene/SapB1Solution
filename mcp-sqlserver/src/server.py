@@ -103,6 +103,20 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="sql_ddl",
+            description="執行 DDL 操作（CREATE, DROP, ALTER, TRUNCATE）。用於建立、刪除、修改資料表結構。DDL 語句會自動提交。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "DDL SQL 語句。例如：CREATE TABLE test (id INT, name NVARCHAR(50))"
+                    }
+                },
+                "required": ["query"]
+            }
+        ),
+        Tool(
             name="get_table_info",
             description="取得資料表結構資訊，包括欄位名稱、型別、是否可為 NULL、主鍵等。",
             inputSchema={
@@ -210,6 +224,21 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                 "success": success,
                 "message": message,
                 "affected_rows": affected_rows
+            }
+
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, ensure_ascii=False, indent=2)
+            )]
+
+        elif name == "sql_ddl":
+            query = arguments["query"]
+
+            success, message = db_manager.execute_ddl(query)
+
+            result = {
+                "success": success,
+                "message": message
             }
 
             return [TextContent(
