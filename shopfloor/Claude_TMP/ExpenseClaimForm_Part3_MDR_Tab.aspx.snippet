@@ -1,0 +1,222 @@
+<!-- =============================================
+     MDR 發票明細 Tab 區塊
+     說明：插入到 Part1 的 MDR Tab content 中
+     替換位置：<p>[MDR Tab 內容將在第二階段實作]</p>
+     ============================================= -->
+
+<div class="section-title">MDR 發票明細（唯讀，自動同步）</div>
+
+<!-- MDR 表頭資訊（唯讀，即時同步） -->
+<div style="background-color: #e3f2fd; padding: 15px; border: 1px solid #2196F3; border-radius: 4px; margin-bottom: 20px;">
+    <h4 style="margin-top: 0; color: #1976D2;">表頭資訊（自動同步）</h4>
+
+    <div class="form-row">
+        <div class="form-label">供應商代碼:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_CardCode" runat="server" Text=""
+                      Font-Bold="True"></asp:Label>
+        </div>
+        <div class="form-label">供應商名稱:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_CardName" runat="server" Text=""></asp:Label>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-label">請款日期:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_DocDate" runat="server" Text=""></asp:Label>
+        </div>
+        <div class="form-label">到期日:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_DocDueDate" runat="server" Text=""></asp:Label>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-label">文件幣別:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_DocCurrency" runat="server" Text=""></asp:Label>
+        </div>
+        <div class="form-label">匯率:</div>
+        <div class="form-field">
+            <asp:Label ID="lblMDR_DocRate" runat="server" Text=""></asp:Label>
+        </div>
+    </div>
+
+    <div style="margin-top: 10px; padding: 10px; background-color: #fff; border-left: 4px solid #2196F3;">
+        <strong style="color: #1976D2;">📌 提醒：</strong>
+        上述資訊由「費用申請」Tab 即時同步，如需修改請切換至「費用申請」Tab
+    </div>
+</div>
+
+<!-- MDR 發票明細資料 -->
+<div class="section-title" style="background-color: #2196F3;">發票明細資料</div>
+
+<!-- 明細表格工具列 -->
+<div style="margin-bottom: 10px;">
+    <asp:Button ID="btnMDR_AddLine" runat="server" Text="新增發票明細"
+               OnClick="btnMDR_AddLine_Click" CssClass="btn btn-secondary"
+               Style="padding: 5px 15px;" />
+    <asp:Button ID="btnMDR_DeleteLine" runat="server" Text="刪除選中明細"
+               OnClick="btnMDR_DeleteLine_Click" CssClass="btn btn-danger"
+               Style="padding: 5px 15px;"
+               OnClientClick="return confirm('確定刪除選中的發票明細？');" />
+    <asp:Button ID="btnMDR_ValidateSum" runat="server" Text="驗證金額總和"
+               OnClick="btnMDR_ValidateSum_Click" CssClass="btn btn-warning"
+               Style="padding: 5px 15px;" />
+</div>
+
+<!-- MDR 發票明細 GridView -->
+<asp:GridView ID="gvMDRDetail" runat="server" AutoGenerateColumns="False"
+             CssClass="gridview" Width="100%" CellPadding="5"
+             GridLines="Both" BorderColor="#ccc" BorderWidth="1px"
+             OnRowDataBound="gvMDRDetail_RowDataBound"
+             OnRowDeleting="gvMDRDetail_RowDeleting">
+    <HeaderStyle BackColor="#2196F3" ForeColor="White" Font-Bold="True" HorizontalAlign="Center" />
+    <RowStyle BackColor="White" />
+    <AlternatingRowStyle BackColor="#f9f9f9" />
+
+    <Columns>
+        <!-- 勾選框 -->
+        <asp:TemplateField HeaderText="選">
+            <ItemTemplate>
+                <asp:CheckBox ID="chkMDRSelect" runat="server" />
+            </ItemTemplate>
+            <ItemStyle Width="40px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+
+        <!-- 行號 -->
+        <asp:TemplateField HeaderText="行號">
+            <ItemTemplate>
+                <asp:Label ID="lblMDRLineNum" runat="server"
+                          Text='<%# Container.DataItemIndex + 1 %>'></asp:Label>
+            </ItemTemplate>
+            <ItemStyle Width="50px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+
+        <!-- 發票號碼 -->
+        <asp:TemplateField HeaderText="發票號碼 *">
+            <ItemTemplate>
+                <asp:TextBox ID="txtInvoiceNum" runat="server" Width="120px"
+                            MaxLength="20"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="140px" />
+        </asp:TemplateField>
+
+        <!-- 發票日期 -->
+        <asp:TemplateField HeaderText="發票日期 *">
+            <ItemTemplate>
+                <asp:TextBox ID="txtInvoiceDate" runat="server" TextMode="Date"
+                            Width="130px"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="150px" />
+        </asp:TemplateField>
+
+        <!-- 發票金額（未稅）-->
+        <asp:TemplateField HeaderText="發票金額（未稅）*">
+            <ItemTemplate>
+                <asp:TextBox ID="txtInvoiceAmount" runat="server" Text="0.00"
+                            AutoPostBack="True"
+                            OnTextChanged="txtInvoiceAmount_TextChanged"
+                            Width="100px" style="text-align: right;"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="120px" />
+        </asp:TemplateField>
+
+        <!-- 稅額 -->
+        <asp:TemplateField HeaderText="稅額 *">
+            <ItemTemplate>
+                <asp:TextBox ID="txtTaxAmount" runat="server" Text="0.00"
+                            AutoPostBack="True"
+                            OnTextChanged="txtTaxAmount_TextChanged"
+                            Width="80px" style="text-align: right;"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="100px" />
+        </asp:TemplateField>
+
+        <!-- 發票總額（含稅）- 自動計算 -->
+        <asp:TemplateField HeaderText="發票總額（含稅）">
+            <ItemTemplate>
+                <asp:Label ID="lblInvoiceTotal" runat="server" Text="0.00"
+                          style="display: block; text-align: right;"></asp:Label>
+            </ItemTemplate>
+            <ItemStyle Width="120px" HorizontalAlign="Right" />
+        </asp:TemplateField>
+
+        <!-- 備註 -->
+        <asp:TemplateField HeaderText="備註">
+            <ItemTemplate>
+                <asp:TextBox ID="txtMDRRemarks" runat="server" Width="150px"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="170px" />
+        </asp:TemplateField>
+
+        <!-- 刪除按鈕 -->
+        <asp:TemplateField HeaderText="操作">
+            <ItemTemplate>
+                <asp:LinkButton ID="lbtnMDRDelete" runat="server" CommandName="Delete"
+                               Text="刪除" ForeColor="Red"
+                               OnClientClick="return confirm('確定刪除此發票明細？');"></asp:LinkButton>
+            </ItemTemplate>
+            <ItemStyle Width="60px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+    </Columns>
+
+    <EmptyDataTemplate>
+        <div style="text-align: center; padding: 20px; color: gray;">
+            尚無發票明細，請點選「新增發票明細」按鈕
+        </div>
+    </EmptyDataTemplate>
+</asp:GridView>
+
+<!-- MDR 發票合計區 -->
+<div style="margin-top: 15px; padding: 10px; background-color: #e3f2fd; border: 1px solid #2196F3;">
+    <div style="display: flex; justify-content: flex-end; align-items: center;">
+        <div style="margin-right: 30px;">
+            <strong>發票金額總計（未稅）：</strong>
+            <asp:Label ID="lblMDR_TotalAmount" runat="server" Text="0.00"
+                      Font-Bold="True" ForeColor="#1976D2"></asp:Label>
+        </div>
+        <div style="margin-right: 30px;">
+            <strong>稅額總計：</strong>
+            <asp:Label ID="lblMDR_TotalTax" runat="server" Text="0.00"
+                      Font-Bold="True" ForeColor="#1976D2"></asp:Label>
+        </div>
+        <div>
+            <strong>發票總額（含稅）：</strong>
+            <asp:Label ID="lblMDR_GrandTotal" runat="server" Text="0.00"
+                      Font-Bold="True" ForeColor="#1976D2" Font-Size="16px"></asp:Label>
+        </div>
+    </div>
+</div>
+
+<!-- 驗證結果訊息 -->
+<asp:Panel ID="pnlMDR_ValidationResult" runat="server" Visible="False"
+          Style="margin-top: 15px; padding: 10px; border-radius: 4px;">
+    <asp:Label ID="lblMDR_ValidationMessage" runat="server" Text=""
+              Font-Bold="True"></asp:Label>
+</asp:Panel>
+
+<style>
+    /* 驗證成功 */
+    .validation-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    /* 驗證失敗 */
+    .validation-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    /* 驗證警告 */
+    .validation-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+    }
+</style>

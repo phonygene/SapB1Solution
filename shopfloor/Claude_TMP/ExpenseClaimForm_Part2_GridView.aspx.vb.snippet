@@ -1,0 +1,521 @@
+' =============================================
+' 費用明細 GridView 相關程式碼
+' 說明：插入到 ExpenseClaimForm.aspx.vb 中
+' 插入位置：在 #End Region "按鈕事件" 之後
+' =============================================
+
+#Region "費用明細 GridView"
+    ''' <summary>
+    ''' GridView 資料來源類別
+    ''' </summary>
+    Public Class ExpenseDetailLine
+        Public Property LineNum As Integer
+        Public Property CategoryCode As String
+        Public Property CategoryName As String
+        Public Property AcctCode As String
+        Public Property Description As String
+        Public Property Quantity As Decimal
+        Public Property Price As Decimal
+        Public Property LineTotal As Decimal
+        Public Property LineRate As Decimal
+        Public Property LineTotalTWD As Decimal
+    End Class
+
+    ' 明細資料暫存（使用 ViewState）
+    Private Property DetailLines As List(Of ExpenseDetailLine)
+        Get
+            If ViewState("DetailLines") Is Nothing Then
+                ViewState("DetailLines") = New List(Of ExpenseDetailLine)()
+            End If
+            Return CType(ViewState("DetailLines"), List(Of ExpenseDetailLine))
+        End Get
+        Set(value As List(Of ExpenseDetailLine))
+            ViewState("DetailLines") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 初始化 GridView（在 Page_Load 的 If Not IsPostBack 中呼叫）
+    ''' </summary>
+    Private Sub InitializeGridView()
+        If currentDocEntry = 0 Then
+            ' 新增模式：空白 GridView
+            DetailLines = New List(Of ExpenseDetailLine)()
+        End If
+        BindGridView()
+    End Sub
+
+    ''' <summary>
+    ''' 綁定 GridView
+    ''' </summary>
+    Private Sub BindGridView()
+        gvExpenseDetail.DataSource = DetailLines
+        gvExpenseDetail.DataBind()
+        CalculateTotals()
+    End Sub
+
+    ''' <summary>
+    ''' GridView RowDataBound 事件
+    ''' </summary>
+    Protected Sub gvExpenseDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            Dim line As ExpenseDetailLine = CType(e.Row.DataItem, ExpenseDetailLine)
+
+            ' 費用類別下拉選單
+            Dim ddlCategory As DropDownList = CType(e.Row.FindControl("ddlExpenseCategory"), DropDownList)
+            LoadExpenseCategories(ddlCategory)
+            If Not String.IsNullOrEmpty(line.CategoryCode) Then
+                If ddlCategory.Items.FindByValue(line.CategoryCode) IsNot Nothing Then
+                    ddlCategory.SelectedValue = line.CategoryCode
+                End If
+            End If
+
+            ' 總帳科目
+            Dim txtAcctCode As TextBox = CType(e.Row.FindControl("txtAcctCode"), TextBox)
+            txtAcctCode.Text = line.AcctCode
+
+            ' 費用說明
+            Dim txtDescription As TextBox = CType(e.Row.FindControl("txtDescription"), TextBox)
+            txtDescription.Text = line.Description
+
+            ' 數量
+            Dim txtQuantity As TextBox = CType(e.Row.FindControl("txtQuantity"), TextBox)
+            txtQuantity.Text = line.Quantity.ToString("F2")
+
+            ' 單價
+            Dim txtPrice As TextBox = CType(e.Row.FindControl("txtPrice"), TextBox)
+            txtPrice.Text = line.Price.ToString("F2")
+
+            ' 金額（外幣）
+            Dim lblLineTotal As Label = CType(e.Row.FindControl("lblLineTotal"), Label)
+            lblLineTotal.Text = line.LineTotal.ToString("N2")
+
+            ' 匯率
+            Dim txtLineRate As TextBox = CType(e.Row.FindControl("txtLineRate"), TextBox)
+            txtLineRate.Text = line.LineRate.ToString("F6")
+
+            ' 本幣金額
+            Dim lblLineTotalTWD As Label = CType(e.Row.FindControl("lblLineTotalTWD"), Label)
+            lblLineTotalTWD.Text = line.LineTotalTWD.ToString("N2")
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 載入費用類別下拉選單
+    ''' </summary>
+    Private Sub LoadExpenseCategories(ddl As DropDownList)
+        Try
+            ddl.Items.Clear()
+            ddl.Items.Add(New ListItem("-- 請選擇費用類別 --", ""))
+
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT CategoryCode, CategoryName, AcctCode FROM expense_category WHERE Active = 'Y' ORDER BY CategoryCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim code As String = reader("CategoryCode").ToString()
+                            Dim name As String = reader("CategoryName").ToString()
+                            ddl.Items.Add(New ListItem($"{code} - {name}", code))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            LogError("LoadExpenseCategories", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 費用類別選擇變更：自動填入總帳科目
+    ''' </summary>
+    Protected Sub ddlExpenseCategory_SelectedIndexChanged(sender As Object, e As EventArgs)
+        Try
+            Dim ddl As DropDownList = CType(sender, DropDownList)
+            Dim row As GridViewRow = CType(ddl.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
+
+            If String.IsNullOrEmpty(ddl.SelectedValue) Then
+                Return
+            End If
+
+            ' 查詢對應的總帳科目
+            Dim acctCode As String = ""
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode FROM expense_category WHERE CategoryCode = @CategoryCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@CategoryCode", ddl.SelectedValue)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        acctCode = result.ToString()
+                    End If
+                End Using
+            End Using
+
+            ' 更新 ViewState 和介面
+            If rowIndex < DetailLines.Count Then
+                DetailLines(rowIndex).CategoryCode = ddl.SelectedValue
+                DetailLines(rowIndex).CategoryName = ddl.SelectedItem.Text
+                DetailLines(rowIndex).AcctCode = acctCode
+            End If
+
+            ' 更新總帳科目欄位
+            Dim txtAcctCode As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+            txtAcctCode.Text = acctCode
+
+        Catch ex As Exception
+            lblMessage.Text = "更新總帳科目失敗: " & ex.Message
+            LogError("ddlExpenseCategory_SelectedIndexChanged", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 數量變更：重新計算金額
+    ''' </summary>
+    Protected Sub txtQuantity_TextChanged(sender As Object, e As EventArgs)
+        RecalculateLineTotals(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 單價變更：重新計算金額
+    ''' </summary>
+    Protected Sub txtPrice_TextChanged(sender As Object, e As EventArgs)
+        RecalculateLineTotals(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 重新計算行金額
+    ''' </summary>
+    Private Sub RecalculateLineTotals(sender As Object)
+        Try
+            Dim txt As TextBox = CType(sender, TextBox)
+            Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
+
+            If rowIndex >= DetailLines.Count Then Return
+
+            ' 取得數量和單價
+            Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
+            Dim txtPrice As TextBox = CType(row.FindControl("txtPrice"), TextBox)
+            Dim txtLineRate As TextBox = CType(row.FindControl("txtLineRate"), TextBox)
+
+            Dim quantity As Decimal = 0
+            Dim price As Decimal = 0
+            Dim lineRate As Decimal = 1
+
+            Decimal.TryParse(txtQuantity.Text, quantity)
+            Decimal.TryParse(txtPrice.Text, price)
+            Decimal.TryParse(txtLineRate.Text, lineRate)
+
+            ' 計算金額
+            Dim lineTotal As Decimal = quantity * price
+            Dim lineTotalTWD As Decimal = lineTotal * lineRate
+
+            ' 更新 ViewState
+            DetailLines(rowIndex).Quantity = quantity
+            DetailLines(rowIndex).Price = price
+            DetailLines(rowIndex).LineTotal = lineTotal
+            DetailLines(rowIndex).LineRate = lineRate
+            DetailLines(rowIndex).LineTotalTWD = lineTotalTWD
+
+            ' 更新顯示
+            Dim lblLineTotal As Label = CType(row.FindControl("lblLineTotal"), Label)
+            lblLineTotal.Text = lineTotal.ToString("N2")
+
+            Dim lblLineTotalTWD As Label = CType(row.FindControl("lblLineTotalTWD"), Label)
+            lblLineTotalTWD.Text = lineTotalTWD.ToString("N2")
+
+            ' 重新計算總計
+            CalculateTotals()
+
+        Catch ex As Exception
+            lblMessage.Text = "計算金額失敗: " & ex.Message
+            LogError("RecalculateLineTotals", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 計算合計
+    ''' </summary>
+    Private Sub CalculateTotals()
+        Dim totalFC As Decimal = 0
+        Dim totalLC As Decimal = 0
+
+        For Each line As ExpenseDetailLine In DetailLines
+            totalFC += line.LineTotal
+            totalLC += line.LineTotalTWD
+        Next
+
+        lblTotalFC.Text = totalFC.ToString("N2")
+        lblTotalLC.Text = totalLC.ToString("N2")
+        lblCurrency.Text = ddlDocCurrency.SelectedValue
+    End Sub
+
+    ''' <summary>
+    ''' 新增明細行按鈕
+    ''' </summary>
+    Protected Sub btnAddLine_Click(sender As Object, e As EventArgs)
+        Try
+            ' 取得表頭匯率
+            Dim docRate As Decimal = 1
+            Decimal.TryParse(txtDocRate.Text, docRate)
+
+            ' 新增空白行
+            Dim newLine As New ExpenseDetailLine() With {
+                .LineNum = DetailLines.Count + 1,
+                .CategoryCode = "",
+                .CategoryName = "",
+                .AcctCode = "",
+                .Description = "",
+                .Quantity = 1,
+                .Price = 0,
+                .LineTotal = 0,
+                .LineRate = docRate,
+                .LineTotalTWD = 0
+            }
+
+            DetailLines.Add(newLine)
+            BindGridView()
+
+            lblMessage.Text = "已新增明細行"
+
+        Catch ex As Exception
+            lblMessage.Text = "新增明細行失敗: " & ex.Message
+            LogError("btnAddLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 刪除選中行按鈕
+    ''' </summary>
+    Protected Sub btnDeleteLine_Click(sender As Object, e As EventArgs)
+        Try
+            Dim deleteCount As Integer = 0
+
+            ' 從後往前刪除（避免索引問題）
+            For i As Integer = gvExpenseDetail.Rows.Count - 1 To 0 Step -1
+                Dim chkSelect As CheckBox = CType(gvExpenseDetail.Rows(i).FindControl("chkSelect"), CheckBox)
+                If chkSelect IsNot Nothing AndAlso chkSelect.Checked Then
+                    If i < DetailLines.Count Then
+                        DetailLines.RemoveAt(i)
+                        deleteCount += 1
+                    End If
+                End If
+            Next
+
+            If deleteCount > 0 Then
+                ' 重新編號
+                For i As Integer = 0 To DetailLines.Count - 1
+                    DetailLines(i).LineNum = i + 1
+                Next
+
+                BindGridView()
+                lblMessage.Text = $"已刪除 {deleteCount} 行明細"
+            Else
+                lblMessage.Text = "請先勾選要刪除的明細行"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除明細行失敗: " & ex.Message
+            LogError("btnDeleteLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' GridView RowDeleting 事件（單行刪除）
+    ''' </summary>
+    Protected Sub gvExpenseDetail_RowDeleting(sender As Object, e As GridViewDeleteEventArgs)
+        Try
+            Dim rowIndex As Integer = e.RowIndex
+
+            If rowIndex < DetailLines.Count Then
+                DetailLines.RemoveAt(rowIndex)
+
+                ' 重新編號
+                For i As Integer = 0 To DetailLines.Count - 1
+                    DetailLines(i).LineNum = i + 1
+                Next
+
+                BindGridView()
+                lblMessage.Text = "已刪除明細行"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除明細行失敗: " & ex.Message
+            LogError("gvExpenseDetail_RowDeleting", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 儲存前收集 GridView 資料
+    ''' </summary>
+    Private Sub CollectGridViewData()
+        Try
+            DetailLines.Clear()
+
+            For Each row As GridViewRow In gvExpenseDetail.Rows
+                If row.RowType = DataControlRowType.DataRow Then
+                    Dim ddlCategory As DropDownList = CType(row.FindControl("ddlExpenseCategory"), DropDownList)
+                    Dim txtAcctCode As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+                    Dim txtDescription As TextBox = CType(row.FindControl("txtDescription"), TextBox)
+                    Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
+                    Dim txtPrice As TextBox = CType(row.FindControl("txtPrice"), TextBox)
+                    Dim txtLineRate As TextBox = CType(row.FindControl("txtLineRate"), TextBox)
+                    Dim lblLineTotal As Label = CType(row.FindControl("lblLineTotal"), Label)
+                    Dim lblLineTotalTWD As Label = CType(row.FindControl("lblLineTotalTWD"), Label)
+
+                    Dim line As New ExpenseDetailLine() With {
+                        .LineNum = row.RowIndex + 1,
+                        .CategoryCode = ddlCategory.SelectedValue,
+                        .CategoryName = ddlCategory.SelectedItem.Text,
+                        .AcctCode = txtAcctCode.Text,
+                        .Description = txtDescription.Text,
+                        .Quantity = If(Decimal.TryParse(txtQuantity.Text, Nothing), Convert.ToDecimal(txtQuantity.Text), 0),
+                        .Price = If(Decimal.TryParse(txtPrice.Text, Nothing), Convert.ToDecimal(txtPrice.Text), 0),
+                        .LineTotal = If(Decimal.TryParse(lblLineTotal.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblLineTotal.Text.Replace(",", "")), 0),
+                        .LineRate = If(Decimal.TryParse(txtLineRate.Text, Nothing), Convert.ToDecimal(txtLineRate.Text), 1),
+                        .LineTotalTWD = If(Decimal.TryParse(lblLineTotalTWD.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblLineTotalTWD.Text.Replace(",", "")), 0)
+                    }
+
+                    DetailLines.Add(line)
+                End If
+            Next
+
+        Catch ex As Exception
+            LogError("CollectGridViewData", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證明細資料
+    ''' </summary>
+    Private Function ValidateDetailLines() As Boolean
+        If DetailLines.Count = 0 Then
+            lblMessage.Text = "請至少新增一筆費用明細"
+            Return False
+        End If
+
+        For i As Integer = 0 To DetailLines.Count - 1
+            Dim line As ExpenseDetailLine = DetailLines(i)
+
+            If String.IsNullOrEmpty(line.CategoryCode) Then
+                lblMessage.Text = $"第 {i + 1} 行：請選擇費用類別"
+                Return False
+            End If
+
+            If String.IsNullOrEmpty(line.Description) Then
+                lblMessage.Text = $"第 {i + 1} 行：請輸入費用說明"
+                Return False
+            End If
+
+            If line.Quantity <= 0 Then
+                lblMessage.Text = $"第 {i + 1} 行：數量必須大於 0"
+                Return False
+            End If
+
+            If line.Price < 0 Then
+                lblMessage.Text = $"第 {i + 1} 行：單價不可為負數"
+                Return False
+            End If
+        Next
+
+        Return True
+    End Function
+
+    ''' <summary>
+    ''' 儲存明細到資料庫（在 InsertNewDocument 和 UpdateDocument 中呼叫）
+    ''' </summary>
+    Private Sub SaveDetailLinesToDB(docEntry As Integer, conn As SqlConnection, trans As SqlTransaction)
+        Try
+            ' 先刪除舊明細（更新模式）
+            Dim sqlDelete As String = "DELETE FROM jOPC1 WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sqlDelete, conn, trans)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 插入新明細
+            Dim sqlInsert As String = "INSERT INTO jOPC1 (DocEntry, LineNum, CategoryCode, CategoryName, AcctCode, " &
+                                     "LineDescription, Quantity, Price, LineTotal, LineRate, LineTotalTWD) " &
+                                     "VALUES (@DocEntry, @LineNum, @CategoryCode, @CategoryName, @AcctCode, " &
+                                     "@LineDescription, @Quantity, @Price, @LineTotal, @LineRate, @LineTotalTWD)"
+
+            For Each line As ExpenseDetailLine In DetailLines
+                Using cmd As New SqlCommand(sqlInsert, conn, trans)
+                    cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                    cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
+                    cmd.Parameters.AddWithValue("@CategoryCode", line.CategoryCode)
+                    cmd.Parameters.AddWithValue("@CategoryName", line.CategoryName)
+                    cmd.Parameters.AddWithValue("@AcctCode", line.AcctCode)
+                    cmd.Parameters.AddWithValue("@LineDescription", line.Description)
+                    cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
+                    cmd.Parameters.AddWithValue("@Price", line.Price)
+                    cmd.Parameters.AddWithValue("@LineTotal", line.LineTotal)
+                    cmd.Parameters.AddWithValue("@LineRate", line.LineRate)
+                    cmd.Parameters.AddWithValue("@LineTotalTWD", line.LineTotalTWD)
+                    cmd.ExecuteNonQuery()
+                End Using
+            Next
+
+        Catch ex As Exception
+            LogError("SaveDetailLinesToDB", ex)
+            Throw
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從資料庫載入明細（在 LoadDocument 中呼叫）
+    ''' </summary>
+    Private Sub LoadDetailLinesFromDB(docEntry As Integer, conn As SqlConnection)
+        Try
+            DetailLines.Clear()
+
+            Dim sql As String = "SELECT * FROM jOPC1 WHERE DocEntry = @DocEntry ORDER BY LineNum"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim line As New ExpenseDetailLine() With {
+                            .LineNum = Convert.ToInt32(reader("LineNum")),
+                            .CategoryCode = If(IsDBNull(reader("CategoryCode")), "", reader("CategoryCode").ToString()),
+                            .CategoryName = If(IsDBNull(reader("CategoryName")), "", reader("CategoryName").ToString()),
+                            .AcctCode = If(IsDBNull(reader("AcctCode")), "", reader("AcctCode").ToString()),
+                            .Description = If(IsDBNull(reader("LineDescription")), "", reader("LineDescription").ToString()),
+                            .Quantity = If(IsDBNull(reader("Quantity")), 0, Convert.ToDecimal(reader("Quantity"))),
+                            .Price = If(IsDBNull(reader("Price")), 0, Convert.ToDecimal(reader("Price"))),
+                            .LineTotal = If(IsDBNull(reader("LineTotal")), 0, Convert.ToDecimal(reader("LineTotal"))),
+                            .LineRate = If(IsDBNull(reader("LineRate")), 1, Convert.ToDecimal(reader("LineRate"))),
+                            .LineTotalTWD = If(IsDBNull(reader("LineTotalTWD")), 0, Convert.ToDecimal(reader("LineTotalTWD")))
+                        }
+                        DetailLines.Add(line)
+                    End While
+                End Using
+            End Using
+
+            BindGridView()
+
+        Catch ex As Exception
+            LogError("LoadDetailLinesFromDB", ex)
+        End Try
+    End Sub
+#End Region
+
+' =============================================
+' 修改：在 btnSave_Click 和 btnSubmit_Click 中加入以下程式碼
+' =============================================
+' 在驗證後加入：
+'     CollectGridViewData()
+'     If Not ValidateDetailLines() Then
+'         Return
+'     End If
+
+' 在 InsertNewDocument 和 UpdateDocument 函式的 trans.Commit() 之前加入：
+'     SaveDetailLinesToDB(newDocEntry, conn, trans)  ' 或 SaveDetailLinesToDB(currentDocEntry, conn, trans)
+
+' 在 LoadDocument 函式的最後（載入表頭後）加入：
+'     LoadDetailLinesFromDB(docEntry, conn)
+
+' 在 Page_Load 的 SetDefaultValues() 之後加入：
+'     InitializeGridView()

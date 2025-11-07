@@ -1,0 +1,197 @@
+<!-- =============================================
+     Web.config 配置範例 - 費用申請單
+     說明：將以下內容整合到現有的 Web.config 中
+     注意：不要直接覆蓋現有 Web.config，請手動合併
+     ============================================= -->
+
+<?xml version="1.0"?>
+<configuration>
+
+  <!-- 連線字串設定 -->
+  <connectionStrings>
+    <!-- 本地資料庫 (jtdb) -->
+    <add name="LocalDB"
+         connectionString="Data Source=YOUR_SERVER_NAME;Initial Catalog=jtdb;User ID=YOUR_USERNAME;Password=YOUR_PASSWORD;MultipleActiveResultSets=True"
+         providerName="System.Data.SqlClient" />
+
+    <!-- SAP B1 資料庫 (JTTST1) -->
+    <add name="SAPB1DB"
+         connectionString="Data Source=YOUR_SERVER_NAME;Initial Catalog=JTTST1;User ID=YOUR_USERNAME;Password=YOUR_PASSWORD;MultipleActiveResultSets=True"
+         providerName="System.Data.SqlClient" />
+  </connectionStrings>
+
+  <!-- 應用程式設定 -->
+  <appSettings>
+    <!-- 檔案上傳設定 -->
+    <add key="MaxFileSize" value="10485760"/>
+    <!-- 10MB = 10 * 1024 * 1024 -->
+    <add key="UploadPath" value="~/Uploads/ExpenseClaims/"/>
+    <add key="AllowedFileExtensions" value=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip"/>
+
+    <!-- SMTP 郵件設定 -->
+    <add key="SmtpServer" value="smg.jettech.com.tw"/>
+    <add key="SmtpPort" value="25"/>
+    <add key="SmtpEnableSSL" value="false"/>
+    <add key="SmtpFromEmail" value="jetpmg@jettech.com.tw"/>
+    <add key="SmtpFromName" value="費用申請系統"/>
+
+    <!-- SAP B1 DI API 設定（未來使用） -->
+    <add key="SAPB1_Server" value="YOUR_SAP_SERVER"/>
+    <add key="SAPB1_CompanyDB" value="JTTST1"/>
+    <add key="SAPB1_UserName" value="manager"/>
+    <add key="SAPB1_Password" value="YOUR_PASSWORD"/>
+    <add key="SAPB1_DbServerType" value="dst_MSSQL2019"/>
+    <add key="SAPB1_LicenseServer" value="YOUR_LICENSE_SERVER:30000"/>
+
+    <!-- 其他設定 -->
+    <add key="DefaultCurrency" value="TWD"/>
+    <add key="DefaultDueDateOffset" value="30"/>
+    <!-- 預設到期日：請款日 + 30 天 -->
+    <add key="ValidationCodePath" value="~/App_Code/"/>
+  </appSettings>
+
+  <system.web>
+    <!-- 編譯設定 -->
+    <compilation debug="true" strict="false" explicit="true" targetFramework="4.0">
+      <assemblies>
+        <add assembly="System.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B03F5F7F11D50A3A"/>
+        <add assembly="System.Web.Extensions.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31BF3856AD364E35"/>
+        <add assembly="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B77A5C561934E089"/>
+      </assemblies>
+    </compilation>
+
+    <!-- 驗證設定 -->
+    <authentication mode="Forms">
+      <forms loginUrl="~/Login.aspx" timeout="60" slidingExpiration="true"/>
+    </authentication>
+
+    <!-- Session 設定 -->
+    <sessionState mode="InProc" timeout="60" cookieless="false"/>
+
+    <!-- 檔案上傳大小限制（20MB） -->
+    <httpRuntime maxRequestLength="20480" executionTimeout="3600" requestValidationMode="2.0"/>
+
+    <!-- 頁面設定 -->
+    <pages controlRenderingCompatibilityVersion="3.5" clientIDMode="AutoID"/>
+
+    <!-- 全球化設定 -->
+    <globalization culture="zh-TW" uiCulture="zh-TW" requestEncoding="utf-8" responseEncoding="utf-8" fileEncoding="utf-8"/>
+
+    <!-- 自訂錯誤頁面 -->
+    <customErrors mode="RemoteOnly" defaultRedirect="~/Error.aspx">
+      <error statusCode="403" redirect="~/Error.aspx?code=403"/>
+      <error statusCode="404" redirect="~/Error.aspx?code=404"/>
+      <error statusCode="500" redirect="~/Error.aspx?code=500"/>
+    </customErrors>
+  </system.web>
+
+  <!-- IIS 7+ 設定 -->
+  <system.webServer>
+    <!-- URL 重寫（如需要） -->
+    <rewrite>
+      <rules>
+        <!-- 範例：強制 HTTPS（生產環境建議啟用） -->
+        <!--
+        <rule name="Redirect to HTTPS" stopProcessing="true">
+          <match url="(.*)" />
+          <conditions>
+            <add input="{HTTPS}" pattern="^OFF$" />
+          </conditions>
+          <action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" />
+        </rule>
+        -->
+      </rules>
+    </rewrite>
+
+    <!-- 靜態內容設定 -->
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json"/>
+      <mimeMap fileExtension=".woff" mimeType="application/font-woff"/>
+      <mimeMap fileExtension=".woff2" mimeType="application/font-woff2"/>
+    </staticContent>
+
+    <!-- 安全性標頭 -->
+    <httpProtocol>
+      <customHeaders>
+        <add name="X-Content-Type-Options" value="nosniff"/>
+        <add name="X-Frame-Options" value="SAMEORIGIN"/>
+        <add name="X-XSS-Protection" value="1; mode=block"/>
+      </customHeaders>
+    </httpProtocol>
+
+    <!-- 檔案上傳大小限制（IIS 7+）-->
+    <security>
+      <requestFiltering>
+        <requestLimits maxAllowedContentLength="20971520"/>
+        <!-- 20MB = 20 * 1024 * 1024 -->
+      </requestFiltering>
+    </security>
+
+    <!-- 處理 ASPX 頁面 -->
+    <handlers>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified"/>
+    </handlers>
+
+    <!-- 預設文件 -->
+    <defaultDocument>
+      <files>
+        <clear/>
+        <add value="Login.aspx"/>
+        <add value="Default.aspx"/>
+        <add value="index.aspx"/>
+      </files>
+    </defaultDocument>
+  </system.webServer>
+
+  <!-- 位置特定設定：保護上傳資料夾 -->
+  <location path="Uploads/ExpenseClaims">
+    <system.webServer>
+      <security>
+        <authorization>
+          <remove users="*" roles="" verbs=""/>
+          <add accessType="Allow" users="*" verbs="GET"/>
+          <add accessType="Deny" users="?" verbs=""/>
+        </authorization>
+      </security>
+    </system.webServer>
+  </location>
+
+  <!-- 系統診斷（開發環境使用） -->
+  <system.diagnostics>
+    <trace autoflush="true">
+      <listeners>
+        <add name="WebPageTraceListener"
+             type="System.Web.WebPageTraceListener, System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"/>
+      </listeners>
+    </trace>
+  </system.diagnostics>
+
+  <!-- Runtime 設定 -->
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <!-- 如使用 Newtonsoft.Json -->
+      <dependentAssembly>
+        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" culture="neutral"/>
+        <bindingRedirect oldVersion="0.0.0.0-13.0.0.0" newVersion="13.0.0.0"/>
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+
+</configuration>
+
+<!-- =============================================
+     整合檢查清單
+     =============================================
+
+1. □ 替換資料庫連線字串中的 YOUR_SERVER_NAME、YOUR_USERNAME、YOUR_PASSWORD
+2. □ 確認 SmtpServer 和相關 SMTP 設定正確
+3. □ 確認 UploadPath 資料夾存在且有寫入權限
+4. □ 根據需求調整 MaxFileSize 和 AllowedFileExtensions
+5. □ 生產環境建議啟用 HTTPS 重寫規則
+6. □ 生產環境建議將 <compilation debug="false">
+7. □ 生產環境建議將 <customErrors mode="On">
+8. □ 確認 Session timeout 符合業務需求
+9. □ 如使用 SAP B1 DI API，填入正確的 SAP 連線資訊
+10. □ 測試所有設定是否正常運作
+
+-->

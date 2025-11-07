@@ -1,0 +1,483 @@
+' =============================================
+' MDR Tab 相關程式碼
+' 說明：插入到 ExpenseClaimForm.aspx.vb 中
+' 插入位置：在費用明細 GridView Region 之後
+' =============================================
+
+#Region "MDR 發票明細 Tab"
+    ''' <summary>
+    ''' MDR 明細資料類別
+    ''' </summary>
+    Public Class MDRDetailLine
+        Public Property LineNum As Integer
+        Public Property InvoiceNum As String
+        Public Property InvoiceDate As DateTime
+        Public Property InvoiceAmount As Decimal      ' 未稅
+        Public Property TaxAmount As Decimal
+        Public Property InvoiceTotal As Decimal       ' 含稅
+        Public Property Remarks As String
+    End Class
+
+    ' MDR 明細資料暫存（使用 ViewState）
+    Private Property MDRLines As List(Of MDRDetailLine)
+        Get
+            If ViewState("MDRLines") Is Nothing Then
+                ViewState("MDRLines") = New List(Of MDRDetailLine)()
+            End If
+            Return CType(ViewState("MDRLines"), List(Of MDRDetailLine))
+        End Get
+        Set(value As List(Of MDRDetailLine))
+            ViewState("MDRLines") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 初始化 MDR GridView（在 Page_Load 的 If Not IsPostBack 中呼叫）
+    ''' </summary>
+    Private Sub InitializeMDRGridView()
+        If currentDocEntry = 0 Then
+            ' 新增模式：空白 GridView
+            MDRLines = New List(Of MDRDetailLine)()
+        End If
+        BindMDRGridView()
+        SyncMDRHeaderInfo()
+    End Sub
+
+    ''' <summary>
+    ''' 綁定 MDR GridView
+    ''' </summary>
+    Private Sub BindMDRGridView()
+        gvMDRDetail.DataSource = MDRLines
+        gvMDRDetail.DataBind()
+        CalculateMDRTotals()
+    End Sub
+
+    ''' <summary>
+    ''' 同步 MDR 表頭資訊（從費用申請 Tab）
+    ''' </summary>
+    Private Sub SyncMDRHeaderInfo()
+        lblMDR_CardCode.Text = ddlCardCode.SelectedValue
+        lblMDR_CardName.Text = txtCardName.Text
+        lblMDR_DocDate.Text = txtDocDate.Text
+        lblMDR_DocDueDate.Text = txtDocDueDate.Text
+        lblMDR_DocCurrency.Text = ddlDocCurrency.SelectedValue
+        lblMDR_DocRate.Text = txtDocRate.Text
+    End Sub
+
+    ''' <summary>
+    ''' MDR GridView RowDataBound 事件
+    ''' </summary>
+    Protected Sub gvMDRDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            Dim line As MDRDetailLine = CType(e.Row.DataItem, MDRDetailLine)
+
+            ' 發票號碼
+            Dim txtInvoiceNum As TextBox = CType(e.Row.FindControl("txtInvoiceNum"), TextBox)
+            txtInvoiceNum.Text = line.InvoiceNum
+
+            ' 發票日期
+            Dim txtInvoiceDate As TextBox = CType(e.Row.FindControl("txtInvoiceDate"), TextBox)
+            If line.InvoiceDate > DateTime.MinValue Then
+                txtInvoiceDate.Text = line.InvoiceDate.ToString("yyyy-MM-dd")
+            End If
+
+            ' 發票金額（未稅）
+            Dim txtInvoiceAmount As TextBox = CType(e.Row.FindControl("txtInvoiceAmount"), TextBox)
+            txtInvoiceAmount.Text = line.InvoiceAmount.ToString("F2")
+
+            ' 稅額
+            Dim txtTaxAmount As TextBox = CType(e.Row.FindControl("txtTaxAmount"), TextBox)
+            txtTaxAmount.Text = line.TaxAmount.ToString("F2")
+
+            ' 發票總額（含稅）
+            Dim lblInvoiceTotal As Label = CType(e.Row.FindControl("lblInvoiceTotal"), Label)
+            lblInvoiceTotal.Text = line.InvoiceTotal.ToString("N2")
+
+            ' 備註
+            Dim txtMDRRemarks As TextBox = CType(e.Row.FindControl("txtMDRRemarks"), TextBox)
+            txtMDRRemarks.Text = line.Remarks
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 發票金額變更：重新計算發票總額
+    ''' </summary>
+    Protected Sub txtInvoiceAmount_TextChanged(sender As Object, e As EventArgs)
+        RecalculateMDRLineTotal(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 稅額變更：重新計算發票總額
+    ''' </summary>
+    Protected Sub txtTaxAmount_TextChanged(sender As Object, e As EventArgs)
+        RecalculateMDRLineTotal(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 重新計算 MDR 行總額
+    ''' </summary>
+    Private Sub RecalculateMDRLineTotal(sender As Object)
+        Try
+            Dim txt As TextBox = CType(sender, TextBox)
+            Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
+
+            If rowIndex >= MDRLines.Count Then Return
+
+            ' 取得發票金額和稅額
+            Dim txtInvoiceAmount As TextBox = CType(row.FindControl("txtInvoiceAmount"), TextBox)
+            Dim txtTaxAmount As TextBox = CType(row.FindControl("txtTaxAmount"), TextBox)
+
+            Dim invoiceAmount As Decimal = 0
+            Dim taxAmount As Decimal = 0
+
+            Decimal.TryParse(txtInvoiceAmount.Text, invoiceAmount)
+            Decimal.TryParse(txtTaxAmount.Text, taxAmount)
+
+            ' 計算發票總額（含稅）
+            Dim invoiceTotal As Decimal = invoiceAmount + taxAmount
+
+            ' 更新 ViewState
+            MDRLines(rowIndex).InvoiceAmount = invoiceAmount
+            MDRLines(rowIndex).TaxAmount = taxAmount
+            MDRLines(rowIndex).InvoiceTotal = invoiceTotal
+
+            ' 更新顯示
+            Dim lblInvoiceTotal As Label = CType(row.FindControl("lblInvoiceTotal"), Label)
+            lblInvoiceTotal.Text = invoiceTotal.ToString("N2")
+
+            ' 重新計算總計
+            CalculateMDRTotals()
+
+        Catch ex As Exception
+            lblMessage.Text = "計算發票金額失敗: " & ex.Message
+            LogError("RecalculateMDRLineTotal", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 計算 MDR 合計
+    ''' </summary>
+    Private Sub CalculateMDRTotals()
+        Dim totalAmount As Decimal = 0
+        Dim totalTax As Decimal = 0
+        Dim grandTotal As Decimal = 0
+
+        For Each line As MDRDetailLine In MDRLines
+            totalAmount += line.InvoiceAmount
+            totalTax += line.TaxAmount
+            grandTotal += line.InvoiceTotal
+        Next
+
+        lblMDR_TotalAmount.Text = totalAmount.ToString("N2")
+        lblMDR_TotalTax.Text = totalTax.ToString("N2")
+        lblMDR_GrandTotal.Text = grandTotal.ToString("N2")
+    End Sub
+
+    ''' <summary>
+    ''' 新增 MDR 明細行按鈕
+    ''' </summary>
+    Protected Sub btnMDR_AddLine_Click(sender As Object, e As EventArgs)
+        Try
+            ' 新增空白發票明細行
+            Dim newLine As New MDRDetailLine() With {
+                .LineNum = MDRLines.Count + 1,
+                .InvoiceNum = "",
+                .InvoiceDate = DateTime.Now,
+                .InvoiceAmount = 0,
+                .TaxAmount = 0,
+                .InvoiceTotal = 0,
+                .Remarks = ""
+            }
+
+            MDRLines.Add(newLine)
+            BindMDRGridView()
+
+            lblMessage.Text = "已新增發票明細行"
+
+        Catch ex As Exception
+            lblMessage.Text = "新增發票明細失敗: " & ex.Message
+            LogError("btnMDR_AddLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 刪除選中 MDR 明細行按鈕
+    ''' </summary>
+    Protected Sub btnMDR_DeleteLine_Click(sender As Object, e As EventArgs)
+        Try
+            Dim deleteCount As Integer = 0
+
+            ' 從後往前刪除（避免索引問題）
+            For i As Integer = gvMDRDetail.Rows.Count - 1 To 0 Step -1
+                Dim chkSelect As CheckBox = CType(gvMDRDetail.Rows(i).FindControl("chkMDRSelect"), CheckBox)
+                If chkSelect IsNot Nothing AndAlso chkSelect.Checked Then
+                    If i < MDRLines.Count Then
+                        MDRLines.RemoveAt(i)
+                        deleteCount += 1
+                    End If
+                End If
+            Next
+
+            If deleteCount > 0 Then
+                ' 重新編號
+                For i As Integer = 0 To MDRLines.Count - 1
+                    MDRLines(i).LineNum = i + 1
+                Next
+
+                BindMDRGridView()
+                lblMessage.Text = $"已刪除 {deleteCount} 行發票明細"
+            Else
+                lblMessage.Text = "請先勾選要刪除的發票明細"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除發票明細失敗: " & ex.Message
+            LogError("btnMDR_DeleteLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' MDR GridView RowDeleting 事件（單行刪除）
+    ''' </summary>
+    Protected Sub gvMDRDetail_RowDeleting(sender As Object, e As GridViewDeleteEventArgs)
+        Try
+            Dim rowIndex As Integer = e.RowIndex
+
+            If rowIndex < MDRLines.Count Then
+                MDRLines.RemoveAt(rowIndex)
+
+                ' 重新編號
+                For i As Integer = 0 To MDRLines.Count - 1
+                    MDRLines(i).LineNum = i + 1
+                Next
+
+                BindMDRGridView()
+                lblMessage.Text = "已刪除發票明細"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除發票明細失敗: " & ex.Message
+            LogError("gvMDRDetail_RowDeleting", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證金額總和按鈕
+    ''' </summary>
+    Protected Sub btnMDR_ValidateSum_Click(sender As Object, e As EventArgs)
+        Try
+            ' 收集 MDR GridView 最新資料
+            CollectMDRGridViewData()
+
+            ' 計算 AP 發票總額（來自費用明細）
+            Dim apTotal As Decimal = 0
+            If Decimal.TryParse(lblTotalLC.Text.Replace(",", ""), apTotal) Then
+                ' AP 總額已取得
+            Else
+                apTotal = 0
+            End If
+
+            ' 計算 MDR 發票總額（含稅）
+            Dim mdrTotal As Decimal = 0
+            If Decimal.TryParse(lblMDR_GrandTotal.Text.Replace(",", ""), mdrTotal) Then
+                ' MDR 總額已取得
+            Else
+                mdrTotal = 0
+            End If
+
+            ' 驗證金額是否相等
+            Dim difference As Decimal = Math.Abs(apTotal - mdrTotal)
+
+            pnlMDR_ValidationResult.Visible = True
+
+            If difference < 0.01D Then
+                ' 驗證成功
+                pnlMDR_ValidationResult.CssClass = "validation-success"
+                lblMDR_ValidationMessage.Text = $"✓ 驗證通過！AP 發票總額（{apTotal:N2}）與 MDR 發票總額（{mdrTotal:N2}）相符。"
+            Else
+                ' 驗證失敗
+                pnlMDR_ValidationResult.CssClass = "validation-error"
+                lblMDR_ValidationMessage.Text = $"✗ 驗證失敗！AP 發票總額（{apTotal:N2}）與 MDR 發票總額（{mdrTotal:N2}）不符，差異：{difference:N2}"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "驗證金額失敗: " & ex.Message
+            LogError("btnMDR_ValidateSum_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 儲存前收集 MDR GridView 資料
+    ''' </summary>
+    Private Sub CollectMDRGridViewData()
+        Try
+            MDRLines.Clear()
+
+            For Each row As GridViewRow In gvMDRDetail.Rows
+                If row.RowType = DataControlRowType.DataRow Then
+                    Dim txtInvoiceNum As TextBox = CType(row.FindControl("txtInvoiceNum"), TextBox)
+                    Dim txtInvoiceDate As TextBox = CType(row.FindControl("txtInvoiceDate"), TextBox)
+                    Dim txtInvoiceAmount As TextBox = CType(row.FindControl("txtInvoiceAmount"), TextBox)
+                    Dim txtTaxAmount As TextBox = CType(row.FindControl("txtTaxAmount"), TextBox)
+                    Dim lblInvoiceTotal As Label = CType(row.FindControl("lblInvoiceTotal"), Label)
+                    Dim txtMDRRemarks As TextBox = CType(row.FindControl("txtMDRRemarks"), TextBox)
+
+                    Dim invoiceDate As DateTime = DateTime.Now
+                    If Not String.IsNullOrEmpty(txtInvoiceDate.Text) Then
+                        DateTime.TryParse(txtInvoiceDate.Text, invoiceDate)
+                    End If
+
+                    Dim line As New MDRDetailLine() With {
+                        .LineNum = row.RowIndex + 1,
+                        .InvoiceNum = txtInvoiceNum.Text,
+                        .InvoiceDate = invoiceDate,
+                        .InvoiceAmount = If(Decimal.TryParse(txtInvoiceAmount.Text, Nothing), Convert.ToDecimal(txtInvoiceAmount.Text), 0),
+                        .TaxAmount = If(Decimal.TryParse(txtTaxAmount.Text, Nothing), Convert.ToDecimal(txtTaxAmount.Text), 0),
+                        .InvoiceTotal = If(Decimal.TryParse(lblInvoiceTotal.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblInvoiceTotal.Text.Replace(",", "")), 0),
+                        .Remarks = txtMDRRemarks.Text
+                    }
+
+                    MDRLines.Add(line)
+                End If
+            Next
+
+        Catch ex As Exception
+            LogError("CollectMDRGridViewData", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證 MDR 明細資料
+    ''' </summary>
+    Private Function ValidateMDRLines() As Boolean
+        ' MDR 明細可以為空（視業務需求）
+        If MDRLines.Count = 0 Then
+            Return True  ' 允許不輸入 MDR 明細
+        End If
+
+        For i As Integer = 0 To MDRLines.Count - 1
+            Dim line As MDRDetailLine = MDRLines(i)
+
+            If String.IsNullOrEmpty(line.InvoiceNum) Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：請輸入發票號碼"
+                Return False
+            End If
+
+            If line.InvoiceDate = DateTime.MinValue Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：請輸入發票日期"
+                Return False
+            End If
+
+            If line.InvoiceAmount < 0 Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：發票金額不可為負數"
+                Return False
+            End If
+
+            If line.TaxAmount < 0 Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：稅額不可為負數"
+                Return False
+            End If
+        Next
+
+        Return True
+    End Function
+
+    ''' <summary>
+    ''' 儲存 MDR 明細到資料庫（在 InsertNewDocument 和 UpdateDocument 中呼叫）
+    ''' </summary>
+    Private Sub SaveMDRLinesToDB(docEntry As Integer, conn As SqlConnection, trans As SqlTransaction)
+        Try
+            ' 先刪除舊 MDR 明細（更新模式）
+            Dim sqlDelete As String = "DELETE FROM jMGUIAPDetail WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sqlDelete, conn, trans)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 插入新 MDR 明細
+            If MDRLines.Count > 0 Then
+                Dim sqlInsert As String = "INSERT INTO jMGUIAPDetail (DocEntry, LineNum, InvoiceNum, InvoiceDate, " &
+                                         "InvoiceAmount, TaxAmount, InvoiceTotal, Remarks) " &
+                                         "VALUES (@DocEntry, @LineNum, @InvoiceNum, @InvoiceDate, " &
+                                         "@InvoiceAmount, @TaxAmount, @InvoiceTotal, @Remarks)"
+
+                For Each line As MDRDetailLine In MDRLines
+                    Using cmd As New SqlCommand(sqlInsert, conn, trans)
+                        cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                        cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
+                        cmd.Parameters.AddWithValue("@InvoiceNum", line.InvoiceNum)
+                        cmd.Parameters.AddWithValue("@InvoiceDate", line.InvoiceDate)
+                        cmd.Parameters.AddWithValue("@InvoiceAmount", line.InvoiceAmount)
+                        cmd.Parameters.AddWithValue("@TaxAmount", line.TaxAmount)
+                        cmd.Parameters.AddWithValue("@InvoiceTotal", line.InvoiceTotal)
+                        cmd.Parameters.AddWithValue("@Remarks", If(String.IsNullOrEmpty(line.Remarks), DBNull.Value, line.Remarks))
+                        cmd.ExecuteNonQuery()
+                    End Using
+                Next
+            End If
+
+        Catch ex As Exception
+            LogError("SaveMDRLinesToDB", ex)
+            Throw
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從資料庫載入 MDR 明細（在 LoadDocument 中呼叫）
+    ''' </summary>
+    Private Sub LoadMDRLinesFromDB(docEntry As Integer, conn As SqlConnection)
+        Try
+            MDRLines.Clear()
+
+            Dim sql As String = "SELECT * FROM jMGUIAPDetail WHERE DocEntry = @DocEntry ORDER BY LineNum"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim line As New MDRDetailLine() With {
+                            .LineNum = Convert.ToInt32(reader("LineNum")),
+                            .InvoiceNum = If(IsDBNull(reader("InvoiceNum")), "", reader("InvoiceNum").ToString()),
+                            .InvoiceDate = If(IsDBNull(reader("InvoiceDate")), DateTime.Now, Convert.ToDateTime(reader("InvoiceDate"))),
+                            .InvoiceAmount = If(IsDBNull(reader("InvoiceAmount")), 0, Convert.ToDecimal(reader("InvoiceAmount"))),
+                            .TaxAmount = If(IsDBNull(reader("TaxAmount")), 0, Convert.ToDecimal(reader("TaxAmount"))),
+                            .InvoiceTotal = If(IsDBNull(reader("InvoiceTotal")), 0, Convert.ToDecimal(reader("InvoiceTotal"))),
+                            .Remarks = If(IsDBNull(reader("Remarks")), "", reader("Remarks").ToString())
+                        }
+                        MDRLines.Add(line)
+                    End While
+                End Using
+            End Using
+
+            BindMDRGridView()
+            SyncMDRHeaderInfo()
+
+        Catch ex As Exception
+            LogError("LoadMDRLinesFromDB", ex)
+        End Try
+    End Sub
+#End Region
+
+' =============================================
+' 修改：在相應的事件中加入以下程式碼
+' =============================================
+
+' 1. 在 Page_Load 的 SetDefaultValues() 之後加入：
+'     InitializeMDRGridView()
+
+' 2. 在 btnSave_Click 和 btnSubmit_Click 的 CollectGridViewData() 之後加入：
+'     CollectMDRGridViewData()
+'     If Not ValidateMDRLines() Then
+'         Return
+'     End If
+
+' 3. 在 InsertNewDocument 和 UpdateDocument 的 SaveDetailLinesToDB() 之後加入：
+'     SaveMDRLinesToDB(newDocEntry, conn, trans)  ' 或 SaveMDRLinesToDB(currentDocEntry, conn, trans)
+
+' 4. 在 LoadDocument 的 LoadDetailLinesFromDB() 之後加入：
+'     LoadMDRLinesFromDB(docEntry, conn)
+
+' 5. 在任何會變更表頭資料的事件後呼叫 SyncMDRHeaderInfo()，例如：
+'    - ddlCardCode_SelectedIndexChanged 結尾加入 SyncMDRHeaderInfo()
+'    - txtDocDate.Text 變更後加入 SyncMDRHeaderInfo()
+'    - ddlDocCurrency_SelectedIndexChanged 結尾加入 SyncMDRHeaderInfo()

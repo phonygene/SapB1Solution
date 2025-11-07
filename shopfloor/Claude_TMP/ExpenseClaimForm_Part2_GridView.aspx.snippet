@@ -1,0 +1,180 @@
+<!-- =============================================
+     費用明細 GridView 區塊
+     說明：插入到 Part1 的「費用明細」section 中
+     替換位置：<p>[明細 GridView 將在第二階段實作]</p>
+     ============================================= -->
+
+<!-- 費用明細工具列 -->
+<div style="margin-bottom: 10px;">
+    <asp:Button ID="btnAddLine" runat="server" Text="新增明細行"
+               OnClick="btnAddLine_Click" CssClass="btn btn-secondary"
+               Style="padding: 5px 15px;" />
+    <asp:Button ID="btnDeleteLine" runat="server" Text="刪除選中行"
+               OnClick="btnDeleteLine_Click" CssClass="btn btn-danger"
+               Style="padding: 5px 15px;"
+               OnClientClick="return confirm('確定刪除選中的明細行？');" />
+</div>
+
+<!-- 費用明細 GridView -->
+<asp:GridView ID="gvExpenseDetail" runat="server" AutoGenerateColumns="False"
+             CssClass="gridview" Width="100%" CellPadding="5"
+             GridLines="Both" BorderColor="#ccc" BorderWidth="1px"
+             OnRowDataBound="gvExpenseDetail_RowDataBound"
+             OnRowDeleting="gvExpenseDetail_RowDeleting">
+    <HeaderStyle BackColor="#4CAF50" ForeColor="White" Font-Bold="True" HorizontalAlign="Center" />
+    <RowStyle BackColor="White" />
+    <AlternatingRowStyle BackColor="#f9f9f9" />
+
+    <Columns>
+        <!-- 勾選框 -->
+        <asp:TemplateField HeaderText="選">
+            <ItemTemplate>
+                <asp:CheckBox ID="chkSelect" runat="server" />
+            </ItemTemplate>
+            <ItemStyle Width="40px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+
+        <!-- 行號 -->
+        <asp:TemplateField HeaderText="行號">
+            <ItemTemplate>
+                <asp:Label ID="lblLineNum" runat="server"
+                          Text='<%# Container.DataItemIndex + 1 %>'></asp:Label>
+            </ItemTemplate>
+            <ItemStyle Width="50px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+
+        <!-- 費用類別 -->
+        <asp:TemplateField HeaderText="費用類別 *">
+            <ItemTemplate>
+                <asp:DropDownList ID="ddlExpenseCategory" runat="server"
+                                 AutoPostBack="True"
+                                 OnSelectedIndexChanged="ddlExpenseCategory_SelectedIndexChanged"
+                                 Width="180px">
+                </asp:DropDownList>
+            </ItemTemplate>
+            <ItemStyle Width="200px" />
+        </asp:TemplateField>
+
+        <!-- 總帳科目（唯讀，自動填入） -->
+        <asp:TemplateField HeaderText="總帳科目">
+            <ItemTemplate>
+                <asp:TextBox ID="txtAcctCode" runat="server" ReadOnly="True"
+                            BackColor="#f0f0f0" Width="100px"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="120px" />
+        </asp:TemplateField>
+
+        <!-- 費用說明 -->
+        <asp:TemplateField HeaderText="費用說明 *">
+            <ItemTemplate>
+                <asp:TextBox ID="txtDescription" runat="server" Width="200px"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="220px" />
+        </asp:TemplateField>
+
+        <!-- 數量 -->
+        <asp:TemplateField HeaderText="數量 *">
+            <ItemTemplate>
+                <asp:TextBox ID="txtQuantity" runat="server" Text="1"
+                            AutoPostBack="True"
+                            OnTextChanged="txtQuantity_TextChanged"
+                            Width="60px" style="text-align: right;"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="80px" />
+        </asp:TemplateField>
+
+        <!-- 單價（外幣） -->
+        <asp:TemplateField HeaderText="單價（外幣）*">
+            <ItemTemplate>
+                <asp:TextBox ID="txtPrice" runat="server" Text="0.00"
+                            AutoPostBack="True"
+                            OnTextChanged="txtPrice_TextChanged"
+                            Width="80px" style="text-align: right;"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="100px" />
+        </asp:TemplateField>
+
+        <!-- 金額（外幣）- 自動計算 -->
+        <asp:TemplateField HeaderText="金額（外幣）">
+            <ItemTemplate>
+                <asp:Label ID="lblLineTotal" runat="server" Text="0.00"
+                          style="display: block; text-align: right;"></asp:Label>
+            </ItemTemplate>
+            <ItemStyle Width="100px" HorizontalAlign="Right" />
+        </asp:TemplateField>
+
+        <!-- 匯率 -->
+        <asp:TemplateField HeaderText="匯率">
+            <ItemTemplate>
+                <asp:TextBox ID="txtLineRate" runat="server" Text="1.0"
+                            Width="70px" style="text-align: right;"></asp:TextBox>
+            </ItemTemplate>
+            <ItemStyle Width="90px" />
+        </asp:TemplateField>
+
+        <!-- 本幣金額 - 自動計算 -->
+        <asp:TemplateField HeaderText="本幣金額">
+            <ItemTemplate>
+                <asp:Label ID="lblLineTotalTWD" runat="server" Text="0.00"
+                          style="display: block; text-align: right;"></asp:Label>
+            </ItemTemplate>
+            <ItemStyle Width="100px" HorizontalAlign="Right" />
+        </asp:TemplateField>
+
+        <!-- 刪除按鈕 -->
+        <asp:TemplateField HeaderText="操作">
+            <ItemTemplate>
+                <asp:LinkButton ID="lbtnDelete" runat="server" CommandName="Delete"
+                               Text="刪除" ForeColor="Red"
+                               OnClientClick="return confirm('確定刪除此行？');"></asp:LinkButton>
+            </ItemTemplate>
+            <ItemStyle Width="60px" HorizontalAlign="Center" />
+        </asp:TemplateField>
+    </Columns>
+
+    <EmptyDataTemplate>
+        <div style="text-align: center; padding: 20px; color: gray;">
+            尚無費用明細，請點選「新增明細行」按鈕
+        </div>
+    </EmptyDataTemplate>
+</asp:GridView>
+
+<!-- 費用合計區 -->
+<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border: 1px solid #ccc;">
+    <div style="display: flex; justify-content: flex-end;">
+        <div style="margin-right: 30px;">
+            <strong>外幣總額：</strong>
+            <asp:Label ID="lblTotalFC" runat="server" Text="0.00"
+                      Font-Bold="True" ForeColor="Blue"></asp:Label>
+            <asp:Label ID="lblCurrency" runat="server" Text="TWD"
+                      Font-Bold="True" ForeColor="Blue"></asp:Label>
+        </div>
+        <div>
+            <strong>本幣總額：</strong>
+            <asp:Label ID="lblTotalLC" runat="server" Text="0.00"
+                      Font-Bold="True" ForeColor="Blue"></asp:Label>
+            <strong>TWD</strong>
+        </div>
+    </div>
+</div>
+
+<style>
+    .gridview {
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .gridview td, .gridview th {
+        border: 1px solid #ccc;
+        padding: 5px;
+    }
+    .gridview input[type="text"] {
+        padding: 3px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    .gridview select {
+        padding: 3px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+</style>

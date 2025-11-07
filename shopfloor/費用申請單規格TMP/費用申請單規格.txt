@@ -1,0 +1,113 @@
+請更新我的區域與欄位，
+
+並且請調整aspx頁面UI：我希望我的表頭欄位的底下都有一個隱藏的錯誤訊息欄位，
+表頭欄位(表頭區域與表尾區域)
+當使用者每次離開任何欄位的時候就會按照該欄位的檢查邏輯檢查，
+如果檢查出現錯誤的時候，就會取消這個欄位的隱藏屬性，
+讓它以紅字顯示錯誤訊息或警告訊息。
+明細的話則是當使用者選擇本列以外的欄位，包括新增一列新列，自動選擇新列第一欄時、
+改為選擇了之前編輯的列的欄位、改為選擇表頭或表尾的欄位時，
+按下表單的新增按鈕時也要算是離開本列的欄位。
+就在一個所有明細共用的區域(明細區域的上方)
+顯示錯誤訊息。
+
+當頁面有任何錯誤訊息顯示時，不允許使用者執行新增或更新表單。
+
+我的檢查要有三層，
+1.所有欄位不分屬性類別，一視同仁檢查取得的欄位值(為了盡可能防止Sql Injection攻擊 等安全性漏洞)
+2.資料型別與長度檢查，若輸入值超過長度或輸入了錯誤的資料格式就要報錯
+(例如在金額欄輸入中文，或是在限制5字元的欄位輸入超過5字元的值)。
+3.該欄位自身的檢查邏輯，例如發票號碼
+
+請先照上述調整UI實裝錯誤訊息欄位，並且實裝第二種檢查的2的資料型別與長度檢查。
+我現在先定義區域與欄位，檢查邏輯在我測試確認UI介面正確之後我們再確認定義。
+
+表頭左側區域：
+1.供應商代碼(CardCode)：
+從sap b1 資料庫讀取資料
+欄位為文字輸入欄位，當使用者按下Tab，
+會叫出供應商查詢視窗
+(Select CardCode,CardName from OCRD where CardType = 'S' and CardCode like '{平台欄位當前鍵入值}%' AND FrozenFor = 'N')
+但若使用者先輸入*才輸入後面的資訊，where 條件改成用CardCode like '%{平台欄位當前鍵入值}%'
+
+這裡我要定義這種由輸入欄開啟的查詢子視窗物件的規格：
+查詢視窗頂部有搜尋用的文字輸入欄，使用者可以再輸入一次資訊做二次篩選，
+我還希望查詢視窗的欄位標題可以用滑鼠左鍵雙擊來單選，當使用者沒有點選標題欄，
+預設會以使用者打在搜尋欄的值，從供應商代碼(CardCode)欄再做一次篩選，
+邏輯與前述一樣，如果沒有打*，就是like '{欄位當前鍵入值}%'
+如果有打*，就是like '%{欄位當前鍵入值}%'
+
+如果使用者選擇了其他標題欄，例如此例選擇了供應商名稱(CardName)，
+則改以供應商名稱(CardName)欄位做篩選。
+
+
+2.供應商名稱(CardName)：
+同供應商代碼，只是Sql Select where 條件改成CardName，
+(Select CardCode,CardName from OCRD where CardType = 'S' and CardName like '{平台欄位當前鍵入值}%' AND FrozenFor = 'N')
+
+3.供應商參考號碼(NumAtCard)
+4.發票號碼(StampNum)
+5.文件幣別(DocCur)
+
+6.收貨地址名稱：
+7.收貨地址：
+送貨地址名稱與地址請在資料庫jtdb開一個Table叫做addr
+先開addrType (值為D和R，D表示交貨，域留給未來有可能實作銷售模組，R表示收貨。)
+收貨地址名稱、收貨地址三個欄位就好，addrType先預設為R。
+表單介面可以用下拉式清單選擇地址名稱，選擇完之後帶入對應的地址，
+地址名稱選擇/帶入以後使用者仍然可以手動更改。
+
+
+表頭右側區域：
+1.AP發票號碼(DocNum)
+2.文件狀態(DocStatus)
+3.過帳日期(DocDate)
+4.到期日(DocDueDate)
+5.文件日期(TaxDate)
+
+日期類欄位請使用moadd_sys.aspx裡的出貨日期所使用的日期選擇物件
+
+付款條件(GroupNum)
+特殊付款 (check box Y/N 預設為未勾選=N)
+
+
+明細區域：
+1.明細列號(標題顯示為"#")
+2.項目號碼(ItemCode)
+3.項目說明(Dscription)
+項目號碼與項目說明 套用 查詢子視窗物件 的邏輯
+(Select ItemCode, ItemName from OITM where FrozenFor = 'N' and ItemCode like '{平台欄位當前鍵入值}%' )
+(Select ItemCode, ItemName from OITM where FrozenFor = 'N' and ItemName like '{平台欄位當前鍵入值}%' )
+
+
+4.數量(Quantity)
+5.單價(PriceBefDi)
+6.稅碼(VatGroup)
+7.稅額(VatSum)
+8.總帳科目(AcctCode)
+
+表尾左側區域：
+1.採購人員(SlpCode)
+2.所有人(OwnerCOde)
+3.備註(Comments)
+
+表尾右側區域：
+1.折扣之前總計(SAP B1中此欄位只有在UI上計算顯示，平台亦同，此欄位=DiscSum + DocTotal)
+2.折扣之前總計(外幣)(SAP B1中此欄位只有在UI上計算顯示，平台亦同，此欄位=DiscSumFC + DocTotalFC)
+3.文件折扣(DiscSum)
+4.文件折扣(外幣)(DiscSumFC)
+5.文件稅額(VatSum)
+6.文件稅額(外幣)(VatSumFC)
+7.文件總計(DocTotal)
+8.文件總計(外幣)(DocTotalFC)
+9.已付金額(PaidToDate)
+10已支付金額(外幣)(PaidSumFC)
+11.剩餘欠款 = (DocTotal - PaidToDate)
+12.剩餘欠款(外幣) = (DocTotalFC - PaidSumFC)
+
+
+
+
+
+
+
