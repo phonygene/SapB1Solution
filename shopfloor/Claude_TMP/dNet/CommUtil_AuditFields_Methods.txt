@@ -1,0 +1,262 @@
+=====================================================================
+  CommUtil_AuditFields_Methods.txt - 稽核欄位共用方法
+=====================================================================
+更新時間：2025-11-07 20:15
+
+一、用途說明
+---------------------------------------------------------------------
+為 CommUtil.vb 新增稽核欄位（CreateBy, UpdateBy）的共用處理方法。
+這些方法用於在新增或更新資料時自動填寫建立者和更新者資訊。
+
+二、目標位置
+---------------------------------------------------------------------
+應加入到：MgmSP/commcode/CommUtil.vb
+位置：類別的 Public Shared 方法區塊
+
+三、使用方式
+---------------------------------------------------------------------
+1. 開啟 MgmSP/commcode/CommUtil.vb
+2. 找到 Public Shared 方法區塊（通常在類別中段）
+3. 將下方完整代碼複製貼上到該區塊最後
+4. 確認命名空間和引用正確
+
+四、需要檢查的點
+---------------------------------------------------------------------
+- [ ] 確認 Session("User") 儲存的是使用者 ID (String)
+- [ ] 如果 Session 中使用其他鍵名，請修改 GetCurrentUserId() 方法
+- [ ] 確認資料表的欄位名稱都是 CreateBy/UpdateBy（而非 CreatedBy/UpdatedBy）
+
+五、完整代碼
+---------------------------------------------------------------------
+#Region "稽核欄位處理（Audit Fields）"
+
+''' <summary>
+''' 取得當前登入使用者 ID
+''' </summary>
+''' <returns>使用者 ID，如果未登入則回傳 "SYSTEM"</returns>
+Public Shared Function GetCurrentUserId() As String
+    Try
+        If HttpContext.Current IsNot Nothing AndAlso
+           HttpContext.Current.Session IsNot Nothing AndAlso
+           HttpContext.Current.Session("User") IsNot Nothing Then
+
+            Return HttpContext.Current.Session("User").ToString()
+        End If
+    Catch ex As Exception
+        ' Session 讀取失敗，回傳 SYSTEM
+    End Try
+
+    Return "SYSTEM"
+End Function
+
+''' <summary>
+''' 為 INSERT SQL 加入稽核欄位（CreateDate, CreateBy）
+''' </summary>
+''' <param name="columns">欄位清單（如："CardCode, CardName, DocDate"）</param>
+''' <param name="values">值清單（如："@CardCode, @CardName, @DocDate"）</param>
+''' <param name="cmd">SqlCommand 物件，用於加入參數</param>
+''' <returns>更新後的欄位和值清單（Tuple）</returns>
+''' <remarks>
+''' 使用範例：
+''' Dim cols = "CardCode, CardName"
+''' Dim vals = "@CardCode, @CardName"
+''' Dim result = CommUtil.AddCreateAuditFields(cols, vals, cmd)
+''' Dim sql = "INSERT INTO jOPCH (" + result.Item1 + ") VALUES (" + result.Item2 + ")"
+''' </remarks>
+Public Shared Function AddCreateAuditFields(columns As String, values As String, cmd As SqlCommand) As Tuple(Of String, String)
+    Dim userId As String = GetCurrentUserId()
+
+    ' 加入稽核欄位
+    Dim newColumns As String = columns.TrimEnd(","c) & ", CreateDate, CreateBy"
+    Dim newValues As String = values.TrimEnd(","c) & ", GETDATE(), @CreateBy"
+
+    ' 加入參數
+    cmd.Parameters.AddWithValue("@CreateBy", userId)
+
+    Return New Tuple(Of String, String)(newColumns, newValues)
+End Function
+
+''' <summary>
+''' 為 UPDATE SQL 加入稽核欄位（UpdateDate, UpdateBy）
+''' </summary>
+''' <param name="setClause">SET 子句（如："CardCode = @CardCode, CardName = @CardName"）</param>
+''' <param name="cmd">SqlCommand 物件，用於加入參數</param>
+''' <returns>更新後的 SET 子句</returns>
+''' <remarks>
+''' 使用範例：
+''' Dim setClause = "CardCode = @CardCode, CardName = @CardName"
+''' Dim newSetClause = CommUtil.AddUpdateAuditFields(setClause, cmd)
+''' Dim sql = "UPDATE jOPCH SET " + newSetClause + " WHERE jID = @jID"
+''' </remarks>
+Public Shared Function AddUpdateAuditFields(setClause As String, cmd As SqlCommand) As String
+    Dim userId As String = GetCurrentUserId()
+
+    ' 加入稽核欄位
+    Dim newSetClause As String = setClause.TrimEnd(","c) & ", UpdateDate = GETDATE(), UpdateBy = @UpdateBy"
+
+    ' 加入參數
+    cmd.Parameters.AddWithValue("@UpdateBy", userId)
+
+    Return newSetClause
+End Function
+
+''' <summary>
+''' 為 INSERT SQL 完整處理稽核欄位和執行
+''' </summary>
+''' <param name="tableName">資料表名稱</param>
+''' <param name="columns">欄位清單（不含稽核欄位）</param>
+''' <param name="values">值清單（不含稽核欄位）</param>
+''' <param name="cmd">SqlCommand 物件</param>
+''' <returns>是否執行成功</returns>
+Public Shared Function ExecuteInsertWithAudit(tableName As String, columns As String, values As String, cmd As SqlCommand) As Boolean
+    Try
+        Dim result = AddCreateAuditFields(columns, values, cmd)
+        Dim sql As String = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", tableName, result.Item1, result.Item2)
+
+        cmd.CommandText = sql
+        cmd.ExecuteNonQuery()
+
+        Return True
+    Catch ex As Exception
+        Throw New Exception("執行 INSERT 時發生錯誤：" & ex.Message, ex)
+    End Try
+End Function
+
+''' <summary>
+''' 為 UPDATE SQL 完整處理稽核欄位和執行
+''' </summary>
+''' <param name="tableName">資料表名稱</param>
+''' <param name="setClause">SET 子句（不含稽核欄位）</param>
+''' <param name="whereClause">WHERE 子句</param>
+''' <param name="cmd">SqlCommand 物件</param>
+''' <returns>是否執行成功</returns>
+Public Shared Function ExecuteUpdateWithAudit(tableName As String, setClause As String, whereClause As String, cmd As SqlCommand) As Boolean
+    Try
+        Dim newSetClause = AddUpdateAuditFields(setClause, cmd)
+        Dim sql As String = String.Format("UPDATE {0} SET {1} WHERE {2}", tableName, newSetClause, whereClause)
+
+        cmd.CommandText = sql
+        cmd.ExecuteNonQuery()
+
+        Return True
+    Catch ex As Exception
+        Throw New Exception("執行 UPDATE 時發生錯誤：" & ex.Message, ex)
+    End Try
+End Function
+
+#End Region
+
+六、使用範例
+---------------------------------------------------------------------
+' === 範例 1：手動加入稽核欄位（INSERT） ===
+Dim sql As String
+Dim cols As String = "CardCode, CardName, DocDate"
+Dim vals As String = "@CardCode, @CardName, @DocDate"
+
+Using conn As New SqlConnection(connectionString)
+    Using cmd As New SqlCommand()
+        cmd.Connection = conn
+        cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+        cmd.Parameters.AddWithValue("@DocDate", DateTime.Now)
+
+        ' 加入稽核欄位
+        Dim result = CommUtil.AddCreateAuditFields(cols, vals, cmd)
+        sql = "INSERT INTO jOPCH (" & result.Item1 & ") VALUES (" & result.Item2 & ")"
+
+        cmd.CommandText = sql
+        conn.Open()
+        cmd.ExecuteNonQuery()
+    End Using
+End Using
+
+' === 範例 2：手動加入稽核欄位（UPDATE） ===
+Dim setClause As String = "CardCode = @CardCode, CardName = @CardName"
+
+Using conn As New SqlConnection(connectionString)
+    Using cmd As New SqlCommand()
+        cmd.Connection = conn
+        cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+        cmd.Parameters.AddWithValue("@jID", jID)
+
+        ' 加入稽核欄位
+        setClause = CommUtil.AddUpdateAuditFields(setClause, cmd)
+        Dim sql As String = "UPDATE jOPCH SET " & setClause & " WHERE jID = @jID"
+
+        cmd.CommandText = sql
+        conn.Open()
+        cmd.ExecuteNonQuery()
+    End Using
+End Using
+
+' === 範例 3：使用封裝方法（INSERT） ===
+Using conn As New SqlConnection(connectionString)
+    Using cmd As New SqlCommand()
+        cmd.Connection = conn
+        cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+        cmd.Parameters.AddWithValue("@DocDate", DateTime.Now)
+
+        conn.Open()
+        CommUtil.ExecuteInsertWithAudit("jOPCH",
+            "CardCode, CardName, DocDate",
+            "@CardCode, @CardName, @DocDate",
+            cmd)
+    End Using
+End Using
+
+' === 範例 4：使用封裝方法（UPDATE） ===
+Using conn As New SqlConnection(connectionString)
+    Using cmd As New SqlCommand()
+        cmd.Connection = conn
+        cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+        cmd.Parameters.AddWithValue("@jID", jID)
+
+        conn.Open()
+        CommUtil.ExecuteUpdateWithAudit("jOPCH",
+            "CardCode = @CardCode, CardName = @CardName",
+            "jID = @jID",
+            cmd)
+    End Using
+End Using
+
+七、整合到 ExpenseClaimForm
+---------------------------------------------------------------------
+在 ExpenseClaimForm.aspx.vb 的 InsertNewDocument 和 UpdateDocument 方法中：
+
+' InsertNewDocument 方法中
+Dim cols As String = "CardCode, CardName, NumAtCard, DocDate, ..."
+Dim vals As String = "@CardCode, @CardName, @NumAtCard, @DocDate, ..."
+
+' 加入稽核欄位
+Dim result = CommUtil.AddCreateAuditFields(cols, vals, cmdLocal)
+Dim sql As String = "INSERT INTO jOPCH (" & result.Item1 & ") VALUES (" & result.Item2 & ")"
+
+' UpdateDocument 方法中
+Dim setClause As String = "CardCode = @CardCode, CardName = @CardName, ..."
+
+' 加入稽核欄位
+setClause = CommUtil.AddUpdateAuditFields(setClause, cmdLocal)
+Dim sql As String = "UPDATE jOPCH SET " & setClause & " WHERE jID = @jID"
+
+八、注意事項
+---------------------------------------------------------------------
+1. Session("User") 必須包含使用者 ID（String 型別）
+2. 如果使用其他 Session 鍵名，請修改 GetCurrentUserId() 方法
+3. 稽核欄位名稱必須統一：CreateDate, CreateBy, UpdateDate, UpdateBy
+4. 資料表必須先執行 SQL 腳本新增稽核欄位
+5. CreateDate 使用資料庫的 GETDATE()，確保時間一致性
+6. CreateBy 和 UpdateBy 允許 NULL，但建議都填寫
+
+九、測試清單
+---------------------------------------------------------------------
+- [ ] 測試新增資料時 CreateBy 正確寫入
+- [ ] 測試更新資料時 UpdateBy 正確寫入
+- [ ] 測試未登入時使用 "SYSTEM" 作為預設值
+- [ ] 測試 Session 異常時不會報錯
+- [ ] 確認 CreateDate 和 UpdateDate 自動填入
+
+=====================================================================
+[2025-11-07 20:15]

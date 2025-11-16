@@ -682,4 +682,123 @@ Public Class CommUtil
         Next
         Return kk
     End Function
+
+#Region "稽核欄位處理（Audit Fields）"
+
+    ''' <summary>
+    ''' 取得當前登入使用者 ID
+    ''' </summary>
+    ''' <returns>使用者 ID，如果未登入則回傳 "SYSTEM"</returns>
+    Public Shared Function GetCurrentUserId() As String
+        Try
+            If HttpContext.Current IsNot Nothing AndAlso
+               HttpContext.Current.Session IsNot Nothing AndAlso
+               HttpContext.Current.Session("User") IsNot Nothing Then
+
+                Return HttpContext.Current.Session("User").ToString()
+            End If
+        Catch ex As Exception
+            ' Session 讀取失敗，回傳 SYSTEM
+        End Try
+
+        Return "SYSTEM"
+    End Function
+
+    ''' <summary>
+    ''' 為 INSERT SQL 加入稽核欄位（CreateDate, CreateBy）
+    ''' </summary>
+    ''' <param name="columns">欄位清單（如："CardCode, CardName, DocDate"）</param>
+    ''' <param name="values">值清單（如："@CardCode, @CardName, @DocDate"）</param>
+    ''' <param name="cmd">SqlCommand 物件，用於加入參數</param>
+    ''' <returns>更新後的欄位和值清單（Tuple）</returns>
+    ''' <remarks>
+    ''' 使用範例：
+    ''' Dim cols = "CardCode, CardName"
+    ''' Dim vals = "@CardCode, @CardName"
+    ''' Dim result = CommUtil.AddCreateAuditFields(cols, vals, cmd)
+    ''' Dim sql = "INSERT INTO jOPCH (" + result.Item1 + ") VALUES (" + result.Item2 + ")"
+    ''' </remarks>
+    Public Shared Function AddCreateAuditFields(columns As String, values As String, cmd As SqlCommand) As Tuple(Of String, String)
+        Dim userId As String = GetCurrentUserId()
+
+        ' 加入稽核欄位
+        Dim newColumns As String = columns.TrimEnd(","c) & ", CreateDate, CreateBy"
+        Dim newValues As String = values.TrimEnd(","c) & ", GETDATE(), @CreateBy"
+
+        ' 加入參數
+        cmd.Parameters.AddWithValue("@CreateBy", userId)
+
+        Return New Tuple(Of String, String)(newColumns, newValues)
+    End Function
+
+    ''' <summary>
+    ''' 為 UPDATE SQL 加入稽核欄位（UpdateDate, UpdateBy）
+    ''' </summary>
+    ''' <param name="setClause">SET 子句（如："CardCode = @CardCode, CardName = @CardName"）</param>
+    ''' <param name="cmd">SqlCommand 物件，用於加入參數</param>
+    ''' <returns>更新後的 SET 子句</returns>
+    ''' <remarks>
+    ''' 使用範例：
+    ''' Dim setClause = "CardCode = @CardCode, CardName = @CardName"
+    ''' Dim newSetClause = CommUtil.AddUpdateAuditFields(setClause, cmd)
+    ''' Dim sql = "UPDATE jOPCH SET " + newSetClause + " WHERE jID = @jID"
+    ''' </remarks>
+    Public Shared Function AddUpdateAuditFields(setClause As String, cmd As SqlCommand) As String
+        Dim userId As String = GetCurrentUserId()
+
+        ' 加入稽核欄位
+        Dim newSetClause As String = setClause.TrimEnd(","c) & ", UpdateDate = GETDATE(), UpdateBy = @UpdateBy"
+
+        ' 加入參數
+        cmd.Parameters.AddWithValue("@UpdateBy", userId)
+
+        Return newSetClause
+    End Function
+
+    ''' <summary>
+    ''' 為 INSERT SQL 完整處理稽核欄位和執行
+    ''' </summary>
+    ''' <param name="tableName">資料表名稱</param>
+    ''' <param name="columns">欄位清單（不含稽核欄位）</param>
+    ''' <param name="values">值清單（不含稽核欄位）</param>
+    ''' <param name="cmd">SqlCommand 物件</param>
+    ''' <returns>是否執行成功</returns>
+    Public Shared Function ExecuteInsertWithAudit(tableName As String, columns As String, values As String, cmd As SqlCommand) As Boolean
+        Try
+            Dim result = AddCreateAuditFields(columns, values, cmd)
+            Dim sql As String = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", tableName, result.Item1, result.Item2)
+
+            cmd.CommandText = sql
+            cmd.ExecuteNonQuery()
+
+            Return True
+        Catch ex As Exception
+            Throw New Exception("執行 INSERT 時發生錯誤：" & ex.Message, ex)
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 為 UPDATE SQL 完整處理稽核欄位和執行
+    ''' </summary>
+    ''' <param name="tableName">資料表名稱</param>
+    ''' <param name="setClause">SET 子句（不含稽核欄位）</param>
+    ''' <param name="whereClause">WHERE 子句</param>
+    ''' <param name="cmd">SqlCommand 物件</param>
+    ''' <returns>是否執行成功</returns>
+    Public Shared Function ExecuteUpdateWithAudit(tableName As String, setClause As String, whereClause As String, cmd As SqlCommand) As Boolean
+        Try
+            Dim newSetClause = AddUpdateAuditFields(setClause, cmd)
+            Dim sql As String = String.Format("UPDATE {0} SET {1} WHERE {2}", tableName, newSetClause, whereClause)
+
+            cmd.CommandText = sql
+            cmd.ExecuteNonQuery()
+
+            Return True
+        Catch ex As Exception
+            Throw New Exception("執行 UPDATE 時發生錯誤：" & ex.Message, ex)
+        End Try
+    End Function
+
+#End Region
+
 End Class

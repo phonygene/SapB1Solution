@@ -25,6 +25,8 @@
 4. `agent-os/standards/global/localization.md` - 語言與術語標準
 5. `agent-os/standards/global/coding-style.md` - 程式碼風格規範
 6. `shopfloor/Claude_TMP/etc/README_協作模式說明.txt` - 檔案輸出協作方式（補充說明）
+7. `.mcp.json` - MCP Server 配置（確認工具可用性）
+8. `mcp-sqlserver/AGENT_OS_INTEGRATION.md` - MCP Server 使用規範與最佳實踐
 
 ### 第二步：讀取專案狀態
 1. `worklog/LastCheckPoint.log` - 最新工作狀態與待辦事項
@@ -65,6 +67,13 @@ SapB1Solution - 費用申請單功能開發
   - SAP：JTTST1 (192.168.1.31)
 - **API**：SAP Business One DI API
 - **套件**：Newtonsoft.Json、iTextSharp、ExcelDataReader
+- **MCP Server**：
+  - 名稱：sapb1-sql
+  - 路徑：`mcp-sqlserver/`
+  - 配置：`.mcp.json`
+  - 環境管理：uv（Python 虛擬環境）
+  - 功能：直接操作 SQL Server（查詢、寫入、DDL、備份管理）
+  - **重要**：修改 MCP Server 代碼後需重啟 Claude Code Session
 
 ### 專案結構
 ```
@@ -84,6 +93,20 @@ shopfloor/Claude_TMP/     # Claude 產出檔案
 agent-os/                 # 協作規範
 ├── standards/global/     # 全域標準
 └── config.yml            # Agent-OS 配置
+
+mcp-sqlserver/            # MCP Server（SQL Server 操作工具）
+├── src/                  # Server 程式碼
+│   ├── server.py         # MCP Server 主程式
+│   ├── database.py       # 資料庫操作模組
+│   └── backup_manager.py # 備份管理模組
+├── backups/              # 自動備份目錄
+├── logs/                 # 操作日誌
+├── .env                  # 資料庫連線配置
+├── README.md             # 使用說明
+├── OPERATION_RULES.md    # 操作規範
+└── AGENT_OS_INTEGRATION.md # Agent-OS 整合指南
+
+.mcp.json                 # MCP Server 配置檔（專案根目錄）
 ```
 
 ### 溝通語言與術語
@@ -96,6 +119,13 @@ agent-os/                 # 協作規範
 - **檔案輸出**：產生檔案到 `shopfloor/Claude_TMP/`，不在對話中貼大段程式碼
 - **溝通方式**：簡要說明 + 等待使用者回報結果
 - **回應結尾**：加上台灣時間標籤 `[YYYY-MM-DD HH:mm]`
+
+### MCP Server 使用規範
+- **查詢操作**：可直接使用（SELECT、查看表結構、列出備份等）
+- **寫入操作**：必須顯示完整 SQL 並等待使用者確認（INSERT/UPDATE/DELETE）
+- **關鍵操作**：必須說明影響並警告（RESTORE、DDL 操作）
+- **自動備份**：所有寫入操作前自動建立備份
+- **詳細規範**：參考 `mcp-sqlserver/OPERATION_RULES.md` 和 `AGENT_OS_INTEGRATION.md`
 
 ---
 
@@ -123,3 +153,7 @@ agent-os/                 # 協作規範
 - 當專案進入新階段時，更新「當前階段」資訊
 - 保持本檔案簡潔，詳細規範仍在各自的 .md 檔案中
 - Session 指令的詳細定義請維護在 `agent-os/standards/global/session-management.md`
+- **MCP Server 注意事項**：
+  - 修改 `mcp-sqlserver/src/` 中的代碼後，**必須重啟 Claude Code Session** 才會生效
+  - Python 模組快取問題：即使代碼已修改，MCP Server 仍會使用舊版本直到重啟
+  - 新增或修改 MCP Server 相關文件時，需同步更新本檔案的「第一步：讀取核心規範」清單

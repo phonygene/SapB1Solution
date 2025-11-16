@@ -374,8 +374,6 @@ class DatabaseManager:
     def execute_ddl(self, query: str) -> Tuple[bool, str]:
         """執行 DDL 操作（CREATE, DROP, ALTER）
 
-        DDL 語句會自動提交，不需要手動 commit。
-
         Args:
             query: DDL SQL 語句
 
@@ -390,8 +388,15 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute(query)
 
-            # DDL 語句不需要 commit，會自動提交
-            # 也不需要 rollback
+            # 提交 DDL 變更（pyodbc + FreeTDS 需要手動 commit）
+            conn.commit()
+
+            # 關閉連線，強制下次操作建立新連線以讀取 schema 變更
+            try:
+                conn.close()
+                self._connection = None
+            except:
+                pass
 
             msg = f"DDL 操作成功"
             logger.info(msg)
@@ -399,6 +404,12 @@ class DatabaseManager:
             return True, msg
 
         except Exception as e:
+            # 回滾事務
+            try:
+                conn.rollback()
+            except:
+                pass
+
             error_msg = f"DDL 執行失敗: {str(e)}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
