@@ -404,7 +404,7 @@ Public Class ExpenseClaimForm
 
             ' 1. 連接 SAP DI API
             oCompany = New Company()
-            Dim ret As Integer = InitSAPConnection("192.168.1.31", "JTTST1", "manager", "sap123", oCompany)
+            Dim ret As Integer = InitSAPConnection("127.0.0.1", "JTSTD", "manager", "2408", oCompany)
             If ret <> 0 Then
                 Dim errMsg As String = String.Empty
                 Dim errCode As Integer = 0

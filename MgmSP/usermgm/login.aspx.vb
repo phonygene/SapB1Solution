@@ -80,9 +80,9 @@ Partial Public Class login
                 End If
                 dr.Close()
                 conn.Close()
-                Session("usingserver") = "192.168.1.31"
+                Session("usingserver") = "127.0.0.1"
                 'Session("usingdb") = "JTSTD"
-                Session("usingdb") = "JTTST1"
+                Session("usingdb") = "JTSTD"
                 Session("actmode") = actmode
                 'If (actmode = "todoitem") Then
                 '    Session("actmode") = "todoitem"
@@ -133,7 +133,7 @@ Partial Public Class login
                     Session("s_id") = dr("id")
                     Session("s_name") = dr("name")
                     'Session("usingdb") = "JTSTD"
-                    Session("usingdb") = "JTTST1"
+                    Session("usingdb") = "JTSTD"
                     str = Split(DDLWhs.SelectedValue, " ")
                     Session("usingwhsfull") = DDLWhs.SelectedValue
                     Session("usingwhs") = str(0)
@@ -141,7 +141,7 @@ Partial Public Class login
                     Session("sappwd") = dr("sappwd")
                     Session("grp") = dr("grp")
                     Session("branch") = dr("branch")
-                    Session("usingserver") = "192.168.1.31" 'ServerText.Text
+                    Session("usingserver") = "127.0.0.1" 'ServerText.Text
                     dr.Close()
 
                     Response.Redirect("~/index.aspx?smid=index")
