@@ -1,0 +1,480 @@
+=====================================================================
+  ExpenseClaimForm - jtdb 資料寫入方法
+=====================================================================
+檔案位置：MgmSP/ExpenseClaimForm.aspx.vb
+插入位置：CreateExpenseClaim() 方法之前（約 Line 393 之前）
+更新時間：2025-11-17
+
+說明：
+這些方法負責將費用申請單資料寫入 jtdb 資料庫的相關表格。
+依序寫入 jOPCH → jPCH1 → jMGUIAP → jMGUIAPDetail，
+然後在 SAP AP Invoice 建立後更新 DocEntry。
+
+=====================================================================
+方法 1：SaveToJtdb_jOPCH - 寫入採購單表頭並產生 jID
+=====================================================================
+
+    ''' <summary>
+    ''' 寫入 jtdb.jOPCH 採購單表頭，產生 jID (IDENTITY)
+    ''' </summary>
+    ''' <param name="details">發票明細資料表</param>
+    ''' <returns>新產生的 jID</returns>
+    Private Function SaveToJtdb_jOPCH(details As DataTable) As Integer
+        Dim jID As Integer = 0
+
+        Try
+            ' 計算總金額
+            Dim docTotal As Decimal = 0
+            Dim vatSum As Decimal = 0
+            For Each row As DataRow In details.Rows
+                docTotal += CDec(row("U_HWBAS"))
+                vatSum += CDec(row("U_HWSTE"))
+            Next
+
+            ' 使用第一列的供應商資訊
+            Dim firstRow As DataRow = details.Rows(0)
+            Dim cardCode As String = firstRow("U_LIFNR").ToString()
+            Dim taxDate As DateTime = CDate(firstRow("U_VATDATE"))
+
+            Dim sql As String = "
+                INSERT INTO jOPCH (
+                    CardCode, CardName, DocDate, TaxDate,
+                    DocTotal, VatSum,
+                    DocCurrency, DocRate,
+                    DocStatus, Canceled, B1PostStatus,
+                    ApprovalStatus,
+                    CreateDate, CreateBy
+                ) VALUES (
+                    @CardCode, @CardName, @DocDate, @TaxDate,
+                    @DocTotal, @VatSum,
+                    'TWD', 1,
+                    'O', 'N', 'N',
+                    'Pending',
+                    GETDATE(), @CreateBy
+                );
+                SELECT SCOPE_IDENTITY()
+            "
+
+            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
+            conn.Open()
+
+            Try
+                Dim cmd As New SqlCommand(sql, conn)
+                With cmd.Parameters
+                    .AddWithValue("@CardCode", cardCode)
+                    .AddWithValue("@CardName", cardCode) ' TODO: 查詢供應商名稱
+                    .AddWithValue("@DocDate", DateTime.Today)
+                    .AddWithValue("@TaxDate", taxDate)
+                    .AddWithValue("@DocTotal", docTotal)
+                    .AddWithValue("@VatSum", vatSum)
+                    .AddWithValue("@CreateBy", GetCurrentUserId())
+                End With
+
+                jID = Convert.ToInt32(cmd.ExecuteScalar())
+
+            Finally
+                conn.Close()
+            End Try
+
+            Return jID
+
+        Catch ex As Exception
+            Throw New Exception($"寫入 jOPCH 失敗：{ex.Message}", ex)
+        End Try
+    End Function
+
+=====================================================================
+方法 2：SaveToJtdb_jPCH1 - 寫入採購單明細
+=====================================================================
+
+    ''' <summary>
+    ''' 寫入 jtdb.jPCH1 採購單明細
+    ''' </summary>
+    ''' <param name="jID">採購單 jID</param>
+    ''' <param name="details">發票明細資料表</param>
+    Private Sub SaveToJtdb_jPCH1(jID As Integer, details As DataTable)
+        Try
+            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
+            conn.Open()
+
+            Try
+                Dim lineNum As Integer = 0
+
+                For Each row As DataRow In details.Rows
+                    Dim sql As String = "
+                        INSERT INTO jPCH1 (
+                            jID, LineNum,
+                            ItemCode, Dscription,
+                            Quantity, Price, LineTotal,
+                            TaxCode, VatSum,
+                            Currency, Rate,
+                            CreateDate, CreateBy
+                        ) VALUES (
+                            @jID, @LineNum,
+                            @ItemCode, @Dscription,
+                            @Quantity, @Price, @LineTotal,
+                            @TaxCode, @VatSum,
+                            'TWD', 1,
+                            GETDATE(), @CreateBy
+                        )
+                    "
+
+                    Dim cmd As New SqlCommand(sql, conn)
+                    With cmd.Parameters
+                        .AddWithValue("@jID", jID)
+                        .AddWithValue("@LineNum", lineNum)
+                        .AddWithValue("@ItemCode", "_SYS00000000001") ' 費用項目
+                        .AddWithValue("@Dscription", row("U_XBLNR").ToString()) ' 使用發票號碼作為說明
+                        .AddWithValue("@Quantity", 1)
+                        .AddWithValue("@Price", CDec(row("U_HWBAS")))
+                        .AddWithValue("@LineTotal", CDec(row("U_HWBAS")))
+                        .AddWithValue("@TaxCode", "100") ' 預設稅碼
+                        .AddWithValue("@VatSum", CDec(row("U_HWSTE")))
+                        .AddWithValue("@CreateBy", GetCurrentUserId())
+                    End With
+
+                    cmd.ExecuteNonQuery()
+                    lineNum += 1
+                Next
+
+            Finally
+                conn.Close()
+            End Try
+
+        Catch ex As Exception
+            Throw New Exception($"寫入 jPCH1 失敗：{ex.Message}", ex)
+        End Try
+    End Sub
+
+=====================================================================
+方法 3：SaveToJtdb_jMGUIAP - 寫入費用申請單表頭
+=====================================================================
+
+    ''' <summary>
+    ''' 寫入 jtdb.jMGUIAP 費用申請單表頭
+    ''' </summary>
+    ''' <param name="jID">採購單 jID（來自 jOPCH）</param>
+    ''' <param name="details">發票明細資料表</param>
+    Private Sub SaveToJtdb_jMGUIAP(jID As Integer, details As DataTable)
+        Try
+            ' 計算總金額
+            Dim docTotal As Decimal = 0
+            Dim vatSum As Decimal = 0
+            For Each row As DataRow In details.Rows
+                docTotal += CDec(row("U_HWBAS"))
+                vatSum += CDec(row("U_HWSTE"))
+            Next
+
+            Dim sql As String = "
+                INSERT INTO jMGUIAP (
+                    jID, DocTotal, VatSum, U_OBJTYPE,
+                    MDRPostStatus,
+                    CreateDate, CreateBy
+                ) VALUES (
+                    @jID, @DocTotal, @VatSum, '18',
+                    'N',
+                    GETDATE(), @CreateBy
+                )
+            "
+
+            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
+            conn.Open()
+
+            Try
+                Dim cmd As New SqlCommand(sql, conn)
+                With cmd.Parameters
+                    .AddWithValue("@jID", jID)
+                    .AddWithValue("@DocTotal", docTotal)
+                    .AddWithValue("@VatSum", vatSum)
+                    .AddWithValue("@CreateBy", GetCurrentUserId())
+                End With
+
+                cmd.ExecuteNonQuery()
+
+            Finally
+                conn.Close()
+            End Try
+
+        Catch ex As Exception
+            Throw New Exception($"寫入 jMGUIAP 失敗：{ex.Message}", ex)
+        End Try
+    End Sub
+
+=====================================================================
+方法 4：SaveToJtdb_jMGUIAPDetail - 寫入費用申請單明細
+=====================================================================
+
+    ''' <summary>
+    ''' 寫入 jtdb.jMGUIAPDetail 費用申請單明細
+    ''' </summary>
+    ''' <param name="jID">採購單 jID（來自 jOPCH）</param>
+    ''' <param name="details">發票明細資料表</param>
+    Private Sub SaveToJtdb_jMGUIAPDetail(jID As Integer, details As DataTable)
+        Try
+            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
+            conn.Open()
+
+            Try
+                Dim lineNum As Integer = 0
+
+                For Each row As DataRow In details.Rows
+                    Dim sql As String = "
+                        INSERT INTO jMGUIAPDetail (
+                            jID, LineNum,
+                            U_LIFNR, U_STCEG, U_XBLNR, U_ZFORM_CODE,
+                            U_BLDAT, U_VATDATE,
+                            U_HWBAS, U_HWSTE,
+                            U_TAX_TYPE, U_CUS_TYPE, U_AM_TYPE,
+                            U_VATCODE, U_BUKRS, U_MWSKZ,
+                            U_FA_DESC, U_FA_QTY, U_FA_USE,
+                            U_GatherMark, U_ConsolidQty,
+                            CreateDate, CreateBy
+                        ) VALUES (
+                            @jID, @LineNum,
+                            @U_LIFNR, @U_STCEG, @U_XBLNR, @U_ZFORM_CODE,
+                            @U_BLDAT, @U_VATDATE,
+                            @U_HWBAS, @U_HWSTE,
+                            @U_TAX_TYPE, @U_CUS_TYPE, @U_AM_TYPE,
+                            @U_VATCODE, @U_BUKRS, @U_MWSKZ,
+                            @U_FA_DESC, @U_FA_QTY, @U_FA_USE,
+                            @U_GatherMark, @U_ConsolidQty,
+                            GETDATE(), @CreateBy
+                        )
+                    "
+
+                    Dim cmd As New SqlCommand(sql, conn)
+                    With cmd.Parameters
+                        .AddWithValue("@jID", jID)
+                        .AddWithValue("@LineNum", lineNum)
+                        .AddWithValue("@U_LIFNR", row("U_LIFNR"))
+                        .AddWithValue("@U_STCEG", row("U_STCEG"))
+                        .AddWithValue("@U_XBLNR", row("U_XBLNR"))
+                        .AddWithValue("@U_ZFORM_CODE", row("U_ZFORM_CODE"))
+                        .AddWithValue("@U_BLDAT", CDate(row("U_BLDAT")))
+                        .AddWithValue("@U_VATDATE", CDate(row("U_VATDATE")))
+                        .AddWithValue("@U_HWBAS", CDec(row("U_HWBAS")))
+                        .AddWithValue("@U_HWSTE", CDec(row("U_HWSTE")))
+                        .AddWithValue("@U_TAX_TYPE", row("U_TAX_TYPE"))
+                        .AddWithValue("@U_CUS_TYPE", row("U_CUS_TYPE"))
+                        .AddWithValue("@U_AM_TYPE", row("U_AM_TYPE"))
+                        .AddWithValue("@U_VATCODE", "100") ' 預設值
+                        .AddWithValue("@U_BUKRS", "100") ' 預設值
+                        .AddWithValue("@U_MWSKZ", row("U_ZFORM_CODE"))
+                        .AddWithValue("@U_FA_DESC", DBNull.Value)
+                        .AddWithValue("@U_FA_QTY", 0)
+                        .AddWithValue("@U_FA_USE", DBNull.Value)
+                        .AddWithValue("@U_GatherMark", "N")
+                        .AddWithValue("@U_ConsolidQty", 0)
+                        .AddWithValue("@CreateBy", GetCurrentUserId())
+                    End With
+
+                    cmd.ExecuteNonQuery()
+                    lineNum += 1
+                Next
+
+            Finally
+                conn.Close()
+            End Try
+
+        Catch ex As Exception
+            Throw New Exception($"寫入 jMGUIAPDetail 失敗：{ex.Message}", ex)
+        End Try
+    End Sub
+
+=====================================================================
+方法 5：UpdateJtdb_DocEntry - 更新 DocEntry（SAP AP Invoice 建立後）
+=====================================================================
+
+    ''' <summary>
+    ''' 更新 jOPCH 和 jMGUIAP 的 DocEntry（SAP AP Invoice 建立成功後）
+    ''' </summary>
+    ''' <param name="jID">採購單 jID</param>
+    ''' <param name="docEntry">SAP AP Invoice DocEntry</param>
+    Private Sub UpdateJtdb_DocEntry(jID As Integer, docEntry As Integer)
+        Try
+            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
+            conn.Open()
+
+            Try
+                ' 更新 jOPCH
+                Dim sql1 As String = "
+                    UPDATE jOPCH
+                    SET DocEntry = @DocEntry,
+                        DocNum = @DocNum,
+                        UpdateDate = GETDATE(),
+                        UpdateBy = @UpdateBy
+                    WHERE jID = @jID
+                "
+
+                Dim cmd1 As New SqlCommand(sql1, conn)
+                With cmd1.Parameters
+                    .AddWithValue("@DocEntry", docEntry)
+                    .AddWithValue("@DocNum", docEntry) ' 假設 DocNum = DocEntry
+                    .AddWithValue("@jID", jID)
+                    .AddWithValue("@UpdateBy", GetCurrentUserId())
+                End With
+                cmd1.ExecuteNonQuery()
+
+                ' 更新 jMGUIAP
+                Dim sql2 As String = "
+                    UPDATE jMGUIAP
+                    SET DocEntry = @DocEntry,
+                        DocNum = @DocNum,
+                        UpdateDate = GETDATE(),
+                        UpdateBy = @UpdateBy
+                    WHERE jID = @jID
+                "
+
+                Dim cmd2 As New SqlCommand(sql2, conn)
+                With cmd2.Parameters
+                    .AddWithValue("@DocEntry", docEntry)
+                    .AddWithValue("@DocNum", docEntry)
+                    .AddWithValue("@jID", jID)
+                    .AddWithValue("@UpdateBy", GetCurrentUserId())
+                End With
+                cmd2.ExecuteNonQuery()
+
+            Finally
+                conn.Close()
+            End Try
+
+        Catch ex As Exception
+            Throw New Exception($"更新 DocEntry 失敗：{ex.Message}", ex)
+        End Try
+    End Sub
+
+=====================================================================
+使用範例：整合至 CreateExpenseClaim() 方法
+=====================================================================
+
+建議的完整流程：
+
+    Private Sub CreateExpenseClaim()
+        Dim oCompany As Company = Nothing
+        Dim apDocEntry As Integer = 0
+        Dim jID As Integer = 0
+
+        Try
+            ' 取得明細資料
+            Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
+            If dt Is Nothing OrElse dt.Rows.Count = 0 Then
+                ShowMessage("請至少輸入一筆發票明細")
+                Return
+            End If
+
+            ' ===== 第一步：寫入 jtdb 資料庫 =====
+            jID = SaveToJtdb_jOPCH(dt)           ' 產生 jID
+            SaveToJtdb_jPCH1(jID, dt)            ' 寫入採購單明細
+            SaveToJtdb_jMGUIAP(jID, dt)          ' 寫入費用申請單表頭
+            SaveToJtdb_jMGUIAPDetail(jID, dt)    ' 寫入費用申請單明細
+
+            ' ===== 第二步：建立 SAP AP Invoice =====
+            oCompany = New Company()
+            Dim ret As Integer = InitSAPConnection("127.0.0.1", "JTSTD", "manager", "2408", oCompany)
+            If ret <> 0 Then
+                Dim errMsg As String = String.Empty
+                Dim errCode As Integer = 0
+                oCompany.GetLastError(errCode, errMsg)
+                Throw New ApplicationException($"連接 SAP 失敗: {errCode} - {errMsg}")
+            End If
+
+            Dim firstRow As DataRow = dt.Rows(0)
+            Dim cardCode As String = firstRow("U_LIFNR").ToString()
+
+            If Not oCompany.InTransaction Then
+                oCompany.StartTransaction()
+            End If
+
+            Try
+                Dim oInvoice As Documents = CType(oCompany.GetBusinessObject(BoObjectTypes.oPurchaseInvoices), Documents)
+                oInvoice.CardCode = cardCode
+                oInvoice.DocDate = DateTime.Today
+
+                For Each row As DataRow In dt.Rows
+                    Dim hwbas As Decimal = CDec(row("U_HWBAS"))
+                    oInvoice.Lines.AccountCode = "_SYS00000000001"
+                    oInvoice.Lines.LineTotal = hwbas
+                    oInvoice.Lines.TaxCode = "100"
+                    oInvoice.Lines.Add()
+                Next
+
+                ret = oInvoice.Add()
+                If ret <> 0 Then
+                    Dim errMsg As String = String.Empty
+                    Dim errCode As Integer = 0
+                    oCompany.GetLastError(errCode, errMsg)
+                    Throw New ApplicationException($"建立 AP Invoice 失敗: {errCode} - {errMsg}")
+                End If
+
+                apDocEntry = CInt(oCompany.GetNewObjectKey())
+                oCompany.EndTransaction(BoWfTransOpt.wf_Commit)
+
+            Catch ex As Exception
+                If oCompany.InTransaction Then
+                    oCompany.EndTransaction(BoWfTransOpt.wf_RollBack)
+                End If
+                Throw
+            End Try
+
+            ' ===== 第三步：更新 DocEntry =====
+            UpdateJtdb_DocEntry(jID, apDocEntry)
+
+            ' ===== 第四步：同步至 MDR 資料庫 =====
+            Try
+                Dim mdrHeaderID As Integer = WriteMDRData(jID)
+
+                If mdrHeaderID > 0 Then
+                    ShowMessage($"費用申請單建立成功！jID={jID}, AP DocEntry={apDocEntry}, MDR ID={mdrHeaderID}")
+                Else
+                    ShowMessage($"費用申請單建立成功，但 MDR 同步失敗。jID={jID}, AP DocEntry={apDocEntry}")
+                End If
+            Catch ex As Exception
+                ' MDR 同步失敗不影響主流程
+                ShowMessage($"費用申請單建立成功，但 MDR 同步發生錯誤：{ex.Message}")
+            End Try
+
+            ' ===== 第五步：更新頁面顯示 =====
+            txtID.Text = jID.ToString()
+            txtDocEntry.Text = apDocEntry.ToString()
+            txtCreateDate.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+            txtCreateBy.Text = GetCurrentUserId()
+
+        Catch ex As Exception
+            Throw New ApplicationException("建立費用申請單失敗: " & ex.Message, ex)
+        Finally
+            If oCompany IsNot Nothing Then
+                oCompany.Disconnect()
+            End If
+        End Try
+    End Sub
+
+=====================================================================
+注意事項
+=====================================================================
+
+1. **jID 產生**：由 jOPCH.jID (IDENTITY) 自動產生，確保唯一性
+
+2. **外鍵關聯**：
+   - jMGUIAP.jID → jOPCH.jID
+   - jMGUIAPDetail (jID, LineNum) → jPCH1 (jID, LineNum)
+
+3. **Transaction 管理**：
+   - jtdb 寫入：每個方法獨立連線，失敗會拋出例外
+   - SAP DI API：使用 SAP Transaction
+   - MDR 同步：使用獨立 Transaction（WriteMDRData 方法內）
+
+4. **錯誤處理**：
+   - jtdb 寫入失敗：整個流程終止
+   - SAP AP Invoice 失敗：SAP Transaction Rollback，整個流程終止
+   - MDR 同步失敗：記錄錯誤但不影響主流程
+
+5. **編碼風格**：
+   - 使用 With 語句設定 Parameters（節省 Token）
+   - 使用 GetCurrentUserId() 取得當前使用者
+
+6. **待確認事項**：
+   - CardName 目前使用 CardCode，實際應查詢供應商主檔
+   - ItemCode 使用 "_SYS00000000001"，需確認是否為正確的費用科目
+   - TaxCode 固定使用 "100"，需確認是否符合業務需求
+
+=====================================================================
