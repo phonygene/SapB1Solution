@@ -227,13 +227,113 @@ shopfloor/Claude_TMP/
 
 ---
 
+## 命名規範與檢查
+
+### SQL 保留關鍵字檢查規則
+
+**強制執行規則**：當使用者提出任何命名（欄位、變數、表名等）時，必須主動檢查是否與 SQL Server 保留關鍵字衝突。
+
+#### 檢查時機
+
+1. **資料表設計時**
+   - 表名稱
+   - 欄位名稱
+   - 索引名稱
+
+2. **程式碼撰寫時**
+   - VB.NET 變數名稱（涉及 SQL 查詢）
+   - 參數名稱
+   - 函式名稱（涉及資料庫操作）
+
+3. **使用者提議命名時**
+   - 任何可能與資料庫互動的命名
+
+#### 提醒格式
+
+當發現關鍵字衝突時，使用以下格式提醒：
+
+```markdown
+⚠️ **命名衝突警告**
+
+您提議的名稱 `[NAME]` 是 SQL Server 保留關鍵字。
+
+**問題說明**：
+- 用途：[說明這個關鍵字在 SQL 中的用途]
+- 影響：會導致查詢時需要使用方括號 `[NAME]` 包裹
+
+**建議替代方案**：
+1. `[建議1]` - [說明]
+2. `[建議2]` - [說明]
+3. `[建議3]` - [說明]
+
+建議使用哪一個？或您有其他想法？
+```
+
+#### 常見保留關鍵字清單
+
+**高風險關鍵字**（容易誤用）：
+- `ON`, `ORDER`, `USER`, `TABLE`, `INDEX`, `KEY`
+- `DATE`, `TIME`, `TIMESTAMP`, `VALUE`, `VALUES`
+- `CHECK`, `DEFAULT`, `LEVEL`, `PERCENT`
+- `TYPE`, `OPTION`, `ROLE`, `LOGIN`
+
+**資料操作類**：
+- `SELECT`, `INSERT`, `UPDATE`, `DELETE`
+- `FROM`, `WHERE`, `JOIN`, `GROUP`, `HAVING`
+- `UNION`, `EXCEPT`, `INTERSECT`
+
+**資料定義類**：
+- `CREATE`, `ALTER`, `DROP`
+- `PRIMARY`, `FOREIGN`, `UNIQUE`
+- `DATABASE`, `SCHEMA`, `VIEW`
+
+**短詞關鍵字**：
+- `IN`, `AS`, `IS`, `OR`, `AND`, `NOT`
+- `GO`, `IF`, `OF`, `TO`, `BY`
+
+#### 建議的命名規範
+
+**遇到關鍵字衝突時的解決方案**：
+
+1. **加上後綴**
+   - `Order` → `OrderNo`, `OrderID`
+   - `User` → `UserID`, `UserName`
+   - `Date` → `OrderDate`, `CreateDate`
+
+2. **使用完整描述**
+   - `Type` → `ProductType`, `DocumentType`
+   - `Level` → `AccessLevel`, `PriorityLevel`
+
+3. **改用同義詞**
+   - `Status` → `State`
+   - `Type` → `Category`
+   - `Order` → `Sequence`
+
+4. **加上業務前綴**
+   - `Table` → `DataTable`, `MappingTable`
+   - `Index` → `SortIndex`, `DisplayIndex`
+
+#### 承諾
+
+- ✅ 每次使用者提出命名時，主動檢查是否為保留關鍵字
+- ✅ 發現衝突時立即提醒，不等使用者發現問題
+- ✅ 提供至少 3 個具體的替代方案
+- ✅ 說明為什麼這個命名會有問題
+
+**記錄日期**：2025-11-20
+**提出者**：Jason
+**執行者**：Claude
+
+---
+
 ## 參考文件
 
 - **詳細說明**：`shopfloor/Claude_TMP/etc/README_協作模式說明.txt`
 - **Session 管理**：`agent-os/standards/global/session-management.md`
 - **溝通規範**：`agent-os/standards/global/communication-standards.md`
+- **SQL 保留關鍵字完整清單**：https://learn.microsoft.com/en-us/sql/t-sql/language-elements/reserved-keywords-transact-sql
 
 ---
 
-**最後更新**：2025-11-02
+**最後更新**：2025-11-20
 **維護者**：Claude + Jason
