@@ -102,6 +102,15 @@ class BackupManager:
             (是否成功, 訊息或備份檔案路徑)
         """
         try:
+            # 檢查資料庫大小限制
+            size_limit_config = self.config.get("backup_size_limit", {})
+            if size_limit_config.get("enabled", True):
+                max_db_size_mb = size_limit_config.get("max_db_size_mb", 100)
+                if db_size_mb > max_db_size_mb:
+                    msg = f"資料庫大小 {db_size_mb:.2f} MB 超過設定的備份大小限制 {max_db_size_mb} MB，此次操作不會備份"
+                    logger.warning(msg)
+                    return False, msg
+
             # 取得當前策略
             strategy = self.get_current_strategy(db_size_mb)
 

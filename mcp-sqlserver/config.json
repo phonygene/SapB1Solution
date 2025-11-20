@@ -1,6 +1,11 @@
 {
   "server_name": "sapb1-sql-mcp",
   "version": "1.0.0",
+  "backup_size_limit": {
+    "enabled": true,
+    "max_db_size_mb": 100,
+    "description": "資料庫大小超過此限制時，將跳過自動備份"
+  },
   "backup_strategies": {
     "small": {
       "max_size_mb": 100,
