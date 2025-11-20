@@ -227,23 +227,6 @@ shopfloor/Claude_TMP/
 
 ---
 
-## Session 初始化提醒
-
-每次執行 `/sess-on` 時，必須在報告結尾處提醒：
-
-```markdown
-## ⚠️ 協作模式提醒
-
-本專案採用 **Shopfloor 協作模式**：
-- 所有程式碼產出先輸出到 `shopfloor/Claude_TMP/`
-- 不在對話中貼大段程式碼
-- 等待您確認後才加入正式專案
-
-詳細規範：`shopfloor/Claude_TMP/etc/README_協作模式說明.txt`
-```
-
----
-
 ## 參考文件
 
 - **詳細說明**：`shopfloor/Claude_TMP/etc/README_協作模式說明.txt`
