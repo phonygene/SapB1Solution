@@ -188,6 +188,9 @@
     <Compile Include="Default.aspx.designer.vb">
       <DependentUpon>Default.aspx</DependentUpon>
     </Compile>
+    <Compile Include="ExpenseClaimForm.aspx.designer.vb">
+      <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>
+    </Compile>
     <Compile Include="ExpenseClaimForm.aspx.vb">
       <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

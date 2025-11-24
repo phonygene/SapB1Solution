@@ -1,1187 +1,2018 @@
-﻿Imports System.Data
-Imports System.Data.SqlClient
-Imports Newtonsoft.Json.Linq
-Imports SAPbobsCOM
+﻿Imports System.Data.SqlClient
+Imports System.IO
+Imports System.Web.Configuration
 
 ''' <summary>
-''' 費用申請單表單
-''' 繼承 B1TransactionBase，實作費用申請單的 Create 模式
+''' 費用申請單 - 第一階段：表頭欄位與基本架構
+''' 建立日期: 2025-11-05
+''' 說明: 實作表頭欄位、檔案上傳、審核功能
 ''' </summary>
-Public Class ExpenseClaimForm
-    Inherits B1TransactionBase
+Partial Public Class ExpenseClaimForm
+    Inherits System.Web.UI.Page
 
-#Region "控制項宣告"
+#Region "變數宣告"
+    ' 資料庫連線字串
+    Private ReadOnly connStr As String = WebConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
+    Private ReadOnly sapConnStr As String = WebConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
 
-    ' 表頭控制項
-    Protected WithEvents lblMode As System.Web.UI.HtmlControls.HtmlGenericControl
-    Protected WithEvents txtID As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtDocEntry As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtDocNum As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtDocTotal As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtVatSum As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtCreateDate As System.Web.UI.WebControls.TextBox
-    Protected WithEvents txtCreateBy As System.Web.UI.WebControls.TextBox
+    ' 當前使用者資訊
+    Private currentUserId As String = ""
+    Private canApprove As Boolean = False
 
-    ' 工具列按鈕
-    Protected WithEvents btnCreate As System.Web.UI.WebControls.Button
-    Protected WithEvents btnSearch As System.Web.UI.WebControls.Button
-    Protected WithEvents btnUpdate As System.Web.UI.WebControls.Button
-    Protected WithEvents btnSave As System.Web.UI.WebControls.Button
-    Protected WithEvents btnCancel As System.Web.UI.WebControls.Button
-    Protected WithEvents btnAddRow As System.Web.UI.WebControls.Button
-
-    ' 訊息與狀態
-    Protected WithEvents lblMessage As System.Web.UI.WebControls.Label
-    Protected WithEvents lblUser As System.Web.UI.WebControls.Label
-    Protected WithEvents lblTime As System.Web.UI.WebControls.Label
-    Protected WithEvents lblStatus As System.Web.UI.HtmlControls.HtmlGenericControl
-
-    ' GridView
-    Protected WithEvents gvInvoiceDetail As System.Web.UI.WebControls.GridView
-
+    ' 當前單據編號（編輯模式）
+    Private currentDocEntry As Integer = 0
 #End Region
 
-#Region "頁面生命週期"
-
-    Protected Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Load
+#Region "頁面載入"
+    Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Try
-            ' 初始化連線
-            InitConnections()
+            ' 檢查使用者登入
+            If Session("s_id") Is Nothing Then
+                Response.Redirect("~/usermgm/login.aspx")
+                Return
+            End If
 
-            ' 載入 JSON 配置檔
-            Dim configPath As String = Server.MapPath("~/App_Data/ExpenseClaimTransactionConfig.json")
-            LoadConfig(configPath)
+            currentUserId = Session("s_id").ToString()
+
+            ' 檢查審核權限
+            CheckApprovalPermission()
 
             If Not IsPostBack Then
-                ' 初始化頁面
-                InitializePage()
+                ' 初始化下拉選單
+                InitializeDropDowns()
 
-                ' 預設為 Create 模式
-                SwitchMode("create")
-            End If
-
-        Catch ex As Exception
-            ShowMessage("頁面載入失敗: " & ex.Message)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 初始化頁面
-    ''' </summary>
-    Private Sub InitializePage()
-        ' 顯示當前使用者
-        lblUser.Text = GetCurrentUserId()
-
-        ' 顯示當前時間
-        lblTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-
-        ' 初始化明細 GridView
-        InitializeDetailGrid()
-    End Sub
-
-    ''' <summary>
-    ''' 初始化明細 GridView
-    ''' </summary>
-    Private Sub InitializeDetailGrid()
-        Dim dt As New DataTable()
-
-        ' 建立欄位
-        dt.Columns.Add("LineId", GetType(Integer))
-        dt.Columns.Add("U_LIFNR", GetType(String))
-        dt.Columns.Add("U_STCEG", GetType(String))
-        dt.Columns.Add("U_XBLNR", GetType(String))
-        dt.Columns.Add("U_ZFORM_CODE", GetType(String))
-        dt.Columns.Add("U_BLDAT", GetType(DateTime))
-        dt.Columns.Add("U_VATDATE", GetType(DateTime))
-        dt.Columns.Add("U_HWBAS", GetType(Decimal))
-        dt.Columns.Add("U_HWSTE", GetType(Decimal))
-        dt.Columns.Add("U_TAX_TYPE", GetType(String))
-        dt.Columns.Add("U_CUS_TYPE", GetType(String))
-        dt.Columns.Add("U_AM_TYPE", GetType(String))
-
-        ' 新增一列空白資料
-        Dim row As DataRow = dt.NewRow()
-        row("LineId") = 1
-        row("U_ZFORM_CODE") = "21"
-        row("U_BLDAT") = DateTime.Today
-        row("U_VATDATE") = DateTime.Today
-        row("U_HWBAS") = 0
-        row("U_HWSTE") = 0
-        row("U_TAX_TYPE") = "1"
-        row("U_CUS_TYPE") = "0"
-        row("U_AM_TYPE") = "1"
-        dt.Rows.Add(row)
-
-        ' 綁定資料
-        gvInvoiceDetail.DataSource = dt
-        gvInvoiceDetail.DataBind()
-
-        ' 儲存到 ViewState
-        ViewState("InvoiceDetail") = dt
-    End Sub
-
-#End Region
-
-#Region "模式切換"
-
-    Protected Sub btnCreate_Click(sender As Object, e As EventArgs) Handles btnCreate.Click
-        SwitchMode("create")
-        lblMode.InnerText = "模式：新增（Create）"
-        btnUpdate.Enabled = False
-        ClearForm()
-    End Sub
-
-    Protected Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
-        SwitchMode("search")
-        lblMode.InnerText = "模式：搜尋（Search）"
-        btnUpdate.Enabled = False
-    End Sub
-
-    Protected Sub btnUpdate_Click(sender As Object, e As EventArgs) Handles btnUpdate.Click
-        SwitchMode("update")
-        lblMode.InnerText = "模式：更新（Update）"
-    End Sub
-
-    ''' <summary>
-    ''' 清除表單
-    ''' </summary>
-    Private Sub ClearForm()
-        txtID.Text = String.Empty
-        txtDocEntry.Text = String.Empty
-        txtDocNum.Text = String.Empty
-        txtDocTotal.Text = "0.00"
-        txtVatSum.Text = "0.00"
-        txtCreateDate.Text = String.Empty
-        txtCreateBy.Text = String.Empty
-
-        InitializeDetailGrid()
-    End Sub
-
-#End Region
-
-#Region "GridView 事件處理"
-
-    ''' <summary>
-    ''' 新增列
-    ''' </summary>
-    Protected Sub btnAddRow_Click(sender As Object, e As EventArgs) Handles btnAddRow.Click
-        Try
-            Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
-            If dt Is Nothing Then
-                InitializeDetailGrid()
-                dt = CType(ViewState("InvoiceDetail"), DataTable)
-            End If
-
-            ' 取得新的列號
-            Dim newLineId As Integer = dt.Rows.Count + 1
-
-            ' 新增列
-            Dim row As DataRow = dt.NewRow()
-            row("LineId") = newLineId
-            row("U_ZFORM_CODE") = "21"
-            row("U_BLDAT") = DateTime.Today
-            row("U_VATDATE") = DateTime.Today
-            row("U_HWBAS") = 0
-            row("U_HWSTE") = 0
-            row("U_TAX_TYPE") = "1"
-            row("U_CUS_TYPE") = "0"
-            row("U_AM_TYPE") = "1"
-            dt.Rows.Add(row)
-
-            ' 重新綁定
-            gvInvoiceDetail.DataSource = dt
-            gvInvoiceDetail.DataBind()
-
-            ViewState("InvoiceDetail") = dt
-
-        Catch ex As Exception
-            ShowMessage("新增列失敗: " & ex.Message)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' GridView 列命令事件
-    ''' </summary>
-    Protected Sub gvInvoiceDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs) Handles gvInvoiceDetail.RowCommand
-        If e.CommandName = "Delete" Then
-            Try
-                Dim rowIndex As Integer = Convert.ToInt32(e.CommandArgument)
-                Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
-
-                If dt IsNot Nothing AndAlso rowIndex < dt.Rows.Count Then
-                    dt.Rows.RemoveAt(rowIndex)
-
-                    ' 重新編號
-                    For i As Integer = 0 To dt.Rows.Count - 1
-                        dt.Rows(i)("LineId") = i + 1
-                    Next
-
-                    gvInvoiceDetail.DataSource = dt
-                    gvInvoiceDetail.DataBind()
-
-                    ViewState("InvoiceDetail") = dt
-
-                    ' 重新計算總金額
-                    CalculateTotals()
+                ' 檢查是否為編輯模式
+                If Request.QueryString("DocEntry") IsNot Nothing Then
+                    currentDocEntry = Convert.ToInt32(Request.QueryString("DocEntry"))
+                    LoadDocument(currentDocEntry)
+                Else
+                    ' 新增模式：設定預設值
+                    SetDefaultValues()
+                    InitializeGridView()
+                    InitializeMDRGridView()
                 End If
+            End If
 
-            Catch ex As Exception
-                ShowMessage("刪除列失敗: " & ex.Message)
-            End Try
-        End If
+        Catch ex As Exception
+            lblMessage.Text = "頁面載入錯誤: " & ex.Message
+            LogError("Page_Load", ex)
+        End Try
     End Sub
 
     ''' <summary>
-    ''' GridView 資料綁定事件
+    ''' 檢查使用者是否有審核權限
     ''' </summary>
-    Protected Sub gvInvoiceDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs) Handles gvInvoiceDetail.RowDataBound
+    Private Sub CheckApprovalPermission()
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT Approver FROM [User] WHERE id = @UserId"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        canApprove = (Convert.ToInt32(result) = 1)
+                    End If
+                End Using
+            End Using
+
+            ' 根據權限顯示/隱藏審核區塊
+            pnlApproval.Visible = canApprove
+
+        Catch ex As Exception
+            LogError("CheckApprovalPermission", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 初始化所有下拉選單
+    ''' </summary>
+    Private Sub InitializeDropDowns()
+        LoadVendors()           ' 供應商
+        LoadDeliveryAddress()   ' 收貨地址
+        LoadDepartments()       ' 產品/部門
+        LoadCurrencies()        ' 幣別
+    End Sub
+
+    ''' <summary>
+    ''' 載入供應商清單（從 SAP B1）
+    ''' </summary>
+    Private Sub LoadVendors()
+        Try
+            ddlCardCode.Items.Clear()
+            ddlCardCode.Items.Add(New ListItem("-- 請選擇供應商 --", ""))
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT CardCode, CardName FROM OCRD WHERE CardType = 'S' AND frozenFor = 'N' ORDER BY CardName"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim code As String = reader("CardCode").ToString()
+                            Dim name As String = reader("CardName").ToString()
+                            ddlCardCode.Items.Add(New ListItem($"{code} - {name}", code))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            lblMessage.Text = "載入供應商失敗: " & ex.Message
+            LogError("LoadVendors", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 載入收貨地址清單
+    ''' </summary>
+    Private Sub LoadDeliveryAddress()
+        Try
+            ddlDeliveryAddr.Items.Clear()
+            ddlDeliveryAddr.Items.Add(New ListItem("-- 請選擇收貨地址 --", ""))
+
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT ID, addrName, address FROM addr WHERE addrType = 'R' AND active = 'Y' ORDER BY addrName"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim id As String = reader("ID").ToString()
+                            Dim name As String = reader("addrName").ToString()
+                            Dim addr As String = reader("address").ToString()
+                            ddlDeliveryAddr.Items.Add(New ListItem($"{name} - {addr}", id))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            lblMessage.Text = "載入收貨地址失敗: " & ex.Message
+            LogError("LoadDeliveryAddress", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 載入產品/部門清單（從 SAP B1 OOCR）
+    ''' </summary>
+    Private Sub LoadDepartments()
+        Try
+            ddlOcrCode.Items.Clear()
+            ddlOcrCode.Items.Add(New ListItem("-- 請選擇產品/部門 --", ""))
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                ' 根據實作計畫書 v1.1，使用 OOCR 表並過濾 DimCode
+                Dim sql As String = "SELECT OcrCode, OcrName FROM OOCR WHERE DimCode = 1 AND Active = 'Y' ORDER BY OcrName"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim code As String = reader("OcrCode").ToString()
+                            Dim name As String = reader("OcrName").ToString()
+                            ddlOcrCode.Items.Add(New ListItem($"{code} - {name}", code))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            lblMessage.Text = "載入產品/部門失敗: " & ex.Message
+            LogError("LoadDepartments", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 載入幣別清單（從 SAP B1 OCRN）
+    ''' </summary>
+    Private Sub LoadCurrencies()
+        Try
+            ddlDocCurrency.Items.Clear()
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT CurrCode, CurrName FROM OCRN ORDER BY CurrCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim code As String = reader("CurrCode").ToString()
+                            Dim name As String = reader("CurrName").ToString()
+                            ddlDocCurrency.Items.Add(New ListItem($"{code} - {name}", code))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            ' 預設選擇本地幣別（TWD）
+            If ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
+                ddlDocCurrency.SelectedValue = "TWD"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "載入幣別失敗: " & ex.Message
+            LogError("LoadCurrencies", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 設定新增模式的預設值
+    ''' </summary>
+    Private Sub SetDefaultValues()
+        lblDocNum.Text = "[自動產生]"
+        lblDocStatus.Text = "草稿"
+        lblCreateBy.Text = currentUserId
+        lblCreateDate.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+
+        txtDocDate.Text = DateTime.Now.ToString("yyyy-MM-dd")
+        txtDocDueDate.Text = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")
+        txtDocRate.Text = "1.0"
+
+        lblAttachment.Text = "無"
+        btnDownload.Visible = False
+    End Sub
+
+#End Region
+
+#Region "供應商選擇事件"
+    ''' <summary>
+    ''' 供應商選擇變更：自動填入供應商名稱並載入聯絡人
+    ''' </summary>
+    Protected Sub ddlCardCode_SelectedIndexChanged(sender As Object, e As EventArgs)
+        Try
+            If String.IsNullOrEmpty(ddlCardCode.SelectedValue) Then
+                txtCardName.Text = ""
+                ddlContactPerson.Items.Clear()
+                Return
+            End If
+
+            Dim cardCode As String = ddlCardCode.SelectedValue
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+
+                ' 取得供應商名稱
+                Dim sql As String = "SELECT CardName FROM OCRD WHERE CardCode = @CardCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@CardCode", cardCode)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        txtCardName.Text = result.ToString()
+                    End If
+                End Using
+
+                ' 載入聯絡人清單
+                LoadContactPersons(cardCode, conn)
+            End Using
+
+            ' 同步 MDR Tab 表頭資訊
+            SyncMDRHeaderInfo()
+
+        Catch ex As Exception
+            lblMessage.Text = "載入供應商資料失敗: " & ex.Message
+            LogError("ddlCardCode_SelectedIndexChanged", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 載入聯絡人清單
+    ''' </summary>
+    Private Sub LoadContactPersons(cardCode As String, conn As SqlConnection)
+        Try
+            ddlContactPerson.Items.Clear()
+            ddlContactPerson.Items.Add(New ListItem("-- 請選擇聯絡人 --", ""))
+
+            Dim sql As String = "SELECT CntctCode, Name FROM OCPR WHERE CardCode = @CardCode AND Active = 'Y' ORDER BY Name"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@CardCode", cardCode)
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim code As String = reader("CntctCode").ToString()
+                        Dim name As String = reader("Name").ToString()
+                        ddlContactPerson.Items.Add(New ListItem(name, code))
+                    End While
+                End Using
+            End Using
+
+        Catch ex As Exception
+            LogError("LoadContactPersons", ex)
+        End Try
+    End Sub
+#End Region
+
+#Region "幣別與匯率處理"
+    ''' <summary>
+    ''' 幣別變更：自動更新匯率
+    ''' </summary>
+    Protected Sub ddlDocCurrency_SelectedIndexChanged(sender As Object, e As EventArgs)
+        Try
+            UpdateExchangeRate()
+            ' 同步 MDR Tab 表頭資訊
+            SyncMDRHeaderInfo()
+        Catch ex As Exception
+            lblMessage.Text = "更新匯率失敗: " & ex.Message
+            LogError("ddlDocCurrency_SelectedIndexChanged", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 手動更新匯率按鈕
+    ''' </summary>
+    Protected Sub btnRefreshRate_Click(sender As Object, e As EventArgs)
+        Try
+            UpdateExchangeRate()
+            ' 同步 MDR Tab 表頭資訊
+            SyncMDRHeaderInfo()
+            lblMessage.Text = "匯率已更新"
+        Catch ex As Exception
+            lblMessage.Text = "更新匯率失敗: " & ex.Message
+            LogError("btnRefreshRate_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從 SAP B1 ORTT 取得匯率
+    ''' </summary>
+    Private Sub UpdateExchangeRate()
+        Dim currency As String = ddlDocCurrency.SelectedValue
+
+        ' 本地幣別匯率固定為 1
+        If currency = "TWD" Then
+            txtDocRate.Text = "1.0"
+            txtDocRate.ReadOnly = True
+            Return
+        End If
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                ' 取得最新匯率（依照日期降序）
+                Dim sql As String = "SELECT TOP 1 Rate FROM ORTT WHERE Currency = @Currency ORDER BY RateDate DESC"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Currency", currency)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso IsNumeric(result) Then
+                        txtDocRate.Text = Convert.ToDecimal(result).ToString("F6")
+                    Else
+                        txtDocRate.Text = "1.0"
+                        lblMessage.Text = $"查無 {currency} 匯率，請手動輸入"
+                    End If
+                End Using
+            End Using
+
+            ' 外幣允許手動編輯
+            txtDocRate.ReadOnly = False
+
+        Catch ex As Exception
+            txtDocRate.Text = "1.0"
+            txtDocRate.ReadOnly = False
+            LogError("UpdateExchangeRate", ex)
+        End Try
+    End Sub
+#End Region
+
+#Region "檔案上傳處理"
+    ''' <summary>
+    ''' 檔案上傳按鈕
+    ''' </summary>
+    Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
+        Try
+            If Not fileUpload.HasFile Then
+                lblMessage.Text = "請選擇要上傳的檔案"
+                Return
+            End If
+
+            ' 檔案大小限制（10MB）
+            If fileUpload.PostedFile.ContentLength > 10485760 Then
+                lblMessage.Text = "檔案大小不可超過 10MB"
+                Return
+            End If
+
+            ' 取得原始檔名並清理
+            Dim originalFileName As String = Path.GetFileName(fileUpload.FileName)
+            Dim cleanedFileName As String = CleanFileName(originalFileName)
+
+            ' 產生唯一檔名：清理後檔名 + 時間戳記
+            Dim timestamp As String = DateTime.Now.ToString("yyyyMMdd_HHmmss")
+            Dim extension As String = Path.GetExtension(cleanedFileName)
+            Dim nameWithoutExt As String = Path.GetFileNameWithoutExtension(cleanedFileName)
+            Dim uniqueFileName As String = $"{nameWithoutExt}_{timestamp}{extension}"
+
+            ' 儲存路徑
+            Dim uploadFolder As String = Server.MapPath("~/Uploads/ExpenseClaims/")
+            If Not Directory.Exists(uploadFolder) Then
+                Directory.CreateDirectory(uploadFolder)
+            End If
+
+            Dim filePath As String = Path.Combine(uploadFolder, uniqueFileName)
+            fileUpload.SaveAs(filePath)
+
+            ' 更新顯示
+            lblAttachment.Text = uniqueFileName
+            btnDownload.Visible = True
+            lblMessage.Text = "檔案上傳成功"
+
+            ' 若為編輯模式，更新資料庫
+            If currentDocEntry > 0 Then
+                UpdateAttachmentInDB(uniqueFileName)
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "檔案上傳失敗: " & ex.Message
+            LogError("btnUpload_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 檔案下載按鈕
+    ''' </summary>
+    Protected Sub btnDownload_Click(sender As Object, e As EventArgs)
+        Try
+            Dim fileName As String = lblAttachment.Text
+            If fileName = "無" OrElse String.IsNullOrEmpty(fileName) Then
+                lblMessage.Text = "無可下載的檔案"
+                Return
+            End If
+
+            Dim filePath As String = Server.MapPath($"~/Uploads/ExpenseClaims/{fileName}")
+            If File.Exists(filePath) Then
+                Response.ContentType = "application/octet-stream"
+                Response.AppendHeader("Content-Disposition", $"attachment; filename=""{fileName}""")
+                Response.TransmitFile(filePath)
+                Response.End()
+            Else
+                lblMessage.Text = "檔案不存在"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "檔案下載失敗: " & ex.Message
+            LogError("btnDownload_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 清理檔名：移除不安全字元
+    ''' </summary>
+    Private Function CleanFileName(fileName As String) As String
+        ' 移除路徑字元和特殊字元
+        Dim invalidChars As Char() = Path.GetInvalidFileNameChars()
+        For Each c As Char In invalidChars
+            fileName = fileName.Replace(c, "_"c)
+        Next
+
+        ' 移除額外的不安全字元
+        fileName = fileName.Replace(" ", "_")
+        fileName = fileName.Replace("&", "and")
+
+        Return fileName
+    End Function
+
+    ''' <summary>
+    ''' 更新資料庫中的附件欄位
+    ''' </summary>
+    Private Sub UpdateAttachmentInDB(fileName As String)
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "UPDATE jOPCH SET Attachment = @Attachment WHERE DocEntry = @DocEntry"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Attachment", fileName)
+                    cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As Exception
+            LogError("UpdateAttachmentInDB", ex)
+        End Try
+    End Sub
+#End Region
+
+#Region "審核功能"
+    ''' <summary>
+    ''' 放行按鈕
+    ''' </summary>
+    Protected Sub btnApprove_Click(sender As Object, e As EventArgs)
+        Try
+            If currentDocEntry = 0 Then
+                lblMessage.Text = "請先儲存單據"
+                Return
+            End If
+
+            ' 更新審核狀態
+            UpdateApprovalStatus("A", "已核准")
+
+            lblMessage.Text = "費用申請單已放行"
+            lblApprovalStatus.Text = "已核准"
+            lblApprovalStatus.CssClass = "status-approved"
+
+        Catch ex As Exception
+            lblMessage.Text = "放行失敗: " & ex.Message
+            LogError("btnApprove_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 駁回按鈕
+    ''' </summary>
+    Protected Sub btnReject_Click(sender As Object, e As EventArgs)
+        Try
+            If currentDocEntry = 0 Then
+                lblMessage.Text = "請先儲存單據"
+                Return
+            End If
+
+            ' 更新審核狀態
+            UpdateApprovalStatus("R", "已駁回")
+
+            lblMessage.Text = "費用申請單已駁回"
+            lblApprovalStatus.Text = "已駁回"
+            lblApprovalStatus.CssClass = "status-rejected"
+
+        Catch ex As Exception
+            lblMessage.Text = "駁回失敗: " & ex.Message
+            LogError("btnReject_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 發送通知按鈕
+    ''' </summary>
+    Protected Sub btnSendNotification_Click(sender As Object, e As EventArgs)
+        Try
+            If currentDocEntry = 0 Then
+                lblMessage.Text = "請先儲存單據"
+                Return
+            End If
+
+            ' 取得建立人員的 Email
+            Dim creatorEmail As String = GetUserEmail(lblCreateBy.Text)
+            If String.IsNullOrEmpty(creatorEmail) Then
+                lblMessage.Text = "無法取得建立人員的 Email"
+                Return
+            End If
+
+            ' 發送通知郵件
+            Dim subject As String = $"費用申請單 {lblDocNum.Text} 審核通知"
+            Dim body As String = BuildNotificationEmail()
+
+            ' 使用 CommUtil.SendMail 發送郵件
+            Dim mailUtil As New CommUtil()
+            mailUtil.SendMail(creatorEmail, subject, body)
+            
+            lblMessage.Text = "通知郵件已發送"
+
+        Catch ex As Exception
+            lblMessage.Text = "發送通知失敗: " & ex.Message
+            LogError("btnSendNotification_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 更新審核狀態
+    ''' </summary>
+    Private Sub UpdateApprovalStatus(status As String, statusText As String)
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Dim sql As String = "UPDATE jOPCH SET ApprovalStatus = @Status, ApprovedBy = @ApprovedBy, " &
+                              "ApprovalDate = CONVERT(DATE, GETDATE()), ApprovalTime = CONVERT(TIME, GETDATE()), " &
+                              "ApprovalComments = @Comments WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@Status", status)
+                cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
+                cmd.Parameters.AddWithValue("@Comments", txtApprovalComments.Text)
+                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                cmd.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
+
+    ''' <summary>
+    ''' 建立通知郵件內容
+    ''' </summary>
+    Private Function BuildNotificationEmail() As String
+        Dim sb As New System.Text.StringBuilder()
+
+        sb.AppendLine("<html><body>")
+        sb.AppendLine("<h2>費用申請單審核通知</h2>")
+        sb.AppendLine($"<p><strong>單據編號:</strong> {lblDocNum.Text}</p>")
+        sb.AppendLine($"<p><strong>供應商:</strong> {txtCardName.Text}</p>")
+        sb.AppendLine($"<p><strong>審核狀態:</strong> {lblApprovalStatus.Text}</p>")
+        sb.AppendLine($"<p><strong>審核人員:</strong> {currentUserId}</p>")
+        sb.AppendLine($"<p><strong>審核日期:</strong> {DateTime.Now:yyyy-MM-dd HH:mm:ss}</p>")
+
+        If Not String.IsNullOrEmpty(txtApprovalComments.Text) Then
+            sb.AppendLine($"<p><strong>審核意見:</strong></p>")
+            sb.AppendLine($"<p>{txtApprovalComments.Text.Replace(vbCrLf, "<br/>")}</p>")
+        End If
+
+        sb.AppendLine("<hr/>")
+        sb.AppendLine("<p style='color: gray; font-size: 12px;'>此郵件由系統自動發送，請勿直接回覆。</p>")
+        sb.AppendLine("</body></html>")
+
+        Return sb.ToString()
+    End Function
+
+    ''' <summary>
+    ''' 取得使用者 Email
+    ''' </summary>
+    Private Function GetUserEmail(userId As String) As String
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT email FROM [User] WHERE id = @UserId"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", userId)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        Return result.ToString()
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            LogError("GetUserEmail", ex)
+        End Try
+        Return ""
+    End Function
+#End Region
+
+#Region "按鈕事件 - 儲存/送出/刪除/取消"
+    ''' <summary>
+    ''' 儲存按鈕：儲存草稿（狀態保持 P=Pending）
+    ''' </summary>
+    Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+        Try
+            ' 基本驗證
+            If Not ValidateBasicFields() Then
+                Return
+            End If
+
+            ' 收集 GridView 資料
+            CollectGridViewData()
+            If Not ValidateDetailLines() Then
+                Return
+            End If
+
+            ' 收集 MDR GridView 資料
+            CollectMDRGridViewData()
+            If Not ValidateMDRLines() Then
+                Return
+            End If
+
+            If currentDocEntry = 0 Then
+                ' 新增模式
+                currentDocEntry = InsertNewDocument("P")
+                lblDocNum.Text = currentDocEntry.ToString()
+                lblMessage.Text = "儲存成功"
+            Else
+                ' 更新模式
+                UpdateDocument()
+                lblMessage.Text = "更新成功"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "儲存失敗: " & ex.Message
+            LogError("btnSave_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 送出按鈕：送出至待審核狀態（ApprovalStatus = W）
+    ''' </summary>
+    Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)
+        Try
+            ' 完整驗證
+            If Not ValidateBasicFields() Then
+                Return
+            End If
+
+            ' 收集 GridView 資料
+            CollectGridViewData()
+            If Not ValidateDetailLines() Then
+                Return
+            End If
+
+            ' 收集 MDR GridView 資料
+            CollectMDRGridViewData()
+            If Not ValidateMDRLines() Then
+                Return
+            End If
+
+            If currentDocEntry = 0 Then
+                ' 新增模式：儲存並設為待審核
+                currentDocEntry = InsertNewDocument("W")
+                lblDocNum.Text = currentDocEntry.ToString()
+            Else
+                ' 更新模式：更新並設為待審核
+                UpdateDocument()
+                UpdateDocumentStatus("W")
+            End If
+
+            lblDocStatus.Text = "待審核"
+            lblDocStatus.CssClass = "status-pending"
+            lblMessage.Text = "送出成功，等待審核"
+
+        Catch ex As Exception
+            lblMessage.Text = "送出失敗: " & ex.Message
+            LogError("btnSubmit_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 刪除按鈕
+    ''' </summary>
+    Protected Sub btnDelete_Click(sender As Object, e As EventArgs)
+        Try
+            If currentDocEntry = 0 Then
+                lblMessage.Text = "無可刪除的單據"
+                Return
+            End If
+
+            ' 刪除單據（實際應改為邏輯刪除）
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Using trans As SqlTransaction = conn.BeginTransaction()
+                    Try
+                        ' 刪除明細
+                        Dim sql1 As String = "DELETE FROM jOPC1 WHERE DocEntry = @DocEntry"
+                        Using cmd As New SqlCommand(sql1, conn, trans)
+                            cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                            cmd.ExecuteNonQuery()
+                        End Using
+
+                        ' 刪除表頭
+                        Dim sql2 As String = "DELETE FROM jOPCH WHERE DocEntry = @DocEntry"
+                        Using cmd As New SqlCommand(sql2, conn, trans)
+                            cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                            cmd.ExecuteNonQuery()
+                        End Using
+
+                        trans.Commit()
+                        Response.Redirect("Index.aspx")
+
+                    Catch ex As Exception
+                        trans.Rollback()
+                        Throw
+                    End Try
+                End Using
+            End Using
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除失敗: " & ex.Message
+            LogError("btnDelete_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 取消按鈕：返回列表頁
+    ''' </summary>
+    Protected Sub btnCancel_Click(sender As Object, e As EventArgs)
+        Response.Redirect("Index.aspx")
+    End Sub
+#End Region
+
+#Region "資料庫操作"
+    ''' <summary>
+    ''' 新增單據（返回 DocEntry）
+    ''' </summary>
+    Private Function InsertNewDocument(approvalStatus As String) As Integer
+        Dim newDocEntry As Integer = 0
+
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using trans As SqlTransaction = conn.BeginTransaction()
+                Try
+                    ' 插入表頭
+                    Dim sql As String = "INSERT INTO jOPCH (CardCode, CardName, ContactPerson, DeliveryAddrID, " &
+                                      "DocDate, DocDueDate, OcrCode, DocCurrency, DocRate, Remarks, Attachment, " &
+                                      "ApprovalStatus, CreateBy, CreateDate) " &
+                                      "VALUES (@CardCode, @CardName, @ContactPerson, @DeliveryAddrID, " &
+                                      "@DocDate, @DocDueDate, @OcrCode, @DocCurrency, @DocRate, @Remarks, @Attachment, " &
+                                      "@ApprovalStatus, @CreateBy, GETDATE()); SELECT SCOPE_IDENTITY()"
+
+                    Using cmd As New SqlCommand(sql, conn, trans)
+                        cmd.Parameters.AddWithValue("@CardCode", GetSelectedValue(ddlCardCode.SelectedValue))
+                        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+                        cmd.Parameters.AddWithValue("@ContactPerson", GetSelectedValue(ddlContactPerson.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DeliveryAddrID", GetSelectedValue(ddlDeliveryAddr.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
+                        cmd.Parameters.AddWithValue("@DocDueDate", DateTime.Parse(txtDocDueDate.Text))
+                        cmd.Parameters.AddWithValue("@OcrCode", GetSelectedValue(ddlOcrCode.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
+                        cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
+                        cmd.Parameters.AddWithValue("@Remarks", txtRemarks.Text)
+                        cmd.Parameters.AddWithValue("@Attachment", If(lblAttachment.Text = "無", DBNull.Value, lblAttachment.Text))
+                        cmd.Parameters.AddWithValue("@ApprovalStatus", approvalStatus)
+                        cmd.Parameters.AddWithValue("@CreateBy", currentUserId)
+
+                        newDocEntry = Convert.ToInt32(cmd.ExecuteScalar())
+                    End Using
+
+                    ' 儲存明細
+                    SaveDetailLinesToDB(newDocEntry, conn, trans)
+                    SaveMDRLinesToDB(newDocEntry, conn, trans)
+
+                    trans.Commit()
+
+                Catch ex As Exception
+                    trans.Rollback()
+                    Throw
+                End Try
+            End Using
+        End Using
+
+        Return newDocEntry
+    End Function
+
+    ''' <summary>
+    ''' 更新單據
+    ''' </summary>
+    Private Sub UpdateDocument()
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using trans As SqlTransaction = conn.BeginTransaction()
+                Try
+                    ' 更新表頭
+                    Dim sql As String = "UPDATE jOPCH SET CardCode = @CardCode, CardName = @CardName, " &
+                                      "ContactPerson = @ContactPerson, DeliveryAddrID = @DeliveryAddrID, " &
+                                      "DocDate = @DocDate, DocDueDate = @DocDueDate, OcrCode = @OcrCode, " &
+                                      "DocCurrency = @DocCurrency, DocRate = @DocRate, Remarks = @Remarks, " &
+                                      "Attachment = @Attachment, UpdateDate = GETDATE() " &
+                                      "WHERE DocEntry = @DocEntry"
+
+                    Using cmd As New SqlCommand(sql, conn, trans)
+                        cmd.Parameters.AddWithValue("@CardCode", GetSelectedValue(ddlCardCode.SelectedValue))
+                        cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
+                        cmd.Parameters.AddWithValue("@ContactPerson", GetSelectedValue(ddlContactPerson.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DeliveryAddrID", GetSelectedValue(ddlDeliveryAddr.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
+                        cmd.Parameters.AddWithValue("@DocDueDate", DateTime.Parse(txtDocDueDate.Text))
+                        cmd.Parameters.AddWithValue("@OcrCode", GetSelectedValue(ddlOcrCode.SelectedValue))
+                        cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
+                        cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
+                        cmd.Parameters.AddWithValue("@Remarks", txtRemarks.Text)
+                        cmd.Parameters.AddWithValue("@Attachment", If(lblAttachment.Text = "無", DBNull.Value, lblAttachment.Text))
+                        cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+
+                        cmd.ExecuteNonQuery()
+                    End Using
+
+                    ' 更新明細
+                    SaveDetailLinesToDB(currentDocEntry, conn, trans)
+                    SaveMDRLinesToDB(currentDocEntry, conn, trans)
+
+                    trans.Commit()
+
+                Catch ex As Exception
+                    trans.Rollback()
+                    Throw
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    ''' <summary>
+    ''' 更新單據狀態
+    ''' </summary>
+    Private Sub UpdateDocumentStatus(status As String)
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Dim sql As String = "UPDATE jOPCH SET ApprovalStatus = @Status WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@Status", status)
+                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                cmd.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
+
+    ''' <summary>
+    ''' 載入單據（編輯模式）
+    ''' </summary>
+    Private Sub LoadDocument(docEntry As Integer)
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+
+                ' 載入表頭
+                Dim sql As String = "SELECT * FROM jOPCH WHERE DocEntry = @DocEntry"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        If reader.Read() Then
+                            ' 基本資訊
+                            lblDocNum.Text = reader("DocEntry").ToString()
+                            lblCreateBy.Text = If(IsDBNull(reader("CreateBy")), "", reader("CreateBy").ToString())
+                            lblCreateDate.Text = If(IsDBNull(reader("CreateDate")), "", Convert.ToDateTime(reader("CreateDate")).ToString("yyyy-MM-dd HH:mm:ss"))
+
+                            ' 狀態
+                            Dim approvalStatus As String = If(IsDBNull(reader("ApprovalStatus")), "P", reader("ApprovalStatus").ToString())
+                            Select Case approvalStatus
+                                Case "P"
+                                    lblDocStatus.Text = "草稿"
+                                    lblDocStatus.CssClass = "status-pending"
+                                Case "W"
+                                    lblDocStatus.Text = "待審核"
+                                    lblDocStatus.CssClass = "status-pending"
+                                Case "A"
+                                    lblDocStatus.Text = "已核准"
+                                    lblDocStatus.CssClass = "status-approved"
+                                Case "R"
+                                    lblDocStatus.Text = "已駁回"
+                                    lblDocStatus.CssClass = "status-rejected"
+                            End Select
+
+                            ' 供應商資訊
+                            ddlCardCode.SelectedValue = If(IsDBNull(reader("CardCode")), "", reader("CardCode").ToString())
+                            txtCardName.Text = If(IsDBNull(reader("CardName")), "", reader("CardName").ToString())
+
+                            ' 載入聯絡人並設定選中值
+                            If Not String.IsNullOrEmpty(ddlCardCode.SelectedValue) Then
+                                LoadContactPersons(ddlCardCode.SelectedValue, conn)
+                                If Not IsDBNull(reader("ContactPerson")) Then
+                                    Dim contactPerson As String = reader("ContactPerson").ToString()
+                                    If ddlContactPerson.Items.FindByValue(contactPerson) IsNot Nothing Then
+                                        ddlContactPerson.SelectedValue = contactPerson
+                                    End If
+                                End If
+                            End If
+
+                            ' 單據資訊
+                            If Not IsDBNull(reader("DeliveryAddrID")) Then
+                                ddlDeliveryAddr.SelectedValue = reader("DeliveryAddrID").ToString()
+                            End If
+
+                            If Not IsDBNull(reader("DocDate")) Then
+                                txtDocDate.Text = Convert.ToDateTime(reader("DocDate")).ToString("yyyy-MM-dd")
+                            End If
+
+                            If Not IsDBNull(reader("DocDueDate")) Then
+                                txtDocDueDate.Text = Convert.ToDateTime(reader("DocDueDate")).ToString("yyyy-MM-dd")
+                            End If
+
+                            If Not IsDBNull(reader("OcrCode")) Then
+                                ddlOcrCode.SelectedValue = reader("OcrCode").ToString()
+                            End If
+
+                            If Not IsDBNull(reader("DocCurrency")) Then
+                                ddlDocCurrency.SelectedValue = reader("DocCurrency").ToString()
+                            End If
+
+                            txtDocRate.Text = If(IsDBNull(reader("DocRate")), "1.0", Convert.ToDecimal(reader("DocRate")).ToString("F6"))
+                            txtRemarks.Text = If(IsDBNull(reader("Remarks")), "", reader("Remarks").ToString())
+
+                            ' 附件
+                            If Not IsDBNull(reader("Attachment")) Then
+                                lblAttachment.Text = reader("Attachment").ToString()
+                                btnDownload.Visible = True
+                            Else
+                                lblAttachment.Text = "無"
+                                btnDownload.Visible = False
+                            End If
+
+                            ' 審核資訊
+                            If Not IsDBNull(reader("ApprovedBy")) Then
+                                lblApprovedBy.Text = reader("ApprovedBy").ToString()
+                            End If
+
+                            ' 合併 ApprovalDate 和 ApprovalTime 顯示
+                            If Not IsDBNull(reader("ApprovalDate")) AndAlso Not IsDBNull(reader("ApprovalTime")) Then
+                                Dim approvalDate As Date = Convert.ToDateTime(reader("ApprovalDate"))
+                                Dim approvalTime As TimeSpan = CType(reader("ApprovalTime"), TimeSpan)
+                                lblApprovedDate.Text = approvalDate.ToString("yyyy-MM-dd") & " " & approvalTime.ToString("hh\:mm\:ss")
+                            ElseIf Not IsDBNull(reader("ApprovalDate")) Then
+                                lblApprovedDate.Text = Convert.ToDateTime(reader("ApprovalDate")).ToString("yyyy-MM-dd")
+                            End If
+
+                            If Not IsDBNull(reader("ApprovalComments")) Then
+                                txtApprovalComments.Text = reader("ApprovalComments").ToString()
+                            End If
+
+                            ' 審核意見：非審核人員唯讀
+                            If Not canApprove Then
+                                txtApprovalComments.ReadOnly = True
+                            End If
+                        End If
+                    End Using
+                End Using
+
+                ' 載入明細
+                LoadDetailLinesFromDB(docEntry, conn)
+                LoadMDRLinesFromDB(docEntry, conn)
+            End Using
+
+        Catch ex As Exception
+            lblMessage.Text = "載入單據失敗: " & ex.Message
+            LogError("LoadDocument", ex)
+        End Try
+    End Sub
+#End Region
+
+#Region "驗證邏輯"
+    ''' <summary>
+    ''' 驗證基本欄位
+    ''' </summary>
+    Private Function ValidateBasicFields() As Boolean
+        If String.IsNullOrEmpty(ddlCardCode.SelectedValue) Then
+            lblMessage.Text = "請選擇供應商"
+            Return False
+        End If
+
+        If String.IsNullOrEmpty(ddlDeliveryAddr.SelectedValue) Then
+            lblMessage.Text = "請選擇收貨地址"
+            Return False
+        End If
+
+        If String.IsNullOrEmpty(txtDocDate.Text) Then
+            lblMessage.Text = "請選擇請款日期"
+            Return False
+        End If
+
+        If String.IsNullOrEmpty(txtDocDueDate.Text) Then
+            lblMessage.Text = "請選擇到期日"
+            Return False
+        End If
+
+        ' 驗證匯率
+        Dim rate As Decimal
+        If Not Decimal.TryParse(txtDocRate.Text, rate) OrElse rate <= 0 Then
+            lblMessage.Text = "匯率必須為正數"
+            Return False
+        End If
+
+        Return True
+    End Function
+#End Region
+
+#Region "輔助方法"
+    ''' <summary>
+    ''' 取得下拉選單值（避免 DBNull）
+    ''' </summary>
+    Private Function GetSelectedValue(value As String) As Object
+        If String.IsNullOrEmpty(value) Then
+            Return DBNull.Value
+        Else
+            Return value
+        End If
+    End Function
+
+    ''' <summary>
+    ''' 記錄錯誤
+    ''' </summary>
+    Private Sub LogError(methodName As String, ex As Exception)
+        ' TODO: 實作錯誤日誌記錄
+        System.Diagnostics.Debug.WriteLine($"[{methodName}] Error: {ex.Message}")
+    End Sub
+#End Region
+
+#Region "費用明細 GridView"
+    ''' <summary>
+    ''' GridView 資料來源類別
+    ''' </summary>
+    <Serializable()>
+    Public Class ExpenseDetailLine
+        Public Property LineNum As Integer
+        Public Property CategoryCode As String
+        Public Property CategoryName As String
+        Public Property AcctCode As String
+        Public Property Description As String
+        Public Property Quantity As Decimal
+        Public Property Price As Decimal
+        Public Property LineTotal As Decimal
+        Public Property LineRate As Decimal
+        Public Property LineTotalTWD As Decimal
+    End Class
+
+    ' 明細資料暫存（使用 ViewState）
+    Private Property DetailLines As List(Of ExpenseDetailLine)
+        Get
+            If ViewState("DetailLines") Is Nothing Then
+                ViewState("DetailLines") = New List(Of ExpenseDetailLine)()
+            End If
+            Return CType(ViewState("DetailLines"), List(Of ExpenseDetailLine))
+        End Get
+        Set(value As List(Of ExpenseDetailLine))
+            ViewState("DetailLines") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 初始化 GridView（在 Page_Load 的 If Not IsPostBack 中呼叫）
+    ''' </summary>
+    Private Sub InitializeGridView()
+        If currentDocEntry = 0 Then
+            ' 新增模式：空白 GridView
+            DetailLines = New List(Of ExpenseDetailLine)()
+        End If
+        BindGridView()
+    End Sub
+
+    ''' <summary>
+    ''' 綁定 GridView
+    ''' </summary>
+    Private Sub BindGridView()
+        gvExpenseDetail.DataSource = DetailLines
+        gvExpenseDetail.DataBind()
+        CalculateTotals()
+    End Sub
+
+    ''' <summary>
+    ''' GridView RowDataBound 事件
+    ''' </summary>
+    Protected Sub gvExpenseDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
         If e.Row.RowType = DataControlRowType.DataRow Then
-            ' 可在此加入特殊處理，例如欄位顏色設定
+            Dim line As ExpenseDetailLine = CType(e.Row.DataItem, ExpenseDetailLine)
+
+            ' 費用類別下拉選單
+            Dim ddlCategory As DropDownList = CType(e.Row.FindControl("ddlExpenseCategory"), DropDownList)
+            LoadExpenseCategories(ddlCategory)
+            If Not String.IsNullOrEmpty(line.CategoryCode) Then
+                If ddlCategory.Items.FindByValue(line.CategoryCode) IsNot Nothing Then
+                    ddlCategory.SelectedValue = line.CategoryCode
+                End If
+            End If
+
+            ' 總帳科目
+            Dim txtAcctCode As TextBox = CType(e.Row.FindControl("txtAcctCode"), TextBox)
+            txtAcctCode.Text = line.AcctCode
+
+            ' 費用說明
+            Dim txtDescription As TextBox = CType(e.Row.FindControl("txtDescription"), TextBox)
+            txtDescription.Text = line.Description
+
+            ' 數量
+            Dim txtQuantity As TextBox = CType(e.Row.FindControl("txtQuantity"), TextBox)
+            txtQuantity.Text = line.Quantity.ToString("F2")
+
+            ' 單價
+            Dim txtPrice As TextBox = CType(e.Row.FindControl("txtPrice"), TextBox)
+            txtPrice.Text = line.Price.ToString("F2")
+
+            ' 金額（外幣）
+            Dim lblLineTotal As Label = CType(e.Row.FindControl("lblLineTotal"), Label)
+            lblLineTotal.Text = line.LineTotal.ToString("N2")
+
+            ' 匯率
+            Dim txtLineRate As TextBox = CType(e.Row.FindControl("txtLineRate"), TextBox)
+            txtLineRate.Text = line.LineRate.ToString("F6")
+
+            ' 本幣金額
+            Dim lblLineTotalTWD As Label = CType(e.Row.FindControl("lblLineTotalTWD"), Label)
+            lblLineTotalTWD.Text = line.LineTotalTWD.ToString("N2")
         End If
     End Sub
 
     ''' <summary>
-    ''' 未稅金額變更事件（自動計算稅額）
+    ''' 載入費用類別下拉選單
     ''' </summary>
-    Protected Sub txtHWBAS_TextChanged(sender As Object, e As EventArgs)
+    Private Sub LoadExpenseCategories(ddl As DropDownList)
         Try
-            Dim txtHWBAS As TextBox = CType(sender, TextBox)
-            Dim row As GridViewRow = CType(txtHWBAS.NamingContainer, GridViewRow)
+            ddl.Items.Clear()
+            ddl.Items.Add(New ListItem("-- 請選擇費用類別 --", ""))
 
-            Dim ddlTAX_TYPE As DropDownList = CType(row.FindControl("ddlTAX_TYPE"), DropDownList)
-            Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
-
-            Dim hwbas As Decimal = 0
-            Decimal.TryParse(txtHWBAS.Text, hwbas)
-
-            ' 計算稅額
-            Dim taxType As String = ddlTAX_TYPE.SelectedValue
-            Dim hwste As Decimal = CalculateTax(hwbas, taxType)
-            txtHWSTE.Text = hwste.ToString("N2")
-
-            ' 更新 ViewState 並重新計算總金額
-            UpdateViewStateFromGrid()
-            CalculateTotals()
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT CategoryCode, CategoryName, AcctCode FROM expense_category WHERE Active = 'Y' ORDER BY CategoryCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using reader As SqlDataReader = cmd.ExecuteReader()
+                        While reader.Read()
+                            Dim code As String = reader("CategoryCode").ToString()
+                            Dim name As String = reader("CategoryName").ToString()
+                            ddl.Items.Add(New ListItem($"{code} - {name}", code))
+                        End While
+                    End Using
+                End Using
+            End Using
 
         Catch ex As Exception
-            ShowMessage("計算稅額失敗: " & ex.Message)
+            LogError("LoadExpenseCategories", ex)
         End Try
     End Sub
 
     ''' <summary>
-    ''' 稅別變更事件（重新計算稅額）
+    ''' 費用類別選擇變更：自動填入總帳科目
     ''' </summary>
-    Protected Sub ddlTAX_TYPE_SelectedIndexChanged(sender As Object, e As EventArgs)
+    Protected Sub ddlExpenseCategory_SelectedIndexChanged(sender As Object, e As EventArgs)
         Try
-            Dim ddlTAX_TYPE As DropDownList = CType(sender, DropDownList)
-            Dim row As GridViewRow = CType(ddlTAX_TYPE.NamingContainer, GridViewRow)
+            Dim ddl As DropDownList = CType(sender, DropDownList)
+            Dim row As GridViewRow = CType(ddl.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
 
-            Dim txtHWBAS As TextBox = CType(row.FindControl("txtHWBAS"), TextBox)
-            Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
+            If String.IsNullOrEmpty(ddl.SelectedValue) Then
+                Return
+            End If
 
-            Dim hwbas As Decimal = 0
-            Decimal.TryParse(txtHWBAS.Text, hwbas)
+            ' 查詢對應的總帳科目
+            Dim acctCode As String = ""
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode FROM expense_category WHERE CategoryCode = @CategoryCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@CategoryCode", ddl.SelectedValue)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        acctCode = result.ToString()
+                    End If
+                End Using
+            End Using
 
-            ' 計算稅額
-            Dim taxType As String = ddlTAX_TYPE.SelectedValue
-            Dim hwste As Decimal = CalculateTax(hwbas, taxType)
-            txtHWSTE.Text = hwste.ToString("N2")
+            ' 更新 ViewState 和介面
+            If rowIndex < DetailLines.Count Then
+                DetailLines(rowIndex).CategoryCode = ddl.SelectedValue
+                DetailLines(rowIndex).CategoryName = ddl.SelectedItem.Text
+                DetailLines(rowIndex).AcctCode = acctCode
+            End If
 
-            ' 更新 ViewState 並重新計算總金額
-            UpdateViewStateFromGrid()
-            CalculateTotals()
+            ' 更新總帳科目欄位
+            Dim txtAcctCode As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+            txtAcctCode.Text = acctCode
 
         Catch ex As Exception
-            ShowMessage("計算稅額失敗: " & ex.Message)
+            lblMessage.Text = "更新總帳科目失敗: " & ex.Message
+            LogError("ddlExpenseCategory_SelectedIndexChanged", ex)
         End Try
     End Sub
 
     ''' <summary>
-    ''' 從 GridView 更新 ViewState
+    ''' 數量變更：重新計算金額
     ''' </summary>
-    Private Sub UpdateViewStateFromGrid()
-        Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
-        If dt Is Nothing Then Return
+    Protected Sub txtQuantity_TextChanged(sender As Object, e As EventArgs)
+        RecalculateLineTotals(sender)
+    End Sub
 
-        For Each row As GridViewRow In gvInvoiceDetail.Rows
-            If row.RowType = DataControlRowType.DataRow Then
-                Dim lineId As Integer = CInt(gvInvoiceDetail.DataKeys(row.RowIndex).Value)
-                Dim dataRow As DataRow = dt.AsEnumerable().FirstOrDefault(Function(r) CInt(r("LineId")) = lineId)
+    ''' <summary>
+    ''' 單價變更：重新計算金額
+    ''' </summary>
+    Protected Sub txtPrice_TextChanged(sender As Object, e As EventArgs)
+        RecalculateLineTotals(sender)
+    End Sub
 
-                If dataRow IsNot Nothing Then
-                    ' 更新資料
-                    Dim txtHWBAS As TextBox = CType(row.FindControl("txtHWBAS"), TextBox)
-                    Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
-                    Dim ddlTAX_TYPE As DropDownList = CType(row.FindControl("ddlTAX_TYPE"), DropDownList)
+    ''' <summary>
+    ''' 重新計算行金額
+    ''' </summary>
+    Private Sub RecalculateLineTotals(sender As Object)
+        Try
+            Dim txt As TextBox = CType(sender, TextBox)
+            Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
 
-                    Dim hwbas As Decimal = 0
-                    Decimal.TryParse(txtHWBAS.Text, hwbas)
-                    dataRow("U_HWBAS") = hwbas
+            If rowIndex >= DetailLines.Count Then Return
 
-                    Dim hwste As Decimal = 0
-                    Decimal.TryParse(txtHWSTE.Text, hwste)
-                    dataRow("U_HWSTE") = hwste
+            ' 取得數量和單價
+            Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
+            Dim txtPrice As TextBox = CType(row.FindControl("txtPrice"), TextBox)
+            Dim txtLineRate As TextBox = CType(row.FindControl("txtLineRate"), TextBox)
 
-                    dataRow("U_TAX_TYPE") = ddlTAX_TYPE.SelectedValue
+            Dim quantity As Decimal = 0
+            Dim price As Decimal = 0
+            Dim lineRate As Decimal = 1
+
+            Decimal.TryParse(txtQuantity.Text, quantity)
+            Decimal.TryParse(txtPrice.Text, price)
+            Decimal.TryParse(txtLineRate.Text, lineRate)
+
+            ' 計算金額
+            Dim lineTotal As Decimal = quantity * price
+            Dim lineTotalTWD As Decimal = lineTotal * lineRate
+
+            ' 更新 ViewState
+            DetailLines(rowIndex).Quantity = quantity
+            DetailLines(rowIndex).Price = price
+            DetailLines(rowIndex).LineTotal = lineTotal
+            DetailLines(rowIndex).LineRate = lineRate
+            DetailLines(rowIndex).LineTotalTWD = lineTotalTWD
+
+            ' 更新顯示
+            Dim lblLineTotal As Label = CType(row.FindControl("lblLineTotal"), Label)
+            lblLineTotal.Text = lineTotal.ToString("N2")
+
+            Dim lblLineTotalTWD As Label = CType(row.FindControl("lblLineTotalTWD"), Label)
+            lblLineTotalTWD.Text = lineTotalTWD.ToString("N2")
+
+            ' 重新計算總計
+            CalculateTotals()
+
+        Catch ex As Exception
+            lblMessage.Text = "計算金額失敗: " & ex.Message
+            LogError("RecalculateLineTotals", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 計算合計
+    ''' </summary>
+    Private Sub CalculateTotals()
+        Dim totalFC As Decimal = 0
+        Dim totalLC As Decimal = 0
+
+        For Each line As ExpenseDetailLine In DetailLines
+            totalFC += line.LineTotal
+            totalLC += line.LineTotalTWD
+        Next
+
+        lblTotalFC.Text = totalFC.ToString("N2")
+        lblTotalLC.Text = totalLC.ToString("N2")
+        lblCurrency.Text = ddlDocCurrency.SelectedValue
+    End Sub
+
+    ''' <summary>
+    ''' 新增明細行按鈕
+    ''' </summary>
+    Protected Sub btnAddLine_Click(sender As Object, e As EventArgs)
+        Try
+            ' 取得表頭匯率
+            Dim docRate As Decimal = 1
+            Decimal.TryParse(txtDocRate.Text, docRate)
+
+            ' 新增空白行
+            Dim newLine As New ExpenseDetailLine() With {
+                .LineNum = DetailLines.Count + 1,
+                .CategoryCode = "",
+                .CategoryName = "",
+                .AcctCode = "",
+                .Description = "",
+                .Quantity = 1,
+                .Price = 0,
+                .LineTotal = 0,
+                .LineRate = docRate,
+                .LineTotalTWD = 0
+            }
+
+            DetailLines.Add(newLine)
+            BindGridView()
+
+            lblMessage.Text = "已新增明細行"
+
+        Catch ex As Exception
+            lblMessage.Text = "新增明細行失敗: " & ex.Message
+            LogError("btnAddLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 刪除選中行按鈕
+    ''' </summary>
+    Protected Sub btnDeleteLine_Click(sender As Object, e As EventArgs)
+        Try
+            Dim deleteCount As Integer = 0
+
+            ' 從後往前刪除（避免索引問題）
+            For i As Integer = gvExpenseDetail.Rows.Count - 1 To 0 Step -1
+                Dim chkSelect As CheckBox = CType(gvExpenseDetail.Rows(i).FindControl("chkSelect"), CheckBox)
+                If chkSelect IsNot Nothing AndAlso chkSelect.Checked Then
+                    If i < DetailLines.Count Then
+                        DetailLines.RemoveAt(i)
+                        deleteCount += 1
+                    End If
                 End If
+            Next
+
+            If deleteCount > 0 Then
+                ' 重新編號
+                For i As Integer = 0 To DetailLines.Count - 1
+                    DetailLines(i).LineNum = i + 1
+                Next
+
+                BindGridView()
+                lblMessage.Text = $"已刪除 {deleteCount} 行明細"
+            Else
+                lblMessage.Text = "請先勾選要刪除的明細行"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除明細行失敗: " & ex.Message
+            LogError("btnDeleteLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' GridView RowDeleting 事件（單行刪除）
+    ''' </summary>
+    Protected Sub gvExpenseDetail_RowDeleting(sender As Object, e As GridViewDeleteEventArgs)
+        Try
+            Dim rowIndex As Integer = e.RowIndex
+
+            If rowIndex < DetailLines.Count Then
+                DetailLines.RemoveAt(rowIndex)
+
+                ' 重新編號
+                For i As Integer = 0 To DetailLines.Count - 1
+                    DetailLines(i).LineNum = i + 1
+                Next
+
+                BindGridView()
+                lblMessage.Text = "已刪除明細行"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除明細行失敗: " & ex.Message
+            LogError("gvExpenseDetail_RowDeleting", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 儲存前收集 GridView 資料
+    ''' </summary>
+    Private Sub CollectGridViewData()
+        Try
+            DetailLines.Clear()
+
+            For Each row As GridViewRow In gvExpenseDetail.Rows
+                If row.RowType = DataControlRowType.DataRow Then
+                    Dim ddlCategory As DropDownList = CType(row.FindControl("ddlExpenseCategory"), DropDownList)
+                    Dim txtAcctCode As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+                    Dim txtDescription As TextBox = CType(row.FindControl("txtDescription"), TextBox)
+                    Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
+                    Dim txtPrice As TextBox = CType(row.FindControl("txtPrice"), TextBox)
+                    Dim txtLineRate As TextBox = CType(row.FindControl("txtLineRate"), TextBox)
+                    Dim lblLineTotal As Label = CType(row.FindControl("lblLineTotal"), Label)
+                    Dim lblLineTotalTWD As Label = CType(row.FindControl("lblLineTotalTWD"), Label)
+
+                    Dim line As New ExpenseDetailLine() With {
+                        .LineNum = row.RowIndex + 1,
+                        .CategoryCode = ddlCategory.SelectedValue,
+                        .CategoryName = ddlCategory.SelectedItem.Text,
+                        .AcctCode = txtAcctCode.Text,
+                        .Description = txtDescription.Text,
+                        .Quantity = If(Decimal.TryParse(txtQuantity.Text, Nothing), Convert.ToDecimal(txtQuantity.Text), 0),
+                        .Price = If(Decimal.TryParse(txtPrice.Text, Nothing), Convert.ToDecimal(txtPrice.Text), 0),
+                        .LineTotal = If(Decimal.TryParse(lblLineTotal.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblLineTotal.Text.Replace(",", "")), 0),
+                        .LineRate = If(Decimal.TryParse(txtLineRate.Text, Nothing), Convert.ToDecimal(txtLineRate.Text), 1),
+                        .LineTotalTWD = If(Decimal.TryParse(lblLineTotalTWD.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblLineTotalTWD.Text.Replace(",", "")), 0)
+                    }
+
+                    DetailLines.Add(line)
+                End If
+            Next
+
+        Catch ex As Exception
+            LogError("CollectGridViewData", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證明細資料
+    ''' </summary>
+    Private Function ValidateDetailLines() As Boolean
+        If DetailLines.Count = 0 Then
+            lblMessage.Text = "請至少新增一筆費用明細"
+            Return False
+        End If
+
+        For i As Integer = 0 To DetailLines.Count - 1
+            Dim line As ExpenseDetailLine = DetailLines(i)
+
+            If String.IsNullOrEmpty(line.CategoryCode) Then
+                lblMessage.Text = $"第 {i + 1} 行：請選擇費用類別"
+                Return False
+            End If
+
+            If String.IsNullOrEmpty(line.Description) Then
+                lblMessage.Text = $"第 {i + 1} 行：請輸入費用說明"
+                Return False
+            End If
+
+            If line.Quantity <= 0 Then
+                lblMessage.Text = $"第 {i + 1} 行：數量必須大於 0"
+                Return False
+            End If
+
+            If line.Price < 0 Then
+                lblMessage.Text = $"第 {i + 1} 行：單價不可為負數"
+                Return False
             End If
         Next
 
-        ViewState("InvoiceDetail") = dt
-    End Sub
-
-    ''' <summary>
-    ''' 計算表頭總金額
-    ''' </summary>
-    Private Sub CalculateTotals()
-        Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
-        If dt Is Nothing Then Return
-
-        Dim docTotal As Decimal = CalculateDocTotal(dt)
-        Dim vatSum As Decimal = CalculateVatSum(dt)
-
-        txtDocTotal.Text = docTotal.ToString("N2")
-        txtVatSum.Text = vatSum.ToString("N2")
-    End Sub
-
-#End Region
-
-#Region "儲存與取消"
-
-    ''' <summary>
-    ''' 儲存按鈕事件
-    ''' </summary>
-    Protected Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
-        Try
-            ' 驗證資料
-            Dim errors As Dictionary(Of String, String) = ValidateMasterFields()
-            If errors.Count > 0 Then
-                Dim errorMsg As String = String.Join(vbCrLf, errors.Values)
-                ShowMessage("驗證失敗:" & vbCrLf & errorMsg)
-                Return
-            End If
-
-            ' 根據當前模式執行對應操作
-            Select Case CurrentMode
-                Case "create"
-                    CreateExpenseClaim()
-                Case "update"
-                    UpdateExpenseClaim()
-                Case Else
-                    ShowMessage("當前模式不支援儲存操作")
-            End Select
-
-        Catch ex As Exception
-            ShowMessage("儲存失敗: " & ex.Message)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 取消按鈕事件
-    ''' </summary>
-    Protected Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
-        Response.Redirect(Request.RawUrl)
-    End Sub
-
-#End Region
-
-#Region "業務邏輯 - 建立費用申請單"
-
-    ''' <summary>
-    ''' 寫入 jtdb.jOPCH 採購單表頭，產生 jID (IDENTITY)
-    ''' </summary>
-    ''' <param name="details">發票明細資料表</param>
-    ''' <returns>新產生的 jID</returns>
-    Private Function SaveToJtdb_jOPCH(details As DataTable) As Integer
-        Dim jID As Integer = 0
-
-        Try
-            ' 計算總金額
-            Dim docTotal As Decimal = 0
-            Dim vatSum As Decimal = 0
-            For Each row As DataRow In details.Rows
-                docTotal += CDec(row("U_HWBAS"))
-                vatSum += CDec(row("U_HWSTE"))
-            Next
-
-            ' 使用第一列的供應商資訊
-            Dim firstRow As DataRow = details.Rows(0)
-            Dim cardCode As String = firstRow("U_LIFNR").ToString()
-            Dim taxDate As DateTime = CDate(firstRow("U_VATDATE"))
-
-            Dim sql As String = "
-                INSERT INTO jOPCH (
-                    CardCode, CardName, DocDate, TaxDate,
-                    DocTotal, VatSum,
-                    DocCurrency, DocRate,
-                    DocStatus, Canceled, B1PostStatus,
-                    ApprovalStatus,
-                    CreateDate, CreateBy
-                ) VALUES (
-                    @CardCode, @CardName, @DocDate, @TaxDate,
-                    @DocTotal, @VatSum,
-                    'TWD', 1,
-                    'O', 'N', 'N',
-                    'Pending',
-                    GETDATE(), @CreateBy
-                );
-                SELECT SCOPE_IDENTITY()
-            "
-
-            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            conn.Open()
-
-            Try
-                Dim cmd As New SqlCommand(sql, conn)
-                With cmd.Parameters
-                    .AddWithValue("@CardCode", cardCode)
-                    .AddWithValue("@CardName", cardCode)
-                    .AddWithValue("@DocDate", DateTime.Today)
-                    .AddWithValue("@TaxDate", taxDate)
-                    .AddWithValue("@DocTotal", docTotal)
-                    .AddWithValue("@VatSum", vatSum)
-                    .AddWithValue("@CreateBy", GetCurrentUserId())
-                End With
-
-                jID = Convert.ToInt32(cmd.ExecuteScalar())
-
-            Finally
-                conn.Close()
-            End Try
-
-            Return jID
-
-        Catch ex As Exception
-            Throw New Exception($"寫入 jOPCH 失敗：{ex.Message}", ex)
-        End Try
+        Return True
     End Function
 
     ''' <summary>
-    ''' 寫入 jtdb.jPCH1 採購單明細
+    ''' 儲存明細到資料庫（在 InsertNewDocument 和 UpdateDocument 中呼叫）
     ''' </summary>
-    ''' <param name="jID">採購單 jID</param>
-    ''' <param name="details">發票明細資料表</param>
-    Private Sub SaveToJtdb_jPCH1(jID As Integer, details As DataTable)
+    Private Sub SaveDetailLinesToDB(docEntry As Integer, conn As SqlConnection, trans As SqlTransaction)
         Try
-            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            conn.Open()
-
-            Try
-                Dim lineNum As Integer = 0
-
-                For Each row As DataRow In details.Rows
-                    Dim sql As String = "
-                        INSERT INTO jPCH1 (
-                            jID, LineNum,
-                            ItemCode, Dscription,
-                            Quantity, Price, LineTotal,
-                            TaxCode, VatSum,
-                            Currency, Rate,
-                            CreateDate, CreateBy
-                        ) VALUES (
-                            @jID, @LineNum,
-                            @ItemCode, @Dscription,
-                            @Quantity, @Price, @LineTotal,
-                            @TaxCode, @VatSum,
-                            'TWD', 1,
-                            GETDATE(), @CreateBy
-                        )
-                    "
-
-                    Dim cmd As New SqlCommand(sql, conn)
-                    With cmd.Parameters
-                        .AddWithValue("@jID", jID)
-                        .AddWithValue("@LineNum", lineNum)
-                        .AddWithValue("@ItemCode", "_SYS00000000001")
-                        .AddWithValue("@Dscription", row("U_XBLNR").ToString())
-                        .AddWithValue("@Quantity", 1)
-                        .AddWithValue("@Price", CDec(row("U_HWBAS")))
-                        .AddWithValue("@LineTotal", CDec(row("U_HWBAS")))
-                        .AddWithValue("@TaxCode", "100")
-                        .AddWithValue("@VatSum", CDec(row("U_HWSTE")))
-                        .AddWithValue("@CreateBy", GetCurrentUserId())
-                    End With
-
-                    cmd.ExecuteNonQuery()
-                    lineNum += 1
-                Next
-
-            Finally
-                conn.Close()
-            End Try
-
-        Catch ex As Exception
-            Throw New Exception($"寫入 jPCH1 失敗：{ex.Message}", ex)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 寫入 jtdb.jMGUIAP 費用申請單表頭
-    ''' </summary>
-    ''' <param name="jID">採購單 jID（來自 jOPCH）</param>
-    ''' <param name="details">發票明細資料表</param>
-    Private Sub SaveToJtdb_jMGUIAP(jID As Integer, details As DataTable)
-        Try
-            ' 計算總金額
-            Dim docTotal As Decimal = 0
-            Dim vatSum As Decimal = 0
-            For Each row As DataRow In details.Rows
-                docTotal += CDec(row("U_HWBAS"))
-                vatSum += CDec(row("U_HWSTE"))
-            Next
-
-            Dim sql As String = "
-                INSERT INTO jMGUIAP (
-                    jID, DocTotal, VatSum, U_OBJTYPE,
-                    MDRPostStatus,
-                    CreateDate, CreateBy
-                ) VALUES (
-                    @jID, @DocTotal, @VatSum, '18',
-                    'N',
-                    GETDATE(), @CreateBy
-                )
-            "
-
-            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            conn.Open()
-
-            Try
-                Dim cmd As New SqlCommand(sql, conn)
-                With cmd.Parameters
-                    .AddWithValue("@jID", jID)
-                    .AddWithValue("@DocTotal", docTotal)
-                    .AddWithValue("@VatSum", vatSum)
-                    .AddWithValue("@CreateBy", GetCurrentUserId())
-                End With
-
+            ' 先刪除舊明細（更新模式）
+            Dim sqlDelete As String = "DELETE FROM jOPC1 WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sqlDelete, conn, trans)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
                 cmd.ExecuteNonQuery()
+            End Using
 
-            Finally
-                conn.Close()
-            End Try
+            ' 插入新明細
+            Dim sqlInsert As String = "INSERT INTO jOPC1 (DocEntry, LineNum, CategoryCode, CategoryName, AcctCode, " &
+                                     "LineDescription, Quantity, Price, LineTotal, LineRate, LineTotalTWD) " &
+                                     "VALUES (@DocEntry, @LineNum, @CategoryCode, @CategoryName, @AcctCode, " &
+                                     "@LineDescription, @Quantity, @Price, @LineTotal, @LineRate, @LineTotalTWD)"
 
-        Catch ex As Exception
-            Throw New Exception($"寫入 jMGUIAP 失敗：{ex.Message}", ex)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 寫入 jtdb.jMGUIAPDetail 費用申請單明細
-    ''' </summary>
-    ''' <param name="jID">採購單 jID（來自 jOPCH）</param>
-    ''' <param name="details">發票明細資料表</param>
-    Private Sub SaveToJtdb_jMGUIAPDetail(jID As Integer, details As DataTable)
-        Try
-            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            conn.Open()
-
-            Try
-                Dim lineNum As Integer = 0
-
-                For Each row As DataRow In details.Rows
-                    Dim sql As String = "
-                        INSERT INTO jMGUIAPDetail (
-                            jID, LineNum,
-                            U_LIFNR, U_STCEG, U_XBLNR, U_ZFORM_CODE,
-                            U_BLDAT, U_VATDATE,
-                            U_HWBAS, U_HWSTE,
-                            U_TAX_TYPE, U_CUS_TYPE, U_AM_TYPE,
-                            U_VATCODE, U_BUKRS, U_MWSKZ,
-                            U_FA_DESC, U_FA_QTY, U_FA_USE,
-                            U_GatherMark, U_ConsolidQty,
-                            CreateDate, CreateBy
-                        ) VALUES (
-                            @jID, @LineNum,
-                            @U_LIFNR, @U_STCEG, @U_XBLNR, @U_ZFORM_CODE,
-                            @U_BLDAT, @U_VATDATE,
-                            @U_HWBAS, @U_HWSTE,
-                            @U_TAX_TYPE, @U_CUS_TYPE, @U_AM_TYPE,
-                            @U_VATCODE, @U_BUKRS, @U_MWSKZ,
-                            @U_FA_DESC, @U_FA_QTY, @U_FA_USE,
-                            @U_GatherMark, @U_ConsolidQty,
-                            GETDATE(), @CreateBy
-                        )
-                    "
-
-                    Dim cmd As New SqlCommand(sql, conn)
-                    With cmd.Parameters
-                        .AddWithValue("@jID", jID)
-                        .AddWithValue("@LineNum", lineNum)
-                        .AddWithValue("@U_LIFNR", row("U_LIFNR"))
-                        .AddWithValue("@U_STCEG", row("U_STCEG"))
-                        .AddWithValue("@U_XBLNR", row("U_XBLNR"))
-                        .AddWithValue("@U_ZFORM_CODE", row("U_ZFORM_CODE"))
-                        .AddWithValue("@U_BLDAT", CDate(row("U_BLDAT")))
-                        .AddWithValue("@U_VATDATE", CDate(row("U_VATDATE")))
-                        .AddWithValue("@U_HWBAS", CDec(row("U_HWBAS")))
-                        .AddWithValue("@U_HWSTE", CDec(row("U_HWSTE")))
-                        .AddWithValue("@U_TAX_TYPE", row("U_TAX_TYPE"))
-                        .AddWithValue("@U_CUS_TYPE", row("U_CUS_TYPE"))
-                        .AddWithValue("@U_AM_TYPE", row("U_AM_TYPE"))
-                        .AddWithValue("@U_VATCODE", "100")
-                        .AddWithValue("@U_BUKRS", "100")
-                        .AddWithValue("@U_MWSKZ", row("U_ZFORM_CODE"))
-                        .AddWithValue("@U_FA_DESC", DBNull.Value)
-                        .AddWithValue("@U_FA_QTY", 0)
-                        .AddWithValue("@U_FA_USE", DBNull.Value)
-                        .AddWithValue("@U_GatherMark", "N")
-                        .AddWithValue("@U_ConsolidQty", 0)
-                        .AddWithValue("@CreateBy", GetCurrentUserId())
-                    End With
-
+            For Each line As ExpenseDetailLine In DetailLines
+                Using cmd As New SqlCommand(sqlInsert, conn, trans)
+                    cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                    cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
+                    cmd.Parameters.AddWithValue("@CategoryCode", line.CategoryCode)
+                    cmd.Parameters.AddWithValue("@CategoryName", line.CategoryName)
+                    cmd.Parameters.AddWithValue("@AcctCode", line.AcctCode)
+                    cmd.Parameters.AddWithValue("@LineDescription", line.Description)
+                    cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
+                    cmd.Parameters.AddWithValue("@Price", line.Price)
+                    cmd.Parameters.AddWithValue("@LineTotal", line.LineTotal)
+                    cmd.Parameters.AddWithValue("@LineRate", line.LineRate)
+                    cmd.Parameters.AddWithValue("@LineTotalTWD", line.LineTotalTWD)
                     cmd.ExecuteNonQuery()
-                    lineNum += 1
-                Next
-
-            Finally
-                conn.Close()
-            End Try
-
-        Catch ex As Exception
-            Throw New Exception($"寫入 jMGUIAPDetail 失敗：{ex.Message}", ex)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 更新 jOPCH 和 jMGUIAP 的 DocEntry（SAP AP Invoice 建立成功後）
-    ''' </summary>
-    ''' <param name="jID">採購單 jID</param>
-    ''' <param name="docEntry">SAP AP Invoice DocEntry</param>
-    Private Sub UpdateJtdb_DocEntry(jID As Integer, docEntry As Integer)
-        Try
-            Dim conn As SqlConnection = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            conn.Open()
-
-            Try
-                ' 更新 jOPCH
-                Dim sql1 As String = "
-                    UPDATE jOPCH
-                    SET DocEntry = @DocEntry,
-                        DocNum = @DocNum,
-                        UpdateDate = GETDATE(),
-                        UpdateBy = @UpdateBy
-                    WHERE jID = @jID
-                "
-
-                Dim cmd1 As New SqlCommand(sql1, conn)
-                With cmd1.Parameters
-                    .AddWithValue("@DocEntry", docEntry)
-                    .AddWithValue("@DocNum", docEntry)
-                    .AddWithValue("@jID", jID)
-                    .AddWithValue("@UpdateBy", GetCurrentUserId())
-                End With
-                cmd1.ExecuteNonQuery()
-
-                ' 更新 jMGUIAP
-                Dim sql2 As String = "
-                    UPDATE jMGUIAP
-                    SET DocEntry = @DocEntry,
-                        DocNum = @DocNum,
-                        UpdateDate = GETDATE(),
-                        UpdateBy = @UpdateBy
-                    WHERE jID = @jID
-                "
-
-                Dim cmd2 As New SqlCommand(sql2, conn)
-                With cmd2.Parameters
-                    .AddWithValue("@DocEntry", docEntry)
-                    .AddWithValue("@DocNum", docEntry)
-                    .AddWithValue("@jID", jID)
-                    .AddWithValue("@UpdateBy", GetCurrentUserId())
-                End With
-                cmd2.ExecuteNonQuery()
-
-            Finally
-                conn.Close()
-            End Try
-
-        Catch ex As Exception
-            Throw New Exception($"更新 DocEntry 失敗：{ex.Message}", ex)
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 建立費用申請單（完整流程：jtdb → SAP → MDR）
-    ''' </summary>
-    Private Sub CreateExpenseClaim()
-        Dim oCompany As Company = Nothing
-        Dim apDocEntry As Integer = 0
-        Dim jID As Integer = 0
-
-        Try
-            ' 取得明細資料
-            Dim dt As DataTable = CType(ViewState("InvoiceDetail"), DataTable)
-            If dt Is Nothing OrElse dt.Rows.Count = 0 Then
-                ShowMessage("請至少輸入一筆發票明細")
-                Return
-            End If
-
-            ' ===== 第一步：寫入 jtdb 資料庫 =====
-            jID = SaveToJtdb_jOPCH(dt)            ' 產生 jID
-            SaveToJtdb_jPCH1(jID, dt)             ' 寫入採購單明細
-            SaveToJtdb_jMGUIAP(jID, dt)           ' 寫入費用申請單表頭
-            SaveToJtdb_jMGUIAPDetail(jID, dt)     ' 寫入費用申請單明細
-
-            ' ===== 第二步：建立 SAP AP Invoice =====
-            oCompany = New Company()
-            Dim ret As Integer = InitSAPConnection("127.0.0.1", "JTSTD", "manager", "2408", oCompany)
-            If ret <> 0 Then
-                Dim errMsg As String = String.Empty
-                Dim errCode As Integer = 0
-                oCompany.GetLastError(errCode, errMsg)
-                Throw New ApplicationException($"連接 SAP 失敗: {errCode} - {errMsg}")
-            End If
-
-            Dim firstRow As DataRow = dt.Rows(0)
-            Dim cardCode As String = firstRow("U_LIFNR").ToString()
-
-            If Not oCompany.InTransaction Then
-                oCompany.StartTransaction()
-            End If
-
-            Try
-                Dim oInvoice As Documents = CType(oCompany.GetBusinessObject(BoObjectTypes.oPurchaseInvoices), Documents)
-                oInvoice.CardCode = cardCode
-                oInvoice.DocDate = DateTime.Today
-
-                For Each row As DataRow In dt.Rows
-                    Dim hwbas As Decimal = CDec(row("U_HWBAS"))
-                    oInvoice.Lines.AccountCode = "_SYS00000000001"
-                    oInvoice.Lines.LineTotal = hwbas
-                    oInvoice.Lines.TaxCode = "100"
-                    oInvoice.Lines.Add()
-                Next
-
-                ret = oInvoice.Add()
-                If ret <> 0 Then
-                    Dim errMsg As String = String.Empty
-                    Dim errCode As Integer = 0
-                    oCompany.GetLastError(errCode, errMsg)
-                    Throw New ApplicationException($"建立 AP Invoice 失敗: {errCode} - {errMsg}")
-                End If
-
-                apDocEntry = CInt(oCompany.GetNewObjectKey())
-                oCompany.EndTransaction(BoWfTransOpt.wf_Commit)
-
-            Catch ex As Exception
-                If oCompany.InTransaction Then
-                    oCompany.EndTransaction(BoWfTransOpt.wf_RollBack)
-                End If
-                Throw
-            End Try
-
-            ' ===== 第三步：更新 DocEntry =====
-            UpdateJtdb_DocEntry(jID, apDocEntry)
-
-            ' ===== 第四步：同步至 MDR 資料庫 =====
-            Try
-                Dim mdrHeaderID As Integer = WriteMDRData(jID)
-
-                If mdrHeaderID > 0 Then
-                    ShowMessage($"費用申請單建立成功！jID={jID}, AP DocEntry={apDocEntry}, MDR ID={mdrHeaderID}")
-                Else
-                    ShowMessage($"費用申請單建立成功，但 MDR 同步失敗。jID={jID}, AP DocEntry={apDocEntry}")
-                End If
-            Catch ex As Exception
-                ' MDR 同步失敗不影響主流程
-                ShowMessage($"費用申請單建立成功，但 MDR 同步發生錯誤：{ex.Message}。jID={jID}, AP DocEntry={apDocEntry}")
-            End Try
-
-            ' ===== 第五步：更新頁面顯示 =====
-            txtID.Text = jID.ToString()
-            txtDocEntry.Text = apDocEntry.ToString()
-            txtCreateDate.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-            txtCreateBy.Text = GetCurrentUserId()
-
-        Catch ex As Exception
-            Throw New ApplicationException("建立費用申請單失敗: " & ex.Message, ex)
-        Finally
-            If oCompany IsNot Nothing Then
-                oCompany.Disconnect()
-            End If
-        End Try
-    End Sub
-
-    ''' <summary>
-    ''' 將營業稅發票資料同步到 MDR 資料庫
-    ''' </summary>
-    ''' <param name="jID">費用申請單 jID</param>
-    ''' <returns>MDR.MGUIAP_Import.ID，失敗回傳 0</returns>
-    ''' <remarks>
-    ''' 此方法會從 jtdb 讀取 jMGUIAP 和 jMGUIAPDetail 資料，
-    ''' 寫入 MDR 資料庫的 MGUIAP_Import 和 MGUIAPDetail_Import 表，
-    ''' 供後續 MDRImport.exe 程式處理營業稅過帳。
-    ''' </remarks>
-    Private Function WriteMDRData(jID As Integer) As Integer
-        Dim mdrHeaderID As Integer = 0
-        Dim jtdbConn As SqlConnection = Nothing
-        Dim mdrConn As SqlConnection = Nothing
-        Dim trans As SqlTransaction = Nothing
-
-        Try
-            ' ===== 第一步：從 jtdb 讀取資料 =====
-            Dim headerData As DataRow = Nothing
-            Dim detailData As DataTable = Nothing
-
-            jtdbConn = New SqlConnection(ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString)
-            jtdbConn.Open()
-
-            ' 讀取表頭資料
-            Dim sqlHeader As String = "
-                SELECT
-                    h.jID,
-                    h.DocEntry,
-                    h.DocNum,
-                    d.U_LIFNR,
-                    d.U_STCEG,
-                    d.U_XBLNR,
-                    d.U_BLDAT,
-                    d.U_VATDATE,
-                    d.U_ZFORM_CODE,
-                    d.U_TAX_TYPE,
-                    d.U_CUS_TYPE,
-                    d.U_AM_TYPE,
-                    d.U_BUKRS,
-                    d.U_MWSKZ,
-                    d.U_VATCODE,
-                    SUM(d.U_HWBAS) AS U_HWBAS,
-                    SUM(d.U_HWSTE) AS U_HWSTE,
-                    SUM(d.U_HWBAS + d.U_HWSTE) AS TotalAmount
-                FROM jMGUIAP h
-                INNER JOIN jMGUIAPDetail d ON h.jID = d.jID
-                WHERE h.jID = @jID
-                GROUP BY
-                    h.jID, h.DocEntry, h.DocNum,
-                    d.U_LIFNR, d.U_STCEG, d.U_XBLNR,
-                    d.U_BLDAT, d.U_VATDATE, d.U_ZFORM_CODE,
-                    d.U_TAX_TYPE, d.U_CUS_TYPE, d.U_AM_TYPE,
-                    d.U_BUKRS, d.U_MWSKZ, d.U_VATCODE
-            "
-
-            Dim cmdHeader As New SqlCommand(sqlHeader, jtdbConn)
-            cmdHeader.Parameters.AddWithValue("@jID", jID)
-            Dim adapterHeader As New SqlDataAdapter(cmdHeader)
-            Dim dtHeader As New DataTable()
-            adapterHeader.Fill(dtHeader)
-
-            If dtHeader.Rows.Count = 0 Then
-                Throw New Exception("找不到 jID=" & jID & " 的發票表頭資料")
-            End If
-            headerData = dtHeader.Rows(0)
-
-            ' 讀取明細資料
-            Dim sqlDetail As String = "
-                SELECT
-                    jID,
-                    LineNum,
-                    DocEntry,
-                    U_LIFNR,
-                    U_STCEG,
-                    U_XBLNR,
-                    U_ZFORM_CODE,
-                    U_BLDAT,
-                    U_VATDATE,
-                    U_HWBAS,
-                    U_HWSTE,
-                    U_TAX_TYPE,
-                    U_CUS_TYPE,
-                    U_AM_TYPE,
-                    U_VATCODE,
-                    U_BUKRS,
-                    U_MWSKZ,
-                    U_BELNR,
-                    U_FA_DESC,
-                    U_FA_QTY,
-                    U_FA_USE,
-                    U_GatherMark,
-                    U_ConsolidQty
-                FROM jMGUIAPDetail
-                WHERE jID = @jID
-                ORDER BY LineNum
-            "
-
-            Dim cmdDetail As New SqlCommand(sqlDetail, jtdbConn)
-            cmdDetail.Parameters.AddWithValue("@jID", jID)
-            Dim adapterDetail As New SqlDataAdapter(cmdDetail)
-            detailData = New DataTable()
-            adapterDetail.Fill(detailData)
-
-            If detailData.Rows.Count = 0 Then
-                Throw New Exception("找不到 jID=" & jID & " 的發票明細資料")
-            End If
-
-            ' ===== 第二步：寫入 MDR 資料庫 =====
-            mdrConn = New SqlConnection(ConfigurationManager.ConnectionStrings("MDRConnectionString").ConnectionString)
-            mdrConn.Open()
-            trans = mdrConn.BeginTransaction()
-
-            ' 寫入表頭
-            Dim sqlInsertHeader As String = "
-                INSERT INTO MGUIAP_Import (
-                    jID, DocEntry, DocNum,
-                    U_LIFNR, U_STCEG,
-                    U_XBLNR, U_BLDAT, U_VATDATE,
-                    U_HWBAS, U_HWSTE, TotalAmount,
-                    U_ZFORM_CODE, U_TAX_TYPE, U_CUS_TYPE, U_AM_TYPE,
-                    U_BUKRS, U_MWSKZ, U_VATCODE,
-                    PostStatus, CreateDate, CreateBy
-                ) VALUES (
-                    @jID, @DocEntry, @DocNum,
-                    @U_LIFNR, @U_STCEG,
-                    @U_XBLNR, @U_BLDAT, @U_VATDATE,
-                    @U_HWBAS, @U_HWSTE, @TotalAmount,
-                    @U_ZFORM_CODE, @U_TAX_TYPE, @U_CUS_TYPE, @U_AM_TYPE,
-                    @U_BUKRS, @U_MWSKZ, @U_VATCODE,
-                    'N', GETDATE(), @CreateBy
-                );
-                SELECT SCOPE_IDENTITY();
-            "
-
-            Dim cmdInsertHeader As New SqlCommand(sqlInsertHeader, mdrConn, trans)
-            With cmdInsertHeader.Parameters
-                .AddWithValue("@jID", jID)
-                .AddWithValue("@DocEntry", If(IsDBNull(headerData("DocEntry")), DBNull.Value, headerData("DocEntry")))
-                .AddWithValue("@DocNum", If(IsDBNull(headerData("DocNum")), DBNull.Value, headerData("DocNum")))
-                .AddWithValue("@U_LIFNR", If(IsDBNull(headerData("U_LIFNR")), DBNull.Value, headerData("U_LIFNR")))
-                .AddWithValue("@U_STCEG", If(IsDBNull(headerData("U_STCEG")), DBNull.Value, headerData("U_STCEG")))
-                .AddWithValue("@U_XBLNR", If(IsDBNull(headerData("U_XBLNR")), DBNull.Value, headerData("U_XBLNR")))
-                .AddWithValue("@U_BLDAT", If(IsDBNull(headerData("U_BLDAT")), DBNull.Value, headerData("U_BLDAT")))
-                .AddWithValue("@U_VATDATE", If(IsDBNull(headerData("U_VATDATE")), DBNull.Value, headerData("U_VATDATE")))
-                .AddWithValue("@U_HWBAS", headerData("U_HWBAS"))
-                .AddWithValue("@U_HWSTE", headerData("U_HWSTE"))
-                .AddWithValue("@TotalAmount", headerData("TotalAmount"))
-                .AddWithValue("@U_ZFORM_CODE", If(IsDBNull(headerData("U_ZFORM_CODE")), DBNull.Value, headerData("U_ZFORM_CODE")))
-                .AddWithValue("@U_TAX_TYPE", If(IsDBNull(headerData("U_TAX_TYPE")), DBNull.Value, headerData("U_TAX_TYPE")))
-                .AddWithValue("@U_CUS_TYPE", If(IsDBNull(headerData("U_CUS_TYPE")), DBNull.Value, headerData("U_CUS_TYPE")))
-                .AddWithValue("@U_AM_TYPE", If(IsDBNull(headerData("U_AM_TYPE")), DBNull.Value, headerData("U_AM_TYPE")))
-                .AddWithValue("@U_BUKRS", If(IsDBNull(headerData("U_BUKRS")), DBNull.Value, headerData("U_BUKRS")))
-                .AddWithValue("@U_MWSKZ", If(IsDBNull(headerData("U_MWSKZ")), DBNull.Value, headerData("U_MWSKZ")))
-                .AddWithValue("@U_VATCODE", If(IsDBNull(headerData("U_VATCODE")), DBNull.Value, headerData("U_VATCODE")))
-                .AddWithValue("@CreateBy", CommUtil.GetCurrentUserId())
-            End With
-
-            ' 執行並取得 IDENTITY
-            mdrHeaderID = Convert.ToInt32(cmdInsertHeader.ExecuteScalar())
-
-            ' 寫入明細
-            For Each detailRow As DataRow In detailData.Rows
-                Dim sqlInsertDetail As String = "
-                    INSERT INTO MGUIAPDetail_Import (
-                        HeaderID, LineNum, jID, DocEntry,
-                        U_LIFNR, U_STCEG, U_XBLNR, U_ZFORM_CODE,
-                        U_BLDAT, U_VATDATE,
-                        U_HWBAS, U_HWSTE,
-                        U_TAX_TYPE, U_CUS_TYPE, U_AM_TYPE, U_VATCODE,
-                        U_BUKRS, U_MWSKZ, U_BELNR,
-                        U_FA_DESC, U_FA_QTY, U_FA_USE,
-                        U_GatherMark, U_ConsolidQty,
-                        CreateDate, CreateBy
-                    ) VALUES (
-                        @HeaderID, @LineNum, @jID, @DocEntry,
-                        @U_LIFNR, @U_STCEG, @U_XBLNR, @U_ZFORM_CODE,
-                        @U_BLDAT, @U_VATDATE,
-                        @U_HWBAS, @U_HWSTE,
-                        @U_TAX_TYPE, @U_CUS_TYPE, @U_AM_TYPE, @U_VATCODE,
-                        @U_BUKRS, @U_MWSKZ, @U_BELNR,
-                        @U_FA_DESC, @U_FA_QTY, @U_FA_USE,
-                        @U_GatherMark, @U_ConsolidQty,
-                        GETDATE(), @CreateBy
-                    )
-                "
-
-                Dim cmdInsertDetail As New SqlCommand(sqlInsertDetail, mdrConn, trans)
-                With cmdInsertDetail.Parameters
-                    .AddWithValue("@HeaderID", mdrHeaderID)
-                    .AddWithValue("@LineNum", detailRow("LineNum"))
-                    .AddWithValue("@jID", detailRow("jID"))
-                    .AddWithValue("@DocEntry", If(IsDBNull(detailRow("DocEntry")), DBNull.Value, detailRow("DocEntry")))
-                    .AddWithValue("@U_LIFNR", If(IsDBNull(detailRow("U_LIFNR")), DBNull.Value, detailRow("U_LIFNR")))
-                    .AddWithValue("@U_STCEG", If(IsDBNull(detailRow("U_STCEG")), DBNull.Value, detailRow("U_STCEG")))
-                    .AddWithValue("@U_XBLNR", If(IsDBNull(detailRow("U_XBLNR")), DBNull.Value, detailRow("U_XBLNR")))
-                    .AddWithValue("@U_ZFORM_CODE", If(IsDBNull(detailRow("U_ZFORM_CODE")), DBNull.Value, detailRow("U_ZFORM_CODE")))
-                    .AddWithValue("@U_BLDAT", If(IsDBNull(detailRow("U_BLDAT")), DBNull.Value, detailRow("U_BLDAT")))
-                    .AddWithValue("@U_VATDATE", If(IsDBNull(detailRow("U_VATDATE")), DBNull.Value, detailRow("U_VATDATE")))
-                    .AddWithValue("@U_HWBAS", detailRow("U_HWBAS"))
-                    .AddWithValue("@U_HWSTE", detailRow("U_HWSTE"))
-                    .AddWithValue("@U_TAX_TYPE", If(IsDBNull(detailRow("U_TAX_TYPE")), DBNull.Value, detailRow("U_TAX_TYPE")))
-                    .AddWithValue("@U_CUS_TYPE", If(IsDBNull(detailRow("U_CUS_TYPE")), DBNull.Value, detailRow("U_CUS_TYPE")))
-                    .AddWithValue("@U_AM_TYPE", If(IsDBNull(detailRow("U_AM_TYPE")), DBNull.Value, detailRow("U_AM_TYPE")))
-                    .AddWithValue("@U_VATCODE", If(IsDBNull(detailRow("U_VATCODE")), DBNull.Value, detailRow("U_VATCODE")))
-                    .AddWithValue("@U_BUKRS", If(IsDBNull(detailRow("U_BUKRS")), DBNull.Value, detailRow("U_BUKRS")))
-                    .AddWithValue("@U_MWSKZ", If(IsDBNull(detailRow("U_MWSKZ")), DBNull.Value, detailRow("U_MWSKZ")))
-                    .AddWithValue("@U_BELNR", If(IsDBNull(detailRow("U_BELNR")), DBNull.Value, detailRow("U_BELNR")))
-                    .AddWithValue("@U_FA_DESC", If(IsDBNull(detailRow("U_FA_DESC")), DBNull.Value, detailRow("U_FA_DESC")))
-                    .AddWithValue("@U_FA_QTY", detailRow("U_FA_QTY"))
-                    .AddWithValue("@U_FA_USE", If(IsDBNull(detailRow("U_FA_USE")), DBNull.Value, detailRow("U_FA_USE")))
-                    .AddWithValue("@U_GatherMark", If(IsDBNull(detailRow("U_GatherMark")), DBNull.Value, detailRow("U_GatherMark")))
-                    .AddWithValue("@U_ConsolidQty", detailRow("U_ConsolidQty"))
-                    .AddWithValue("@CreateBy", CommUtil.GetCurrentUserId())
-                End With
-
-                cmdInsertDetail.ExecuteNonQuery()
+                End Using
             Next
 
-            ' ===== 第三步：更新 jtdb.jMGUIAP 的 MDRPostStatus =====
-            Dim sqlUpdateStatus As String = "
-                UPDATE jMGUIAP
-                SET MDRPostStatus = 'P',
-                    MDRPostDate = GETDATE()
-                WHERE jID = @jID
-            "
+        Catch ex As Exception
+            LogError("SaveDetailLinesToDB", ex)
+            Throw
+        End Try
+    End Sub
 
-            Dim cmdUpdateStatus As New SqlCommand(sqlUpdateStatus, jtdbConn)
-            cmdUpdateStatus.Parameters.AddWithValue("@jID", jID)
-            cmdUpdateStatus.ExecuteNonQuery()
+    ''' <summary>
+    ''' 從資料庫載入明細（在 LoadDocument 中呼叫）
+    ''' </summary>
+    Private Sub LoadDetailLinesFromDB(docEntry As Integer, conn As SqlConnection)
+        Try
+            DetailLines.Clear()
 
-            ' 提交交易
-            trans.Commit()
+            Dim sql As String = "SELECT * FROM jOPC1 WHERE DocEntry = @DocEntry ORDER BY LineNum"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim line As New ExpenseDetailLine() With {
+                            .LineNum = Convert.ToInt32(reader("LineNum")),
+                            .CategoryCode = If(IsDBNull(reader("CategoryCode")), "", reader("CategoryCode").ToString()),
+                            .CategoryName = If(IsDBNull(reader("CategoryName")), "", reader("CategoryName").ToString()),
+                            .AcctCode = If(IsDBNull(reader("AcctCode")), "", reader("AcctCode").ToString()),
+                            .Description = If(IsDBNull(reader("LineDescription")), "", reader("LineDescription").ToString()),
+                            .Quantity = If(IsDBNull(reader("Quantity")), 0, Convert.ToDecimal(reader("Quantity"))),
+                            .Price = If(IsDBNull(reader("Price")), 0, Convert.ToDecimal(reader("Price"))),
+                            .LineTotal = If(IsDBNull(reader("LineTotal")), 0, Convert.ToDecimal(reader("LineTotal"))),
+                            .LineRate = If(IsDBNull(reader("LineRate")), 1, Convert.ToDecimal(reader("LineRate"))),
+                            .LineTotalTWD = If(IsDBNull(reader("LineTotalTWD")), 0, Convert.ToDecimal(reader("LineTotalTWD")))
+                        }
+                        DetailLines.Add(line)
+                    End While
+                End Using
+            End Using
 
-            Return mdrHeaderID
+            BindGridView()
 
         Catch ex As Exception
-            ' 回滾交易
-            If trans IsNot Nothing Then
-                Try
-                    trans.Rollback()
-                Catch
-                End Try
-            End If
-
-            ' 更新錯誤狀態
-            If jtdbConn IsNot Nothing AndAlso jtdbConn.State = ConnectionState.Open Then
-                Try
-                    Dim sqlUpdateError As String = "
-                        UPDATE jMGUIAP
-                        SET MDRPostStatus = 'E',
-                            MDRErrMsg = @ErrorMsg
-                        WHERE jID = @jID
-                    "
-                    Dim cmdUpdateError As New SqlCommand(sqlUpdateError, jtdbConn)
-                    cmdUpdateError.Parameters.AddWithValue("@jID", jID)
-                    cmdUpdateError.Parameters.AddWithValue("@ErrorMsg", ex.Message.Substring(0, Math.Min(500, ex.Message.Length)))
-                    cmdUpdateError.ExecuteNonQuery()
-                Catch
-                End Try
-            End If
-
-            ' 記錄錯誤日誌
-            System.Diagnostics.Debug.WriteLine("WriteMDRData Error: " & ex.Message)
-
-            Throw New Exception("MDR 資料同步失敗：" & ex.Message, ex)
-
-        Finally
-            If jtdbConn IsNot Nothing AndAlso jtdbConn.State = ConnectionState.Open Then
-                jtdbConn.Close()
-            End If
-            If mdrConn IsNot Nothing AndAlso mdrConn.State = ConnectionState.Open Then
-                mdrConn.Close()
-            End If
+            LogError("LoadDetailLinesFromDB", ex)
         End Try
-    End Function
-
-    ''' <summary>
-    ''' 呼叫 MDRImport.exe 程式執行營業稅過帳
-    ''' </summary>
-    ''' <param name="jID">費用申請單 jID</param>
-    ''' <remarks>
-    ''' [保留功能] 此功能暫時保留，待確認 MDRImport.exe 路徑與參數後啟用
-    ''' </remarks>
-    Private Sub CallMDRProgram(jID As Integer)
-        ' ===== [保留功能] MDRImport.exe 程式呼叫 =====
-        ' 說明: 呼叫 MDRImport.exe 將 MDR 資料寫入 SAP B1 營業稅外掛表
-        ' 狀態: 待確認執行檔路徑與參數
-        ' TODO: 確認以下資訊
-        '   1. MDRImport.exe 完整路徑
-        '   2. 呼叫參數格式 (例如: MDRImport.exe /jID:123 或 MDRImport.exe 123)
-        '   3. 是否需要等待執行完成
-        '   4. 如何取得執行結果 (回傳值、日誌檔案等)
-        '
-        ' 範例程式碼:
-        ' Try
-        '     Dim mdrExePath As String = "C:\MDRImport\MDRImport.exe"
-        '     Dim args As String = jID.ToString()
-        '
-        '     Dim psi As New ProcessStartInfo(mdrExePath, args)
-        '     psi.WindowStyle = ProcessWindowStyle.Hidden
-        '     psi.CreateNoWindow = True
-        '
-        '     Dim process As Process = Process.Start(psi)
-        '     process.WaitForExit()
-        '
-        '     If process.ExitCode = 0 Then
-        '         ' 執行成功
-        '     Else
-        '         ' 執行失敗
-        '     End If
-        ' Catch ex As Exception
-        '     Throw New Exception("呼叫 MDRImport.exe 失敗：" & ex.Message, ex)
-        ' End Try
     End Sub
-
-    ''' <summary>
-    ''' 更新費用申請單（暫不實作）
-    ''' </summary>
-    Private Sub UpdateExpenseClaim()
-        ShowMessage("更新功能尚未實作")
-    End Sub
-
-    ''' <summary>
-    ''' 初始化 SAP 連線
-    ''' </summary>
-    Private Function InitSAPConnection(server As String, companyDb As String, userName As String, password As String, ByRef oComp As Company) As Integer
-        oComp.Server = server
-        oComp.CompanyDB = companyDb
-        oComp.UserName = userName
-        oComp.Password = password
-        oComp.UseTrusted = False
-        oComp.DbUserName = "sa"
-        oComp.DbPassword = "sap19690123"
-        oComp.language = BoSuppLangs.ln_English
-        oComp.DbServerType = BoDataServerTypes.dst_MSSQL2005
-
-        Return oComp.Connect()
-    End Function
-
 #End Region
 
-#Region "實作抽象方法"
+#Region "MDR 發票明細 Tab"
+    ''' <summary>
+    ''' MDR 明細資料類別
+    ''' </summary>
+    <Serializable()>
+    Public Class MDRDetailLine
+        Public Property LineNum As Integer
+        Public Property InvoiceNum As String
+        Public Property InvoiceDate As DateTime
+        Public Property InvoiceAmount As Decimal      ' 未稅
+        Public Property TaxAmount As Decimal
+        Public Property InvoiceTotal As Decimal       ' 含稅
+        Public Property Remarks As String
+    End Class
+
+    ' MDR 明細資料暫存（使用 ViewState）
+    Private Property MDRLines As List(Of MDRDetailLine)
+        Get
+            If ViewState("MDRLines") Is Nothing Then
+                ViewState("MDRLines") = New List(Of MDRDetailLine)()
+            End If
+            Return CType(ViewState("MDRLines"), List(Of MDRDetailLine))
+        End Get
+        Set(value As List(Of MDRDetailLine))
+            ViewState("MDRLines") = value
+        End Set
+    End Property
 
     ''' <summary>
-    ''' 套用欄位預設值（子類別實作）
+    ''' 初始化 MDR GridView（在 Page_Load 的 If Not IsPostBack 中呼叫）
     ''' </summary>
-    Protected Overrides Sub ApplyFieldDefaults(defaults As JObject)
-        ' 根據預設值設定欄位狀態
-        ' 實際實作可依需求調整 UI 控制項屬性
+    Private Sub InitializeMDRGridView()
+        If currentDocEntry = 0 Then
+            ' 新增模式：空白 GridView
+            MDRLines = New List(Of MDRDetailLine)()
+        End If
+        BindMDRGridView()
+        SyncMDRHeaderInfo()
     End Sub
 
     ''' <summary>
-    ''' 套用狀態規則（子類別實作）
+    ''' 綁定 MDR GridView
     ''' </summary>
-    Protected Overrides Sub ApplyStateRules(rules As JArray)
-        ' 根據規則設定欄位狀態
-        ' 實際實作可依需求調整 UI 控制項屬性
+    Private Sub BindMDRGridView()
+        gvMDRDetail.DataSource = MDRLines
+        gvMDRDetail.DataBind()
+        CalculateMDRTotals()
     End Sub
 
     ''' <summary>
-    ''' 取得表頭欄位值
+    ''' 同步 MDR 表頭資訊（從費用申請 Tab）
     ''' </summary>
-    Protected Overrides Function GetMasterFieldValue(fieldName As String) As String
-        Select Case fieldName
-            Case "ID"
-                Return txtID.Text
-            Case "U_DocEntry"
-                Return txtDocEntry.Text
-            Case "DocNum"
-                Return txtDocNum.Text
-            Case "DocTotal"
-                Return txtDocTotal.Text
-            Case "VatSum"
-                Return txtVatSum.Text
-            Case Else
-                Return String.Empty
-        End Select
+    Private Sub SyncMDRHeaderInfo()
+        lblMDR_CardCode.Text = ddlCardCode.SelectedValue
+        lblMDR_CardName.Text = txtCardName.Text
+        lblMDR_DocDate.Text = txtDocDate.Text
+        lblMDR_DocDueDate.Text = txtDocDueDate.Text
+        lblMDR_DocCurrency.Text = ddlDocCurrency.SelectedValue
+        lblMDR_DocRate.Text = txtDocRate.Text
+    End Sub
+
+    ''' <summary>
+    ''' MDR GridView RowDataBound 事件
+    ''' </summary>
+    Protected Sub gvMDRDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            Dim line As MDRDetailLine = CType(e.Row.DataItem, MDRDetailLine)
+
+            ' 發票號碼
+            Dim txtInvoiceNum As TextBox = CType(e.Row.FindControl("txtInvoiceNum"), TextBox)
+            txtInvoiceNum.Text = line.InvoiceNum
+
+            ' 發票日期
+            Dim txtInvoiceDate As TextBox = CType(e.Row.FindControl("txtInvoiceDate"), TextBox)
+            If line.InvoiceDate > DateTime.MinValue Then
+                txtInvoiceDate.Text = line.InvoiceDate.ToString("yyyy-MM-dd")
+            End If
+
+            ' 發票金額（未稅）
+            Dim txtInvoiceAmount As TextBox = CType(e.Row.FindControl("txtInvoiceAmount"), TextBox)
+            txtInvoiceAmount.Text = line.InvoiceAmount.ToString("F2")
+
+            ' 稅額
+            Dim txtTaxAmount As TextBox = CType(e.Row.FindControl("txtTaxAmount"), TextBox)
+            txtTaxAmount.Text = line.TaxAmount.ToString("F2")
+
+            ' 發票總額（含稅）
+            Dim lblInvoiceTotal As Label = CType(e.Row.FindControl("lblInvoiceTotal"), Label)
+            lblInvoiceTotal.Text = line.InvoiceTotal.ToString("N2")
+
+            ' 備註
+            Dim txtMDRRemarks As TextBox = CType(e.Row.FindControl("txtMDRRemarks"), TextBox)
+            txtMDRRemarks.Text = line.Remarks
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 發票金額變更：重新計算發票總額
+    ''' </summary>
+    Protected Sub txtInvoiceAmount_TextChanged(sender As Object, e As EventArgs)
+        RecalculateMDRLineTotal(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 稅額變更：重新計算發票總額
+    ''' </summary>
+    Protected Sub txtTaxAmount_TextChanged(sender As Object, e As EventArgs)
+        RecalculateMDRLineTotal(sender)
+    End Sub
+
+    ''' <summary>
+    ''' 重新計算 MDR 行總額
+    ''' </summary>
+    Private Sub RecalculateMDRLineTotal(sender As Object)
+        Try
+            Dim txt As TextBox = CType(sender, TextBox)
+            Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+            Dim rowIndex As Integer = row.RowIndex
+
+            If rowIndex >= MDRLines.Count Then Return
+
+            ' 取得發票金額和稅額
+            Dim txtInvoiceAmount As TextBox = CType(row.FindControl("txtInvoiceAmount"), TextBox)
+            Dim txtTaxAmount As TextBox = CType(row.FindControl("txtTaxAmount"), TextBox)
+
+            Dim invoiceAmount As Decimal = 0
+            Dim taxAmount As Decimal = 0
+
+            Decimal.TryParse(txtInvoiceAmount.Text, invoiceAmount)
+            Decimal.TryParse(txtTaxAmount.Text, taxAmount)
+
+            ' 計算發票總額（含稅）
+            Dim invoiceTotal As Decimal = invoiceAmount + taxAmount
+
+            ' 更新 ViewState
+            MDRLines(rowIndex).InvoiceAmount = invoiceAmount
+            MDRLines(rowIndex).TaxAmount = taxAmount
+            MDRLines(rowIndex).InvoiceTotal = invoiceTotal
+
+            ' 更新顯示
+            Dim lblInvoiceTotal As Label = CType(row.FindControl("lblInvoiceTotal"), Label)
+            lblInvoiceTotal.Text = invoiceTotal.ToString("N2")
+
+            ' 重新計算總計
+            CalculateMDRTotals()
+
+        Catch ex As Exception
+            lblMessage.Text = "計算發票金額失敗: " & ex.Message
+            LogError("RecalculateMDRLineTotal", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 計算 MDR 合計
+    ''' </summary>
+    Private Sub CalculateMDRTotals()
+        Dim totalAmount As Decimal = 0
+        Dim totalTax As Decimal = 0
+        Dim grandTotal As Decimal = 0
+
+        For Each line As MDRDetailLine In MDRLines
+            totalAmount += line.InvoiceAmount
+            totalTax += line.TaxAmount
+            grandTotal += line.InvoiceTotal
+        Next
+
+        lblMDR_TotalAmount.Text = totalAmount.ToString("N2")
+        lblMDR_TotalTax.Text = totalTax.ToString("N2")
+        lblMDR_GrandTotal.Text = grandTotal.ToString("N2")
+    End Sub
+
+    ''' <summary>
+    ''' 新增 MDR 明細行按鈕
+    ''' </summary>
+    Protected Sub btnMDR_AddLine_Click(sender As Object, e As EventArgs)
+        Try
+            ' 新增空白發票明細行
+            Dim newLine As New MDRDetailLine() With {
+                .LineNum = MDRLines.Count + 1,
+                .InvoiceNum = "",
+                .InvoiceDate = DateTime.Now,
+                .InvoiceAmount = 0,
+                .TaxAmount = 0,
+                .InvoiceTotal = 0,
+                .Remarks = ""
+            }
+
+            MDRLines.Add(newLine)
+            BindMDRGridView()
+
+            lblMessage.Text = "已新增發票明細行"
+
+        Catch ex As Exception
+            lblMessage.Text = "新增發票明細失敗: " & ex.Message
+            LogError("btnMDR_AddLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 刪除選中 MDR 明細行按鈕
+    ''' </summary>
+    Protected Sub btnMDR_DeleteLine_Click(sender As Object, e As EventArgs)
+        Try
+            Dim deleteCount As Integer = 0
+
+            ' 從後往前刪除（避免索引問題）
+            For i As Integer = gvMDRDetail.Rows.Count - 1 To 0 Step -1
+                Dim chkSelect As CheckBox = CType(gvMDRDetail.Rows(i).FindControl("chkMDRSelect"), CheckBox)
+                If chkSelect IsNot Nothing AndAlso chkSelect.Checked Then
+                    If i < MDRLines.Count Then
+                        MDRLines.RemoveAt(i)
+                        deleteCount += 1
+                    End If
+                End If
+            Next
+
+            If deleteCount > 0 Then
+                ' 重新編號
+                For i As Integer = 0 To MDRLines.Count - 1
+                    MDRLines(i).LineNum = i + 1
+                Next
+
+                BindMDRGridView()
+                lblMessage.Text = $"已刪除 {deleteCount} 行發票明細"
+            Else
+                lblMessage.Text = "請先勾選要刪除的發票明細"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除發票明細失敗: " & ex.Message
+            LogError("btnMDR_DeleteLine_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' MDR GridView RowDeleting 事件（單行刪除）
+    ''' </summary>
+    Protected Sub gvMDRDetail_RowDeleting(sender As Object, e As GridViewDeleteEventArgs)
+        Try
+            Dim rowIndex As Integer = e.RowIndex
+
+            If rowIndex < MDRLines.Count Then
+                MDRLines.RemoveAt(rowIndex)
+
+                ' 重新編號
+                For i As Integer = 0 To MDRLines.Count - 1
+                    MDRLines(i).LineNum = i + 1
+                Next
+
+                BindMDRGridView()
+                lblMessage.Text = "已刪除發票明細"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "刪除發票明細失敗: " & ex.Message
+            LogError("gvMDRDetail_RowDeleting", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證金額總和按鈕
+    ''' </summary>
+    Protected Sub btnMDR_ValidateSum_Click(sender As Object, e As EventArgs)
+        Try
+            ' 收集 MDR GridView 最新資料
+            CollectMDRGridViewData()
+
+            ' 計算 AP 發票總額（來自費用明細）
+            Dim apTotal As Decimal = 0
+            If Decimal.TryParse(lblTotalLC.Text.Replace(",", ""), apTotal) Then
+                ' AP 總額已取得
+            Else
+                apTotal = 0
+            End If
+
+            ' 計算 MDR 發票總額（含稅）
+            Dim mdrTotal As Decimal = 0
+            If Decimal.TryParse(lblMDR_GrandTotal.Text.Replace(",", ""), mdrTotal) Then
+                ' MDR 總額已取得
+            Else
+                mdrTotal = 0
+            End If
+
+            ' 驗證金額是否相等
+            Dim difference As Decimal = Math.Abs(apTotal - mdrTotal)
+
+            pnlMDR_ValidationResult.Visible = True
+
+            If difference < 0.01D Then
+                ' 驗證成功
+                pnlMDR_ValidationResult.CssClass = "validation-success"
+                lblMDR_ValidationMessage.Text = $"✓ 驗證通過！AP 發票總額（{apTotal:N2}）與 MDR 發票總額（{mdrTotal:N2}）相符。"
+            Else
+                ' 驗證失敗
+                pnlMDR_ValidationResult.CssClass = "validation-error"
+                lblMDR_ValidationMessage.Text = $"✗ 驗證失敗！AP 發票總額（{apTotal:N2}）與 MDR 發票總額（{mdrTotal:N2}）不符，差異：{difference:N2}"
+            End If
+
+        Catch ex As Exception
+            lblMessage.Text = "驗證金額失敗: " & ex.Message
+            LogError("btnMDR_ValidateSum_Click", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 儲存前收集 MDR GridView 資料
+    ''' </summary>
+    Private Sub CollectMDRGridViewData()
+        Try
+            MDRLines.Clear()
+
+            For Each row As GridViewRow In gvMDRDetail.Rows
+                If row.RowType = DataControlRowType.DataRow Then
+                    Dim txtInvoiceNum As TextBox = CType(row.FindControl("txtInvoiceNum"), TextBox)
+                    Dim txtInvoiceDate As TextBox = CType(row.FindControl("txtInvoiceDate"), TextBox)
+                    Dim txtInvoiceAmount As TextBox = CType(row.FindControl("txtInvoiceAmount"), TextBox)
+                    Dim txtTaxAmount As TextBox = CType(row.FindControl("txtTaxAmount"), TextBox)
+                    Dim lblInvoiceTotal As Label = CType(row.FindControl("lblInvoiceTotal"), Label)
+                    Dim txtMDRRemarks As TextBox = CType(row.FindControl("txtMDRRemarks"), TextBox)
+
+                    Dim invoiceDate As DateTime = DateTime.Now
+                    If Not String.IsNullOrEmpty(txtInvoiceDate.Text) Then
+                        DateTime.TryParse(txtInvoiceDate.Text, invoiceDate)
+                    End If
+
+                    Dim line As New MDRDetailLine() With {
+                        .LineNum = row.RowIndex + 1,
+                        .InvoiceNum = txtInvoiceNum.Text,
+                        .InvoiceDate = invoiceDate,
+                        .InvoiceAmount = If(Decimal.TryParse(txtInvoiceAmount.Text, Nothing), Convert.ToDecimal(txtInvoiceAmount.Text), 0),
+                        .TaxAmount = If(Decimal.TryParse(txtTaxAmount.Text, Nothing), Convert.ToDecimal(txtTaxAmount.Text), 0),
+                        .InvoiceTotal = If(Decimal.TryParse(lblInvoiceTotal.Text.Replace(",", ""), Nothing), Convert.ToDecimal(lblInvoiceTotal.Text.Replace(",", "")), 0),
+                        .Remarks = txtMDRRemarks.Text
+                    }
+
+                    MDRLines.Add(line)
+                End If
+            Next
+
+        Catch ex As Exception
+            LogError("CollectMDRGridViewData", ex)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 驗證 MDR 明細資料
+    ''' </summary>
+    Private Function ValidateMDRLines() As Boolean
+        ' MDR 明細可以為空（視業務需求）
+        If MDRLines.Count = 0 Then
+            Return True  ' 允許不輸入 MDR 明細
+        End If
+
+        For i As Integer = 0 To MDRLines.Count - 1
+            Dim line As MDRDetailLine = MDRLines(i)
+
+            If String.IsNullOrEmpty(line.InvoiceNum) Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：請輸入發票號碼"
+                Return False
+            End If
+
+            If line.InvoiceDate = DateTime.MinValue Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：請輸入發票日期"
+                Return False
+            End If
+
+            If line.InvoiceAmount < 0 Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：發票金額不可為負數"
+                Return False
+            End If
+
+            If line.TaxAmount < 0 Then
+                lblMessage.Text = $"MDR 第 {i + 1} 行：稅額不可為負數"
+                Return False
+            End If
+        Next
+
+        Return True
     End Function
 
+    ''' <summary>
+    ''' 儲存 MDR 明細到資料庫（在 InsertNewDocument 和 UpdateDocument 中呼叫）
+    ''' </summary>
+    Private Sub SaveMDRLinesToDB(docEntry As Integer, conn As SqlConnection, trans As SqlTransaction)
+        Try
+            ' 先刪除舊 MDR 明細（更新模式）
+            Dim sqlDelete As String = "DELETE FROM jMDR1 WHERE DocEntry = @DocEntry"
+            Using cmd As New SqlCommand(sqlDelete, conn, trans)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                cmd.ExecuteNonQuery()
+            End Using
+
+            ' 插入新 MDR 明細
+            If MDRLines.Count > 0 Then
+                Dim sqlInsert As String = "INSERT INTO jMDR1 (DocEntry, LineNum, InvoiceNum, InvoiceDate, " &
+                                         "InvoiceAmount, TaxAmount, InvoiceTotal, Remarks) " &
+                                         "VALUES (@DocEntry, @LineNum, @InvoiceNum, @InvoiceDate, " &
+                                         "@InvoiceAmount, @TaxAmount, @InvoiceTotal, @Remarks)"
+
+                For Each line As MDRDetailLine In MDRLines
+                    Using cmd As New SqlCommand(sqlInsert, conn, trans)
+                        cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                        cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
+                        cmd.Parameters.AddWithValue("@InvoiceNum", line.InvoiceNum)
+                        cmd.Parameters.AddWithValue("@InvoiceDate", line.InvoiceDate)
+                        cmd.Parameters.AddWithValue("@InvoiceAmount", line.InvoiceAmount)
+                        cmd.Parameters.AddWithValue("@TaxAmount", line.TaxAmount)
+                        cmd.Parameters.AddWithValue("@InvoiceTotal", line.InvoiceTotal)
+                        cmd.Parameters.AddWithValue("@Remarks", If(String.IsNullOrEmpty(line.Remarks), DBNull.Value, line.Remarks))
+                        cmd.ExecuteNonQuery()
+                    End Using
+                Next
+            End If
+
+        Catch ex As Exception
+            LogError("SaveMDRLinesToDB", ex)
+            Throw
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從資料庫載入 MDR 明細（在 LoadDocument 中呼叫）
+    ''' </summary>
+    Private Sub LoadMDRLinesFromDB(docEntry As Integer, conn As SqlConnection)
+        Try
+            MDRLines.Clear()
+
+            Dim sql As String = "SELECT * FROM jMDR1 WHERE DocEntry = @DocEntry ORDER BY LineNum"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                Using reader As SqlDataReader = cmd.ExecuteReader()
+                    While reader.Read()
+                        Dim line As New MDRDetailLine() With {
+                            .LineNum = Convert.ToInt32(reader("LineNum")),
+                            .InvoiceNum = If(IsDBNull(reader("InvoiceNum")), "", reader("InvoiceNum").ToString()),
+                            .InvoiceDate = If(IsDBNull(reader("InvoiceDate")), DateTime.Now, Convert.ToDateTime(reader("InvoiceDate"))),
+                            .InvoiceAmount = If(IsDBNull(reader("InvoiceAmount")), 0, Convert.ToDecimal(reader("InvoiceAmount"))),
+                            .TaxAmount = If(IsDBNull(reader("TaxAmount")), 0, Convert.ToDecimal(reader("TaxAmount"))),
+                            .InvoiceTotal = If(IsDBNull(reader("InvoiceTotal")), 0, Convert.ToDecimal(reader("InvoiceTotal"))),
+                            .Remarks = If(IsDBNull(reader("Remarks")), "", reader("Remarks").ToString())
+                        }
+                        MDRLines.Add(line)
+                    End While
+                End Using
+            End Using
+
+            BindMDRGridView()
+            SyncMDRHeaderInfo()
+
+        Catch ex As Exception
+            LogError("LoadMDRLinesFromDB", ex)
+        End Try
+    End Sub
 #End Region
 
 End Class
