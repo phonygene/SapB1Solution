@@ -1,0 +1,22 @@
+# Global UI/UX Development Experience
+
+[[rules]]
+id = "ux-001"
+level = 1
+tags = ["ui", "ux", "web-forms", "postback"]
+context = "Grid/Input interaction causing full page reload/jump"
+desc = "Prevent full PostBack on minor interactions (sorting, filtering, editing lines)."
+solution = """
+1. Wrap form/grid in <asp:UpdatePanel>.
+2. Use HiddenField to store active Tab state.
+3. Restore Tab state in Sys.Application.add_load().
+"""
+check_scope = "ALL tabs/grids in the form"
+
+[[rules]]
+id = "ux-002"
+level = 2
+tags = ["ui", "ux", "loading"]
+context = "Long running operations"
+desc = "Show loading spinner/indicator during UpdatePanel async postbacks."
+solution = "Use <asp:UpdateProgress> associated with the UpdatePanel."

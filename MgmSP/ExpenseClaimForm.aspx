@@ -1,5 +1,5 @@
 ﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb"
-    Inherits="MgmSP.ExpenseClaimForm" %>
+    Inherits="MgmSP.ExpenseClaimForm" MaintainScrollPositionOnPostback="true" %>
 
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -43,22 +43,35 @@
     </style>
     <script type="text/javascript">
         function switchTab(tabName) {
-            // 隱藏所有 tab content
-            var contents = document.getElementsByClassName('tab-content');
-            for (var i = 0; i < contents.length; i++) {
-                contents[i].classList.remove('active');
+            // 更新 HiddenField
+            var hf = document.getElementById('<%= hfActiveTab.ClientID %>');
+            if (hf) {
+                hf.value = tabName;
             }
 
-            // 移除所有 tab button 的 active class
-            var buttons = document.getElementsByClassName('tab-button');
-            for (var i = 0; i < buttons.length; i++) {
-                buttons[i].classList.remove('active');
-            }
+            // 移除所有 active class
+            if(document.getElementById('btnTabExpense')) document.getElementById('btnTabExpense').classList.remove('active');
+            if(document.getElementById('btnTabMDR')) document.getElementById('btnTabMDR').classList.remove('active');
+            if(document.getElementById('divContentExpense')) document.getElementById('divContentExpense').classList.remove('active');
+            if(document.getElementById('divContentMDR')) document.getElementById('divContentMDR').classList.remove('active');
 
             // 顯示選中的 tab
-            document.getElementById(tabName + '-content').classList.add('active');
-            document.getElementById(tabName + '-btn').classList.add('active');
+            if (tabName === 'expense') {
+                if(document.getElementById('btnTabExpense')) document.getElementById('btnTabExpense').classList.add('active');
+                if(document.getElementById('divContentExpense')) document.getElementById('divContentExpense').classList.add('active');
+            } else if (tabName === 'mdr') {
+                if(document.getElementById('btnTabMDR')) document.getElementById('btnTabMDR').classList.add('active');
+                if(document.getElementById('divContentMDR')) document.getElementById('divContentMDR').classList.add('active');
+            }
         }
+
+        // 在 UpdatePanel 更新後恢復 Tab 狀態
+        Sys.WebForms.PageRequestManager.getInstance().add_endRequest(function () {
+            var hf = document.getElementById('<%= hfActiveTab.ClientID %>');
+            if (hf && hf.value) {
+                switchTab(hf.value);
+            }
+        });
 
         function confirmDelete() {
             return confirm('確定要刪除此筆費用申請單嗎？');
@@ -78,8 +91,11 @@
 <body>
     <form id="form1" runat="server">
         <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
-        <div class="form-container">
-            <!-- 標題與單據資訊 -->
+        <asp:HiddenField ID="hfActiveTab" runat="server" Value="expense" />
+        <asp:UpdatePanel ID="UpdatePanel1" runat="server">
+            <ContentTemplate>
+                <div class="form-container">
+                    <!-- 標題與單據資訊 -->
             <h2 style="text-align: center; color: #4CAF50;">費用申請單</h2>
 
             <div class="form-row">
@@ -108,14 +124,14 @@
 
             <!-- Tab 切換 -->
             <div class="tab-container">
-                <button type="button" class="tab-button active" id="expense-btn"
-                        onclick="switchTab('expense')">費用申請</button>
-                <button type="button" class="tab-button" id="mdr-btn"
-                        onclick="switchTab('mdr')">MDR 發票明細</button>
+                <button type="button" class="tab-button active" id="btnTabExpense" runat="server" ClientIDMode="Static"
+                        onclick="switchTab('expense'); return false;">費用申請</button>
+                <button type="button" class="tab-button" id="btnTabMDR" runat="server" ClientIDMode="Static"
+                        onclick="switchTab('mdr'); return false;">MDR 發票明細</button>
             </div>
 
             <!-- 費用申請 Tab -->
-            <div id="expense-content" class="tab-content active">
+            <div id="divContentExpense" class="tab-content active" runat="server" ClientIDMode="Static">
                 <div class="section-title">供應商資訊</div>
 
                 <div class="form-row">
@@ -434,7 +450,7 @@
             </div>
 
             <!-- MDR Tab - 下一階段實作 -->
-            <div id="mdr-content" class="tab-content">
+            <div id="divContentMDR" class="tab-content" runat="server" ClientIDMode="Static">
                 <div class="section-title">MDR 發票明細（唯讀，自動同步）</div>
                 
                 <!-- MDR 表頭資訊（唯讀，即時同步） -->
@@ -663,7 +679,13 @@
                 <asp:Label ID="lblMessage" runat="server" Text=""
                           Font-Bold="True" ForeColor="Red"></asp:Label>
             </div>
-        </div>
+                </div>
+            </ContentTemplate>
+            <Triggers>
+                <asp:PostBackTrigger ControlID="btnUpload" />
+                <asp:PostBackTrigger ControlID="btnDownload" />
+            </Triggers>
+        </asp:UpdatePanel>
     </form>
 </body>
 </html>

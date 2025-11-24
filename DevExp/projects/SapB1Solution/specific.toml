@@ -1,0 +1,27 @@
+# SapB1Solution Project Specific Experience
+
+[[rules]]
+id = "proj-001"
+level = 1
+tags = ["session", "auth", "login"]
+context = "User Login Session Management"
+desc = "Correct Session Key for User ID."
+solution = "Use Session('s_id') instead of Session('id')."
+anti_pattern = "Session('id')"
+
+[[rules]]
+id = "proj-002"
+level = 2
+tags = ["path", "login"]
+context = "Redirecting to Login Page"
+desc = "Correct path to Login page."
+solution = "Response.Redirect('~/usermgm/login.aspx')"
+anti_pattern = "~/Login.aspx"
+
+[[rules]]
+id = "proj-003"
+level = 3
+tags = ["database", "connection"]
+context = "Local Development Database Connection"
+desc = "Local SQL Server Instance for development."
+solution = "Data Source=.\\SQLEXPRESS2008R2;Initial Catalog=jtdb"

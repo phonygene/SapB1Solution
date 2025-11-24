@@ -1,0 +1,32 @@
+# VB.NET Web Forms Common Experience
+
+[[rules]]
+id = "vb-wf-001"
+level = 1
+tags = ["serialization", "viewstate", "crash"]
+context = "Storing custom objects in ViewState"
+desc = "Objects stored in ViewState must be marked as Serializable."
+solution = "Add <Serializable()> attribute to the Class definition."
+err_msg = "System.Runtime.Serialization.SerializationException"
+
+[[rules]]
+id = "vb-wf-002"
+level = 1
+tags = ["compiler", "designer", "structure"]
+context = "CodeBehind cannot see controls declared in .aspx"
+desc = "CodeBehind class must match Designer class definition."
+solution = """
+1. Ensure CodeBehind class has 'Partial' keyword.
+2. Ensure Namespace matches (remove redundant Namespace wrapping in designer).
+3. Ensure Inherits attribute in .aspx matches the class name.
+"""
+err_msg = "BC30451: 'xxx' is not declared"
+
+[[rules]]
+id = "vb-wf-003"
+level = 2
+tags = ["parser", "syntax", "gridview"]
+context = "Comments inside GridView Columns"
+desc = "ASP.NET Parser does not allow HTML comments <!-- --> inside <Columns> tag."
+solution = "Remove HTML comments from <Columns> section."
+err_msg = "Parser Error Message: Literal content is not allowed"

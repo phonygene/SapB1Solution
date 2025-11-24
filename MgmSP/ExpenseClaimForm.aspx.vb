@@ -1,6 +1,7 @@
 ﻿Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Web.Configuration
+Imports System.Web.UI.HtmlControls
 
 ''' <summary>
 ''' 費用申請單 - 第一階段：表頭欄位與基本架構
@@ -21,6 +22,12 @@ Partial Public Class ExpenseClaimForm
 
     ' 當前單據編號（編輯模式）
     Private currentDocEntry As Integer = 0
+
+    ' 為了在不重新產生 designer.vb 的情況下使用 runat="server" 的 HTML 控制項
+    Protected WithEvents btnTabExpense As HtmlButton
+    Protected WithEvents btnTabMDR As HtmlButton
+    Protected WithEvents divContentExpense As HtmlGenericControl
+    Protected WithEvents divContentMDR As HtmlGenericControl
 #End Region
 
 #Region "頁面載入"
@@ -227,6 +234,41 @@ Partial Public Class ExpenseClaimForm
 
         lblAttachment.Text = "無"
         btnDownload.Visible = False
+    End Sub
+
+    ''' <summary>
+    ''' 頁面 PreRender 事件：根據 ActiveTab 設定 Tab 樣式
+    ''' </summary>
+    Protected Sub Page_PreRender(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.PreRender
+        Try
+            Dim activeTab As String = hfActiveTab.Value
+            If String.IsNullOrEmpty(activeTab) Then activeTab = "expense"
+
+            ' 確保控制項已連結 (因為是手動宣告)
+            If btnTabExpense Is Nothing Then btnTabExpense = CType(UpdatePanel1.ContentTemplateContainer.FindControl("btnTabExpense"), HtmlButton)
+            If btnTabMDR Is Nothing Then btnTabMDR = CType(UpdatePanel1.ContentTemplateContainer.FindControl("btnTabMDR"), HtmlButton)
+            If divContentExpense Is Nothing Then divContentExpense = CType(UpdatePanel1.ContentTemplateContainer.FindControl("divContentExpense"), HtmlGenericControl)
+            If divContentMDR Is Nothing Then divContentMDR = CType(UpdatePanel1.ContentTemplateContainer.FindControl("divContentMDR"), HtmlGenericControl)
+
+            If btnTabExpense IsNot Nothing AndAlso btnTabMDR IsNot Nothing AndAlso divContentExpense IsNot Nothing AndAlso divContentMDR IsNot Nothing Then
+                ' 重置樣式
+                btnTabExpense.Attributes("class") = "tab-button"
+                btnTabMDR.Attributes("class") = "tab-button"
+                divContentExpense.Attributes("class") = "tab-content"
+                divContentMDR.Attributes("class") = "tab-content"
+
+                ' 設定 Active 樣式
+                If activeTab = "mdr" Then
+                    btnTabMDR.Attributes("class") = "tab-button active"
+                    divContentMDR.Attributes("class") = "tab-content active"
+                Else
+                    btnTabExpense.Attributes("class") = "tab-button active"
+                    divContentExpense.Attributes("class") = "tab-content active"
+                End If
+            End If
+        Catch ex As Exception
+            LogError("Page_PreRender", ex)
+        End Try
     End Sub
 
 #End Region
