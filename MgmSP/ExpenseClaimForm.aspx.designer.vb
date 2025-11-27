@@ -14,515 +14,337 @@ Option Explicit On
 Partial Public Class ExpenseClaimForm
 
     '''<summary>
-    '''form1 control.
+    '''form1 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
 
     '''<summary>
-    '''ScriptManager1 control.
+    '''ScriptManager1 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents ScriptManager1 As Global.System.Web.UI.ScriptManager
 
     '''<summary>
-    '''UpdatePanel1 control.
+    '''hfActiveTab 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents UpdatePanel1 As Global.System.Web.UI.UpdatePanel
-
-    '''<summary>
-    '''hfActiveTab control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents hfActiveTab As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
-    '''lblDocNum control.
+    '''UpdatePanel1 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
+    Protected WithEvents UpdatePanel1 As Global.System.Web.UI.UpdatePanel
+
+    '''<summary>
+    '''lblDocNum 控制項。
+    '''</summary>
     Protected WithEvents lblDocNum As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''lblDocStatus control.
+    '''lblDocStatus 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents lblDocStatus As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''lblCreateBy control.
+    '''txtCardCode 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblCreateBy As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtCardCode As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''lblCreateDate control.
+    '''btnSearchCardCode 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblCreateDate As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents btnSearchCardCode As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''ddlCardCode control.
+    '''lblErrCardCode 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents ddlCardCode As Global.System.Web.UI.WebControls.DropDownList
+    Protected WithEvents lblErrCardCode As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''txtCardName control.
+    '''txtCardName 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents txtCardName As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''ddlContactPerson control.
+    '''btnSearchCardName 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents ddlContactPerson As Global.System.Web.UI.WebControls.DropDownList
+    Protected WithEvents btnSearchCardName As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''ddlDeliveryAddr control.
+    '''lblVendorInfo 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents ddlDeliveryAddr As Global.System.Web.UI.WebControls.DropDownList
+    Protected WithEvents lblVendorInfo As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''txtDocDate control.
+    '''lblErrCardName 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents lblErrCardName As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''txtDocDueDate control.
+    '''txtNumAtCard 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents txtDocDueDate As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtNumAtCard As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''ddlOcrCode control.
+    '''ddlDocCurrency 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents ddlOcrCode As Global.System.Web.UI.WebControls.DropDownList
-
-    '''<summary>
-    '''ddlDocCurrency control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents ddlDocCurrency As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
-    '''txtDocRate control.
+    '''txtDocRate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents txtDocRate As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''btnRefreshRate control.
+    '''btnRefreshRate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents btnRefreshRate As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''txtRemarks control.
+    '''ddlDeliveryAddr 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents txtRemarks As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents ddlDeliveryAddr As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
-    '''fileUpload control.
+    '''txtAddress 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents fileUpload As Global.System.Web.UI.WebControls.FileUpload
+    Protected WithEvents txtAddress As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''btnUpload control.
+    '''ddlGroupNum 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnUpload As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents ddlGroupNum As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
-    '''lblAttachment control.
+    '''txtJID 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblAttachment As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtJID As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''btnDownload control.
+    '''txtB1DocEntry 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnDownload As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents txtB1DocEntry As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''pnlApproval control.
+    '''txtUPID 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents pnlApproval As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents txtUPID As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''lblApprovalStatus control.
+    '''txtStatusDisplay 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblApprovalStatus As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtStatusDisplay As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''lblApprovedBy control.
+    '''txtTaxDate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblApprovedBy As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtTaxDate As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''lblApprovedDate control.
+    '''txtDocDueDate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblApprovedDate As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtDocDueDate As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''txtApprovalComments control.
+    '''lblErrDocDueDate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents txtApprovalComments As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents lblErrDocDueDate As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''btnApprove control.
+    '''txtDocDate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnApprove As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''btnReject control.
+    '''lblErrDocDate 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnReject As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''btnSendNotification control.
+    '''txtApprovalStatus 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnSendNotification As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents txtApprovalStatus As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''btnAddLine control.
+    '''txtApprovedBy 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
+    Protected WithEvents txtApprovedBy As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''divContentExpense 控制項。
+    '''</summary>
+    Protected WithEvents divContentExpense As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
+    '''btnAddLine 控制項。
+    '''</summary>
     Protected WithEvents btnAddLine As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnDeleteLine control.
+    '''btnDeleteLine 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents btnDeleteLine As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''gvExpenseDetail control.
+    '''fileUpload 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
+    Protected WithEvents fileUpload As Global.System.Web.UI.WebControls.FileUpload
+
+    '''<summary>
+    '''btnUpload 控制項。
+    '''</summary>
+    Protected WithEvents btnUpload As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''lblAttachment 控制項。
+    '''</summary>
+    Protected WithEvents lblAttachment As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''gvExpenseDetail 控制項。
+    '''</summary>
     Protected WithEvents gvExpenseDetail As Global.System.Web.UI.WebControls.GridView
 
     '''<summary>
-    '''lblTotalFC control.
+    '''divContentMDR 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblTotalFC As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents divContentMDR As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
     '''<summary>
-    '''lblCurrency control.
+    '''btnAddMDRRow 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblCurrency As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents btnAddMDRRow As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''lblTotalLC control.
+    '''btnDeleteMDRRow 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblTotalLC As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents btnDeleteMDRRow As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''lblMDR_CardCode control.
+    '''gvMDRDetail 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_CardCode As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblMDR_CardName control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_CardName As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblMDR_DocDate control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_DocDate As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblMDR_DocDueDate control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_DocDueDate As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblMDR_DocCurrency control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_DocCurrency As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''lblMDR_DocRate control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_DocRate As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''btnMDR_AddLine control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnMDR_AddLine As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''btnMDR_DeleteLine control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnMDR_DeleteLine As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''btnMDR_ValidateSum control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents btnMDR_ValidateSum As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''gvMDRDetail control.
-    '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents gvMDRDetail As Global.System.Web.UI.WebControls.GridView
 
     '''<summary>
-    '''lblMDR_TotalAmount control.
+    '''ddlPurchaser 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_TotalAmount As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents ddlPurchaser As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
-    '''lblMDR_TotalTax control.
+    '''txtOwner 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_TotalTax As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtOwner As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''lblMDR_GrandTotal control.
+    '''txtRemarks 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_GrandTotal As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtRemarks As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''pnlMDR_ValidationResult control.
+    '''lblDocTotalWithTax 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents pnlMDR_ValidationResult As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents lblDocTotalWithTax As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''lblMDR_ValidationMessage control.
+    '''lblDocTotal 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
-    Protected WithEvents lblMDR_ValidationMessage As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents lblDocTotal As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''btnSave control.
+    '''lblVatSum 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
+    Protected WithEvents lblVatSum As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''btnSave 控制項。
+    '''</summary>
     Protected WithEvents btnSave As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnSubmit control.
+    '''btnSubmit 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents btnSubmit As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnDelete control.
+    '''btnDelete 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents btnDelete As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnCancel control.
+    '''btnCancel 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents btnCancel As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''lblMessage control.
+    '''lblMessage 控制項。
     '''</summary>
-    '''<remarks>
-    '''Auto-generated field.
-    '''To modify move field declaration from designer file to code-behind file.
-    '''</remarks>
     Protected WithEvents lblMessage As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''pnlApproval 控制項。
+    '''</summary>
+    Protected WithEvents pnlApproval As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''txtApprovalComments 控制項。
+    '''</summary>
+    Protected WithEvents txtApprovalComments As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''btnApprove 控制項。
+    '''</summary>
+    Protected WithEvents btnApprove As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnReject 控制項。
+    '''</summary>
+    Protected WithEvents btnReject As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnDummy 控制項。
+    '''</summary>
+    Protected WithEvents btnDummy As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''mpeVendor 控制項。
+    '''</summary>
+    Protected WithEvents mpeVendor As Global.AjaxControlToolkit.ModalPopupExtender
+
+    '''<summary>
+    '''pnlVendorSearch 控制項。
+    '''</summary>
+    Protected WithEvents pnlVendorSearch As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''btnCloseVendor 控制項。
+    '''</summary>
+    Protected WithEvents btnCloseVendor As Global.System.Web.UI.WebControls.LinkButton
+
+    '''<summary>
+    '''txtVendorSearchKeyword 控制項。
+    '''</summary>
+    Protected WithEvents txtVendorSearchKeyword As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''btnDoSearchVendor 控制項。
+    '''</summary>
+    Protected WithEvents btnDoSearchVendor As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''hfSearchSource 控制項。
+    '''</summary>
+    Protected WithEvents hfSearchSource As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''rblSearchMode 控制項。
+    '''</summary>
+    Protected WithEvents rblSearchMode As Global.System.Web.UI.WebControls.RadioButtonList
+
+    '''<summary>
+    '''gvVendorSearch 控制項。
+    '''</summary>
+    Protected WithEvents gvVendorSearch As Global.System.Web.UI.WebControls.GridView
+
+    '''<summary>
+    '''txtInvNum 控制項。
+    '''</summary>
+    Protected WithEvents txtInvNum As Global.System.Web.UI.WebControls.TextBox
 End Class
