@@ -1,7 +1,7 @@
 # Claude 協作初始化清單
 
-**版本**：1.2
-**更新日期**：2025-11-02
+**版本**：1.3
+**更新日期**：2025-12-01
 
 ---
 
@@ -27,6 +27,7 @@
 6. `shopfloor/Claude_TMP/etc/README_協作模式說明.txt` - 檔案輸出協作方式（補充說明）
 7. `.mcp.json` - MCP Server 配置（確認工具可用性）
 8. `mcp-sqlserver/AGENT_OS_INTEGRATION.md` - MCP Server 使用規範與最佳實踐
+9. `agent-os/standards/global/environment-health-check.md` - 環境健康檢查與故障排除指南
 
 ### 第二步：讀取專案狀態
 1. `worklog/LastCheckPoint.log` - 最新工作狀態與待辦事項
@@ -109,7 +110,7 @@ mcp-sqlserver/            # MCP Server（SQL Server 操作工具）
 ```
 
 ### 溝通語言與術語
-- **語言**：繁體中文（Traditional Chinese）
+- **語言**：繁體中文（Traditional Chinese） - **嚴格禁止簡體中文**
 - **Row** = 列（lié）
 - **Column** = 欄（lán）
 - **時區**：台灣 UTC+8

@@ -6,6 +6,7 @@
 version: 2.0.5
 last_compiled: 2025-10-20 16:09:02
 profile: default
+language: zh-TW
 
 # 多 Agent 模式設定
 # 注意：目前專案採用「輕量化使用」策略（決策 2, LastCheckPoint.log）

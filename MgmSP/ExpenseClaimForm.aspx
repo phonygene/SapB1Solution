@@ -111,10 +111,10 @@
 <body>
     <form id="form1" runat="server">
         <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
-        <asp:HiddenField ID="hfActiveTab" runat="server" Value="expense" />
 
         <asp:UpdatePanel ID="UpdatePanel1" runat="server">
             <ContentTemplate>
+                <asp:HiddenField ID="hfActiveTab" runat="server" Value="expense" />
                 <div class="form-container">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h2 style="margin:0; color:#4CAF50;">費用申請單 (Expense Claim)</h2>
@@ -165,7 +165,7 @@
                                 <label class="form-label">文件幣別/匯率:</label>
                                 <div class="form-control">
                                     <asp:DropDownList ID="ddlDocCurrency" runat="server" AutoPostBack="True" OnSelectedIndexChanged="ddlDocCurrency_SelectedIndexChanged" Width="40%" style="margin-right:5px;"></asp:DropDownList>
-                                    <asp:TextBox ID="txtDocRate" runat="server" Width="30%" Text="1.0"></asp:TextBox>
+                                    <asp:TextBox ID="txtDocRate" runat="server" Width="30%" Text="1.0" AutoPostBack="true" OnTextChanged="txtDocRate_TextChanged"></asp:TextBox>
                                     <asp:Button ID="btnRefreshRate" runat="server" Text="↻" CssClass="btn btn-secondary btn-icon" OnClick="btnRefreshRate_Click" ToolTip="更新匯率" />
                                 </div>
                             </div>
@@ -231,7 +231,7 @@
                             <div class="form-group">
                                 <label class="form-label"><span class="required">*</span>文件日期:</label>
                                 <div class="form-control">
-                                    <asp:TextBox ID="txtDocDate" runat="server" TextMode="Date"></asp:TextBox>
+                                    <asp:TextBox ID="txtDocDate" runat="server" TextMode="Date" AutoPostBack="true" OnTextChanged="btnRefreshRate_Click"></asp:TextBox>
                                     <asp:Label ID="lblErrDocDate" runat="server" CssClass="error-text" Visible="False"></asp:Label>
                                 </div>
                             </div>
@@ -286,6 +286,20 @@
                                         </ItemTemplate>
                                         <ItemStyle Width="40px" HorizontalAlign="Center" />
                                     </asp:TemplateField>
+
+                                    <asp:TemplateField HeaderText="幣別">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="txtLineCurrency" runat="server" Width="50px" ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                        </ItemTemplate>
+                                        <ItemStyle Width="60px" />
+                                    </asp:TemplateField>
+
+                                    <asp:TemplateField HeaderText="匯率">
+                                        <ItemTemplate>
+                                            <asp:TextBox ID="txtLineRate" runat="server" Width="60px" ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                        </ItemTemplate>
+                                        <ItemStyle Width="70px" />
+                                    </asp:TemplateField>
                                     
                                     <asp:TemplateField HeaderText="費用類別">
                                         <ItemTemplate>
@@ -324,7 +338,7 @@
                                     
                                     <asp:TemplateField HeaderText="稅額">
                                         <ItemTemplate>
-                                            <asp:Label ID="lblVatSum" runat="server" Text="0" style="display:block; text-align:right;"></asp:Label>
+                                            <asp:TextBox ID="txtVatSum" runat="server" Text="0" Width="70px" style="text-align:right;" AutoPostBack="true" OnTextChanged="CalculateVatSum"></asp:TextBox>
                                         </ItemTemplate>
                                         <ItemStyle Width="80px" />
                                     </asp:TemplateField>
@@ -391,7 +405,7 @@
 
                                     <asp:TemplateField HeaderText="發票號碼">
                                         <ItemTemplate>
-                                            <asp:TextBox ID="txtXBLNR" runat="server" Text='<%# Bind("U_XBLNR") %>' Width="110px"></asp:TextBox>
+                                            <asp:TextBox ID="txtXBLNR" runat="server" Text='<%# Bind("U_XBLNR") %>' Width="110px" AutoPostBack="true" OnTextChanged="txtXBLNR_TextChanged"></asp:TextBox>
                                         </ItemTemplate>
                                         <ItemStyle Width="120px" />
                                     </asp:TemplateField>
@@ -399,12 +413,11 @@
                                     <asp:TemplateField HeaderText="發票類型">
                                         <ItemTemplate>
                                             <asp:DropDownList ID="ddlZFORM_CODE" runat="server" SelectedValue='<%# Bind("U_ZFORM_CODE") %>' Width="150px">
-                                                <asp:ListItem Value="21" Text="21-三聯式發票"></asp:ListItem>
-                                                <asp:ListItem Value="22" Text="22-二聯式發票"></asp:ListItem>
-                                                <asp:ListItem Value="25" Text="25-三聯式收銀機/電子發票"></asp:ListItem>
-                                                <asp:ListItem Value="26" Text="26-三聯式/電子式/統一發票"></asp:ListItem>
-                                                <asp:ListItem Value="27" Text="27-二聯式發票/普通收據"></asp:ListItem>
-                                                <asp:ListItem Value="28" Text="28-載有稅額"></asp:ListItem>
+                                                <asp:ListItem Value="21" Text="21-統一發票(三聯)"></asp:ListItem>
+                                                <asp:ListItem Value="22" Text="22-公營/二聯/收據"></asp:ListItem>
+                                                <asp:ListItem Value="24" Text="24-高鐵票/車票"></asp:ListItem>
+                                                <asp:ListItem Value="28" Text="28-海關報關單"></asp:ListItem>
+                                                <asp:ListItem Value="99" Text="99-其他"></asp:ListItem>
                                             </asp:DropDownList>
                                         </ItemTemplate>
                                         <ItemStyle Width="160px" />
@@ -444,7 +457,7 @@
 
                                     <asp:TemplateField HeaderText="稅額">
                                         <ItemTemplate>
-                                            <asp:TextBox ID="txtHWSTE" runat="server" Text='<%# Bind("U_HWSTE", "{0:N2}") %>' Width="80px" style="text-align:right;" ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                            <asp:TextBox ID="txtHWSTE" runat="server" Text='<%# Bind("U_HWSTE", "{0:N2}") %>' Width="80px" style="text-align:right;" AutoPostBack="true" OnTextChanged="CalculateMDRTaxManual"></asp:TextBox>
                                         </ItemTemplate>
                                         <ItemStyle Width="90px" />
                                     </asp:TemplateField>
@@ -494,6 +507,22 @@
                         </div>
                     </div>
 
+                    <!-- Approval Section -->
+                    <asp:Panel ID="pnlApproval" runat="server" style="margin-top:20px; padding:15px; background-color:#fff3cd; border:1px solid #ffc107; border-radius:5px;">
+                        <h3 style="margin-top:0;">審核作業</h3>
+                        <div class="form-group">
+                            <label class="form-label" style="width:100px;">審核意見:</label>
+                            <div class="form-control">
+                                <asp:TextBox ID="txtApprovalComments" runat="server" TextMode="MultiLine" Height="60px"></asp:TextBox>
+                            </div>
+                        </div>
+                        <div style="text-align:center; margin-top:10px;">
+                            <asp:Button ID="btnApprove" runat="server" Text="放行 (Approve)" OnClick="btnApprove_Click" CssClass="btn btn-success" OnClientClick="return confirm('確定要放行此單據嗎？');" />
+                            <asp:Button ID="btnUpdateComment" runat="server" Text="發送意見 (Comment)" OnClick="btnUpdateComment_Click" CssClass="btn btn-warning" />
+                            <asp:Button ID="btnReject" runat="server" Text="退回 (Reject)" OnClick="btnReject_Click" CssClass="btn btn-danger" OnClientClick="return confirm('確定要退回此單據嗎？');" />
+                        </div>
+                    </asp:Panel>
+
                     <!-- Buttons -->
                     <div style="text-align:center; margin-top:30px;">
                         <asp:Button ID="btnSave" runat="server" Text="暫存 (Draft)" OnClick="btnSave_Click" CssClass="btn btn-primary" />
@@ -505,16 +534,6 @@
                             <asp:Label ID="lblMessage" runat="server" Font-Bold="True"></asp:Label>
                         </div>
                     </div>
-
-                    <!-- Approval Section (Hidden by default) -->
-                    <asp:Panel ID="pnlApproval" runat="server" Visible="false" style="margin-top:20px; padding:15px; background-color:#fff3cd; border:1px solid #ffc107; border-radius:5px;">
-                        <h3 style="margin-top:0;">審核意見</h3>
-                        <asp:TextBox ID="txtApprovalComments" runat="server" TextMode="MultiLine" Height="60px"></asp:TextBox>
-                        <div style="text-align:center; margin-top:10px;">
-                            <asp:Button ID="btnApprove" runat="server" Text="核准" OnClick="btnApprove_Click" CssClass="btn btn-success" />
-                            <asp:Button ID="btnReject" runat="server" Text="駁回" OnClick="btnReject_Click" CssClass="btn btn-danger" />
-                        </div>
-                    </asp:Panel>
                 </div>
 
                 <!-- Vendor Search Modal -->
@@ -536,7 +555,7 @@
                             <div style="margin-top:5px;">
                                 <asp:RadioButtonList ID="rblSearchMode" runat="server" RepeatDirection="Horizontal">
                                     <asp:ListItem Value="Fuzzy" Selected="True">模糊搜尋</asp:ListItem>
-                                    <asp:ListItem Value="Exact">完全比對</asp:ListItem>
+                                    <asp:ListItem Value="Exact">開頭比對</asp:ListItem>
                                 </asp:RadioButtonList>
                             </div>
                         </div>

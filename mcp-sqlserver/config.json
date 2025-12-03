@@ -1,5 +1,6 @@
 {
   "server_name": "sapb1-sql-mcp",
+  "language": "zh-TW",
   "version": "1.0.0",
   "backup_size_limit": {
     "enabled": true,

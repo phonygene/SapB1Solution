@@ -25,6 +25,9 @@ Partial Public Class ExpenseClaimForm
         Public Property PriceAfterVat As Decimal ' 含稅金額
         Public Property CostingCode As String
         Public Property CostingCode2 As String
+        ' 顯示用
+        Public Property Currency As String
+        Public Property Rate As Decimal
     End Class
 
     <Serializable()>
@@ -49,6 +52,7 @@ Partial Public Class ExpenseClaimForm
     Private currentUserId As String = ""
     Private currentDocEntry As Integer = 0
     Private canApprove As Boolean = False
+    Private isApUser As Boolean = False ' AP_App 權限
 #End Region
 
 #Region "屬性 (ViewState)"
@@ -94,7 +98,7 @@ Partial Public Class ExpenseClaimForm
 
             If Not IsPostBack Then
                 InitializeDropDowns()
-                
+
                 If currentDocEntry > 0 Then
                     LoadDocument(currentDocEntry)
                 Else
@@ -111,18 +115,20 @@ Partial Public Class ExpenseClaimForm
     Private Sub CheckApprovalPermission()
         Using conn As New SqlConnection(connStr)
             conn.Open()
-            ' 檢查使用者是否有審核權限
-            ' 使用 Approver 欄位 (1=可審核)
-            Dim sql As String = "SELECT count(*) FROM [User] WHERE id = @UserId AND Approver = 1"
+            ' 檢查使用者是否有審核權限 (Approver) 與 AP作業權限 (AP_App)
+            Dim sql As String = "SELECT Approver, AP_App FROM [User] WHERE id = @UserId"
             Using cmd As New SqlCommand(sql, conn)
                 cmd.Parameters.AddWithValue("@UserId", currentUserId)
-                Dim count As Integer = Convert.ToInt32(cmd.ExecuteScalar())
-                canApprove = (count > 0)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    If dr.Read() Then
+                        canApprove = (Convert.ToInt32(dr("Approver")) = 1)
+                        isApUser = (Convert.ToInt32(dr("AP_App")) = 1)
+                    End If
+                End Using
             End Using
         End Using
 
-        ' 只有待審核狀態且有權限者才顯示審核區塊 (LoadDocument 時會再判斷狀態)
-        pnlApproval.Visible = False
+        ' 預設不隱藏，由 LoadDocument 或 Page_Load 決定顯示狀態
     End Sub
 
     Private Sub SetDefaultValues()
@@ -139,10 +145,24 @@ Partial Public Class ExpenseClaimForm
         txtTaxDate.Text = today
         txtDocDueDate.Text = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")
 
-        If ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
+        If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
+            ddlDocCurrency.SelectedValue = "NTD"
+        ElseIf ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
             ddlDocCurrency.SelectedValue = "TWD"
         End If
         txtDocRate.Text = "1.0"
+
+        ' 新增單據時，審核區塊預設唯讀且停用按鈕 (但保持顯示以確認版面)
+        txtApprovalComments.ReadOnly = True
+        
+        btnApprove.Visible = True
+        btnApprove.Enabled = False
+        
+        btnUpdateComment.Visible = True
+        btnUpdateComment.Enabled = False
+        
+        btnReject.Visible = True
+        btnReject.Enabled = False
     End Sub
 #End Region
 
@@ -358,15 +378,27 @@ Partial Public Class ExpenseClaimForm
         Try
             Dim sqlWhere As String = "WHERE CardType='S' AND FrozenFor='N' "
 
-            ' 判斷搜尋模式
+            Dim searchSource As String = hfSearchSource.Value ' 判斷搜尋來源
             Dim isExact As Boolean = (rblSearchMode.SelectedValue = "Exact")
 
             If Not String.IsNullOrEmpty(keyword) Then
                 keyword = keyword.Replace("*", "").Replace("%", "")
+
                 If isExact Then
-                    sqlWhere &= " AND CardCode = @Kw"
+                    ' 開頭比對
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND CardCode LIKE @Kw"
+                    Else ' Name
+                        sqlWhere &= " AND CardName LIKE @Kw"
+                    End If
+                    keyword = keyword & "%"
                 Else
-                    sqlWhere &= " AND (CardCode LIKE @Kw OR CardName LIKE @Kw)"
+                    ' 模糊比對
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND CardCode LIKE @Kw"
+                    Else ' Name
+                        sqlWhere &= " AND CardName LIKE @Kw"
+                    End If
                     keyword = "%" & keyword & "%"
                 End If
             End If
@@ -415,26 +447,49 @@ Partial Public Class ExpenseClaimForm
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                ' 幣別
-                Dim sqlCurr As String = "SELECT T1.[CurrCode] FROM OCRD T0 INNER JOIN OCRN T1 ON T0.[Currency] = T1.[CurrCode] WHERE T0.[CardCode] = @CardCode"
+                ' 幣別 (包含 U_LastCur 檢查)
+                Dim sqlCurr As String = "SELECT Currency, U_LastCur FROM OCRD WHERE CardCode = @CardCode"
+                Dim currencyAll As Boolean = False
                 Using cmd As New SqlCommand(sqlCurr, conn)
                     cmd.Parameters.AddWithValue("@CardCode", cardCode)
-                    Dim curr As Object = cmd.ExecuteScalar()
-                    If curr IsNot Nothing Then
-                        Dim currCode As String = curr.ToString()
-                        If ddlDocCurrency.Items.FindByValue(currCode) IsNot Nothing Then
-                            ddlDocCurrency.SelectedValue = currCode
-                            ddlDocCurrency_SelectedIndexChanged(Nothing, Nothing) ' Trigger rate update
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            Dim dbCurr As String = dr("Currency").ToString()
+                            Dim lastCur As String = If(IsDBNull(dr("U_LastCur")), "", dr("U_LastCur").ToString())
+
+                            If dbCurr = "##" Then
+                                currencyAll = True
+                                ddlDocCurrency.Enabled = True
+                                ' 優先帶入 U_LastCur，若無則帶入 NTD 或 TWD
+                                If Not String.IsNullOrEmpty(lastCur) AndAlso ddlDocCurrency.Items.FindByValue(lastCur) IsNot Nothing Then
+                                    ddlDocCurrency.SelectedValue = lastCur
+                                Else
+                                    If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
+                                        ddlDocCurrency.SelectedValue = "NTD"
+                                    ElseIf ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
+                                        ddlDocCurrency.SelectedValue = "TWD"
+                                    End If
+                                End If
+                            Else
+                                currencyAll = False
+                                ddlDocCurrency.Enabled = False ' 鎖定幣別
+                                If ddlDocCurrency.Items.FindByValue(dbCurr) IsNot Nothing Then
+                                    ddlDocCurrency.SelectedValue = dbCurr
+                                End If
+                            End If
                         End If
-                    End If
+                    End Using
                 End Using
 
+                ' 觸發匯率更新與明細連動
+                ddlDocCurrency_SelectedIndexChanged(Nothing, Nothing)
+
                 ' 付款條件
-                Dim sqlPymnt As String = "SELECT T1.[GroupNum] FROM OCRD T0 INNER JOIN OCTG T1 ON T0.GroupNum = T1.GroupNum WHERE T0.[CardCode] = @CardCode"
+                Dim sqlPymnt As String = "SELECT GroupNum FROM OCRD WHERE CardCode = @CardCode"
                 Using cmd As New SqlCommand(sqlPymnt, conn)
                     cmd.Parameters.AddWithValue("@CardCode", cardCode)
                     Dim grp As Object = cmd.ExecuteScalar()
-                    If grp IsNot Nothing Then
+                    If grp IsNot Nothing AndAlso Not IsDBNull(grp) Then
                         Dim grpNum As String = grp.ToString()
                         If ddlGroupNum.Items.FindByValue(grpNum) IsNot Nothing Then
                             ddlGroupNum.SelectedValue = grpNum
@@ -471,24 +526,57 @@ Partial Public Class ExpenseClaimForm
 
     Protected Sub ddlDocCurrency_SelectedIndexChanged(sender As Object, e As EventArgs)
         Dim curr As String = ddlDocCurrency.SelectedValue
+        Dim rate As Decimal = 1D
+
         If curr = "TWD" Then
             txtDocRate.Text = "1.0"
         Else
+            ' 取得 DocDate，若無值則預設為今天
+            Dim docDate As DateTime = DateTime.Today
+            If Not String.IsNullOrEmpty(txtDocDate.Text) Then
+                DateTime.TryParse(txtDocDate.Text, docDate)
+            End If
+
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT TOP 1 Rate FROM ORTT WHERE Currency=@Curr AND RateDate <= GETDATE() ORDER BY RateDate DESC"
+                Dim sql As String = "SELECT TOP 1 Rate FROM ORTT WHERE Currency=@Curr AND RateDate <= @DocDate ORDER BY RateDate DESC"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@Curr", curr)
+                    cmd.Parameters.AddWithValue("@DocDate", docDate)
                     Dim res = cmd.ExecuteScalar()
                     If res IsNot Nothing Then
-                        txtDocRate.Text = Convert.ToDecimal(res).ToString("F4")
+                        rate = Convert.ToDecimal(res)
+                        txtDocRate.Text = rate.ToString("F4")
                     Else
                         txtDocRate.Text = "1.0"
                     End If
                 End Using
             End Using
         End If
+
+        ' 同步更新明細列的幣別與匯率
+        UpdateLinesCurrency(curr, rate)
     End Sub
+
+    Protected Sub txtDocRate_TextChanged(sender As Object, e As EventArgs)
+        Dim curr As String = ddlDocCurrency.SelectedValue
+        Dim rate As Decimal = 1D
+        Decimal.TryParse(txtDocRate.Text, rate)
+
+        ' 同步更新明細列的幣別與匯率
+        UpdateLinesCurrency(curr, rate)
+    End Sub
+
+    Private Sub UpdateLinesCurrency(curr As String, rate As Decimal)
+        Dim lines = CurrentLines
+        For Each line In lines
+            line.Currency = curr
+            line.Rate = rate
+        Next
+        CurrentLines = lines
+        BindGrid()
+    End Sub
+
 
     Protected Sub btnRefreshRate_Click(sender As Object, e As EventArgs)
         ddlDocCurrency_SelectedIndexChanged(Nothing, Nothing)
@@ -506,11 +594,18 @@ Partial Public Class ExpenseClaimForm
         Dim lines = CurrentLines
         Dim newNum As Integer = 1
         If lines.Count > 0 Then newNum = lines.Max(Function(x) x.LineNum) + 1
+
+        Dim curr As String = ddlDocCurrency.SelectedValue
+        Dim rate As Decimal = 1D
+        Decimal.TryParse(txtDocRate.Text, rate)
+
         lines.Add(New ExpenseLine With {
             .LineNum = newNum,
             .LineTotal = 0,
             .VatRate = 0,
-            .PriceAfterVat = 0
+            .PriceAfterVat = 0,
+            .Currency = curr,
+            .Rate = rate
         })
         CurrentLines = lines
     End Sub
@@ -573,8 +668,12 @@ Partial Public Class ExpenseClaimForm
             CType(e.Row.FindControl("txtDescription"), TextBox).Text = line.Description
             CType(e.Row.FindControl("txtAcctCode"), TextBox).Text = line.AcctCode
             CType(e.Row.FindControl("txtLineTotal"), TextBox).Text = line.LineTotal.ToString("0.##")
-            CType(e.Row.FindControl("lblVatSum"), Label).Text = line.VatSum.ToString("N2")
+            CType(e.Row.FindControl("txtVatSum"), TextBox).Text = line.VatSum.ToString("0.##")
             CType(e.Row.FindControl("txtPriceAfterVat"), TextBox).Text = line.PriceAfterVat.ToString("0.##")
+
+            ' Currency & Rate
+            CType(e.Row.FindControl("txtLineCurrency"), TextBox).Text = line.Currency
+            CType(e.Row.FindControl("txtLineRate"), TextBox).Text = line.Rate.ToString("0.####")
         End If
     End Sub
 
@@ -602,7 +701,50 @@ Partial Public Class ExpenseClaimForm
 
     Protected Sub CalculateLineTotal(sender As Object, e As EventArgs)
         ' 當未稅金額、稅別改變時觸發
-        SyncGridDataToModel()
+        SyncGridDataToModel(False)
+
+        Dim ddl As DropDownList = TryCast(sender, DropDownList)
+        Dim txt As TextBox = TryCast(sender, TextBox)
+        Dim row As GridViewRow = Nothing
+        If ddl IsNot Nothing Then row = CType(ddl.NamingContainer, GridViewRow)
+        If txt IsNot Nothing Then row = CType(txt.NamingContainer, GridViewRow)
+
+        If row IsNot Nothing Then
+            Dim rowIndex As Integer = row.DataItemIndex
+            Dim lines = CurrentLines
+            If rowIndex < lines.Count Then
+                Dim line = lines(rowIndex)
+                ' 重新計算稅額與含稅金額
+                If line.VatGroup = "1" Then ' 1-應稅 (5%)
+                    line.VatRate = 5
+                    line.VatSum = Math.Round(line.LineTotal * 0.05D, 0)
+                Else
+                    line.VatRate = 0
+                    line.VatSum = 0
+                End If
+                line.PriceAfterVat = line.LineTotal + line.VatSum
+            End If
+            CurrentLines = lines
+        End If
+
+        BindGrid()
+    End Sub
+
+    Protected Sub CalculateVatSum(sender As Object, e As EventArgs)
+        ' 當稅額被手動修改時
+        SyncGridDataToModel(True) ' Update Model with screen VatSum
+
+        Dim lines = CurrentLines
+        Dim txt As TextBox = CType(sender, TextBox)
+        Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+        Dim rowIndex As Integer = row.DataItemIndex
+
+        If rowIndex < lines.Count Then
+            Dim line = lines(rowIndex)
+            ' 手動修改稅額後，重新計算含稅金額
+            line.PriceAfterVat = line.LineTotal + line.VatSum
+        End If
+        CurrentLines = lines
         BindGrid()
     End Sub
 
@@ -615,7 +757,7 @@ Partial Public Class ExpenseClaimForm
         Dim priceAfterVat As Decimal = 0
         Decimal.TryParse(txt.Text, priceAfterVat)
 
-        SyncGridDataToModel()
+        SyncGridDataToModel(False)
 
         Dim lines = CurrentLines
         If rowIndex < lines.Count Then
@@ -626,7 +768,7 @@ Partial Public Class ExpenseClaimForm
             ' 1-應稅 (5%)
             If line.VatGroup = "1" Then
                 line.VatRate = 5
-                line.LineTotal = Math.Round(priceAfterVat / 1.05D, 0) ' 或 2 位小數? 通常SAP未稅是反算
+                line.LineTotal = Math.Round(priceAfterVat / 1.05D, 0)
                 line.VatSum = priceAfterVat - line.LineTotal
             Else
                 line.VatRate = 0
@@ -638,7 +780,7 @@ Partial Public Class ExpenseClaimForm
         BindGrid()
     End Sub
 
-    Private Sub SyncGridDataToModel()
+    Private Sub SyncGridDataToModel(Optional readPriceAfterVat As Boolean = False)
         Dim lines = CurrentLines
         For i As Integer = 0 To gvExpenseDetail.Rows.Count - 1
             Dim row As GridViewRow = gvExpenseDetail.Rows(i)
@@ -648,6 +790,8 @@ Partial Public Class ExpenseClaimForm
                 Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
                 Dim txtTotal As TextBox = CType(row.FindControl("txtLineTotal"), TextBox)
                 Dim ddlVat As DropDownList = CType(row.FindControl("ddlVatGroup"), DropDownList)
+                Dim txtVatSum As TextBox = CType(row.FindControl("txtVatSum"), TextBox)
+                Dim txtPrice As TextBox = CType(row.FindControl("txtPriceAfterVat"), TextBox)
                 Dim ddlCost As DropDownList = CType(row.FindControl("ddlCostingCode"), DropDownList)
                 Dim ddlCost2 As DropDownList = CType(row.FindControl("ddlCostingCode2"), DropDownList)
 
@@ -657,19 +801,17 @@ Partial Public Class ExpenseClaimForm
                 If txtAcct IsNot Nothing Then line.AcctCode = txtAcct.Text
                 If txtTotal IsNot Nothing Then Decimal.TryParse(txtTotal.Text, line.LineTotal)
                 If ddlVat IsNot Nothing Then line.VatGroup = ddlVat.SelectedValue
+                If txtVatSum IsNot Nothing Then Decimal.TryParse(txtVatSum.Text, line.VatSum)
                 If ddlCost IsNot Nothing Then line.CostingCode = ddlCost.SelectedValue
                 If ddlCost2 IsNot Nothing Then line.CostingCode2 = ddlCost2.SelectedValue
 
-                ' 計算
-                ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
-                If line.VatGroup = "1" Then
-                    line.VatRate = 5
-                    line.VatSum = Math.Round(line.LineTotal * 0.05D, 0)
-                Else
-                    line.VatRate = 0
-                    line.VatSum = 0
-                End If
-                line.PriceAfterVat = line.LineTotal + line.VatSum
+                ' 注意：這裡不再自動重算 VatSum，避免覆蓋使用者手動輸入的稅額。
+                ' 重算邏輯移至 CalculateLineTotal (當 LineTotal 或 VatGroup 改變時)
+                ' 或 CalculatePriceAfterVat (當 PriceAfterVat 改變時)
+
+                ' 若是由 CalculatePriceAfterVat 呼叫 (readPriceAfterVat=False)，這時 UI 上的 PriceAfterVat 可能還沒寫入 Model (因為還沒 Assign)，
+                ' 但這裡是讀取 UI 上的 VatSum。
+                ' 基本上 SyncGridDataToModel 負責將畫面上的值(包含使用者手動改的)同步回 Model。
             End If
         Next
         CurrentLines = lines
@@ -678,6 +820,7 @@ Partial Public Class ExpenseClaimForm
 
 #Region "MDR GridView"
     Protected Sub btnAddMDRRow_Click(sender As Object, e As EventArgs)
+        hfActiveTab.Value = "mdr" ' 保持在 MDR 頁籤
         SyncMDRGridToModel()
         Dim lines = CurrentMDRLines
         Dim newNum As Integer = 1
@@ -698,6 +841,7 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub btnDeleteMDRRow_Click(sender As Object, e As EventArgs)
+        hfActiveTab.Value = "mdr" ' 保持在 MDR 頁籤
         SyncMDRGridToModel()
         Dim lines = CurrentMDRLines
         Dim newLines As New List(Of MDRLine)
@@ -731,11 +875,16 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub CalculateMDRTotal(sender As Object, e As EventArgs)
-        SyncMDRGridToModel()
+        SyncMDRGridToModel(False)
         BindMDRGrid()
     End Sub
 
-    Private Sub SyncMDRGridToModel()
+    Protected Sub CalculateMDRTaxManual(sender As Object, e As EventArgs)
+        SyncMDRGridToModel(True) ' 手動修改稅額
+        BindMDRGrid()
+    End Sub
+
+    Private Sub SyncMDRGridToModel(Optional isManualTax As Boolean = False)
         Dim lines = CurrentMDRLines
         For i As Integer = 0 To gvMDRDetail.Rows.Count - 1
             Dim row As GridViewRow = gvMDRDetail.Rows(i)
@@ -749,6 +898,7 @@ Partial Public Class ExpenseClaimForm
                 Dim txtBLDAT As TextBox = CType(row.FindControl("txtBLDAT"), TextBox)
                 Dim txtVATDATE As TextBox = CType(row.FindControl("txtVATDATE"), TextBox)
                 Dim txtHWBAS As TextBox = CType(row.FindControl("txtHWBAS"), TextBox)
+                Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
                 Dim ddlTAX As DropDownList = CType(row.FindControl("ddlTAX_TYPE"), DropDownList)
 
                 If txtLIFNR IsNot Nothing Then line.U_LIFNR = txtLIFNR.Text
@@ -762,17 +912,61 @@ Partial Public Class ExpenseClaimForm
 
                 If txtHWBAS IsNot Nothing Then Decimal.TryParse(txtHWBAS.Text, line.U_HWBAS)
                 If ddlTAX IsNot Nothing Then line.U_TAX_TYPE = ddlTAX.SelectedValue
+                
+                ' 若手動修改，則讀取 UI 上的值
+                If isManualTax AndAlso txtHWSTE IsNot Nothing Then
+                    Decimal.TryParse(txtHWSTE.Text, line.U_HWSTE)
+                End If
 
-                ' 計算稅額
-                ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
-                If line.U_TAX_TYPE = "1" Then
-                    line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0)
-                Else
-                    line.U_HWSTE = 0
+                ' 自動計算稅額 (僅在非手動模式下)
+                If Not isManualTax Then
+                    ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
+                    If line.U_TAX_TYPE = "1" Then
+                        line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0)
+                    Else
+                        line.U_HWSTE = 0
+                    End If
                 End If
             End If
         Next
         CurrentMDRLines = lines
+    End Sub
+
+    Protected Sub txtXBLNR_TextChanged(sender As Object, e As EventArgs)
+        ' 當發票號碼改變時，自動判斷類型
+        Dim txt As TextBox = CType(sender, TextBox)
+        Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+        Dim ddlZForm As DropDownList = CType(row.FindControl("ddlZFORM_CODE"), DropDownList)
+
+        Dim invNum As String = txt.Text.Trim()
+        Dim formCode As String = "99" ' Default: 其他
+
+        ' 判斷邏輯
+        ' 1. 統一發票: 2碼英文 + 8碼數字
+        ' 2. 海關報關單: 3碼英文
+        ' 3. 高鐵票: 數字
+        ' 4. 公營事業: BB或BBN
+        ' 5. 其他: 警告
+
+        If System.Text.RegularExpressions.Regex.IsMatch(invNum, "^[A-Z]{2}\d{8}$") Then
+            formCode = "21"
+        ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^[A-Z]{3}") Then
+            formCode = "28"
+        ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^(BB|BBN)") Then
+            formCode = "22"
+        ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^\d+$") Then
+            formCode = "24"
+        Else
+            formCode = "99"
+        End If
+
+        If ddlZForm IsNot Nothing Then
+            If ddlZForm.Items.FindByValue(formCode) IsNot Nothing Then
+                ddlZForm.SelectedValue = formCode
+            End If
+        End If
+
+        SyncMDRGridToModel()
     End Sub
 #End Region
 
@@ -799,6 +993,18 @@ Partial Public Class ExpenseClaimForm
         SaveDocument("W") ' W = 待審核
     End Sub
 
+
+
+    Private Property WarningConfirmed As Boolean
+        Get
+            If ViewState("WarningConfirmed") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("WarningConfirmed"))
+        End Get
+        Set(value As Boolean)
+            ViewState("WarningConfirmed") = value
+        End Set
+    End Property
+
     Private Function ValidateAll() As Boolean
         Dim isValid As Boolean = True
         lblMessage.Text = ""
@@ -824,6 +1030,15 @@ Partial Public Class ExpenseClaimForm
         ' 明細檢查
         If CurrentLines.Count = 0 AndAlso CurrentMDRLines.Count = 0 Then
             ShowError("請至少新增一筆費用明細或發票明細")
+            isValid = False
+        End If
+
+        ' 檢查是否有 "99-其他" 類型的發票且未確認
+        Dim hasOtherType As Boolean = CurrentMDRLines.Any(Function(x) x.U_ZFORM_CODE = "99")
+        If hasOtherType AndAlso Not WarningConfirmed Then
+            ShowError("警告：有「其他」類型的單據，請確認格式是否正確。若確定要新增，請再次點擊儲存/送出。")
+            lblMessage.ForeColor = System.Drawing.Color.Orange
+            WarningConfirmed = True ' 設定已確認旗標
             isValid = False
         End If
 
@@ -964,6 +1179,27 @@ Partial Public Class ExpenseClaimForm
                             Next
                         End If
 
+                        ' Update U_LastCur in OCRD if needed
+                        ' (若表頭幣別為多幣別的業務夥伴，每次新增單據時更新 U_LastCur)
+                        ' 這裡簡化邏輯：直接嘗試更新，若 U_LastCur 不存在會報錯，但我們假設已建立
+                        If ddlDocCurrency.Enabled Then ' 表示該業務夥伴為多幣別 (##)
+                            Dim sqlUpdCur As String = "UPDATE OCRD SET U_LastCur = @Curr WHERE CardCode = @CardCode"
+                            Using cmd As New SqlCommand(sqlUpdCur, conn, trans)
+                                ' 注意：OCRD 在 SAP DB，這裡 conn 是 jtdb...
+                                ' 跨庫交易較複雜，我們可能需要另開連線到 SAP DB，但不參與此 Transaction (風險可接受)
+                            End Using
+
+                            ' 分開執行 SAP DB Update
+                            Using sapConn As New SqlConnection(sapConnStr)
+                                sapConn.Open()
+                                Using cmdSap As New SqlCommand(sqlUpdCur, sapConn)
+                                    cmdSap.Parameters.AddWithValue("@Curr", ddlDocCurrency.SelectedValue)
+                                    cmdSap.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+                                    cmdSap.ExecuteNonQuery()
+                                End Using
+                            End Using
+                        End If
+
                         trans.Commit()
                         lblMessage.Text = "儲存成功"
                         lblDocNum.Text = currentDocEntry.ToString()
@@ -1023,7 +1259,7 @@ Partial Public Class ExpenseClaimForm
         cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
         cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
         cmd.Parameters.AddWithValue("@NumAtCard", txtNumAtCard.Text)
-        cmd.Parameters.AddWithValue("@InvNum", txtInvNum.Text)
+        'cmd.Parameters.AddWithValue("@InvNum", txtInvNum.Text)
         cmd.Parameters.AddWithValue("@DeliveryAddrID", ddlDeliveryAddr.SelectedValue)
         cmd.Parameters.AddWithValue("@AddressName", ddlDeliveryAddr.SelectedItem.Text)
         cmd.Parameters.AddWithValue("@Address", txtAddress.Text)
@@ -1059,7 +1295,7 @@ Partial Public Class ExpenseClaimForm
                         txtCardCode.Text = dr("CardCode").ToString()
                         txtCardName.Text = dr("CardName").ToString()
                         txtNumAtCard.Text = dr("NumAtCard").ToString()
-                        txtInvNum.Text = dr("InvNum").ToString()
+                        'txtInvNum.Text = dr("InvNum").ToString()
 
                         If Not IsDBNull(dr("DeliveryAddrID")) Then ddlDeliveryAddr.SelectedValue = dr("DeliveryAddrID").ToString()
                         txtAddress.Text = dr("Address").ToString()
@@ -1092,10 +1328,24 @@ Partial Public Class ExpenseClaimForm
 
                         If Not IsDBNull(dr("U_PID")) Then txtUPID.Text = dr("U_PID").ToString()
 
-                        ' 顯示審核區塊邏輯
-                        If status = "W" AndAlso canApprove Then
-                            pnlApproval.Visible = True
-                        End If
+                        ' 顯示審核區塊邏輯:
+                        ' 1. 這個區塊要 jtdb 的 User Table 裡的 AP_App 欄位為 1 才可以編輯
+                        ' 2. 一般 User 不能編輯也不能按放行/發送意見/退回
+                        ' 3. 但為了查看退回意見等，建議顯示但唯讀
+
+                        pnlApproval.Visible = True ' 只要是既有單據，預設顯示，內容依權限控制
+
+                        txtApprovalComments.ReadOnly = Not isApUser
+                        
+                        ' 按鈕保持顯示，但無權限者停用
+                        btnApprove.Visible = True
+                        btnApprove.Enabled = isApUser
+                        
+                        btnUpdateComment.Visible = True
+                        btnUpdateComment.Enabled = isApUser
+                        
+                        btnReject.Visible = True
+                        btnReject.Enabled = isApUser
                     End If
                 End Using
             End Using
@@ -1175,11 +1425,43 @@ Partial Public Class ExpenseClaimForm
 
 #Region "審核"
     Protected Sub btnApprove_Click(sender As Object, e As EventArgs)
+        If Not isApUser Then
+            ShowError("無權限執行此操作")
+            Return
+        End If
         UpdateStatus("A")
     End Sub
 
     Protected Sub btnReject_Click(sender As Object, e As EventArgs)
+        If Not isApUser Then
+            ShowError("無權限執行此操作")
+            Return
+        End If
         UpdateStatus("R")
+    End Sub
+
+    Protected Sub btnUpdateComment_Click(sender As Object, e As EventArgs)
+        If Not isApUser Then
+            ShowError("無權限執行此操作")
+            Return
+        End If
+        ' 僅更新意見，不改狀態
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "UPDATE jOPCH SET ApprovalComments=@Comm, UpdateBy=@User, UpdateDate=GETDATE() WHERE DocEntry=@ID"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@User", currentUserId)
+                    cmd.Parameters.AddWithValue("@Comm", txtApprovalComments.Text)
+                    cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+            ShowError("意見已更新") ' 用紅色顯示有點怪，但先這樣
+            lblMessage.ForeColor = System.Drawing.Color.Blue
+        Catch ex As Exception
+            ShowError("更新失敗: " & ex.Message)
+        End Try
     End Sub
 
     Private Sub UpdateStatus(status As String)

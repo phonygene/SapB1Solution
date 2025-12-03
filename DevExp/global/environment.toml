@@ -1,0 +1,31 @@
+# DevExp: Global Environment Standards
+# Created: 2025-12-01
+# Topic: Encoding, Line Endings, and Agent Collaboration Stability
+
+[standards.encoding]
+default = "utf-8"
+windows_legacy = "utf-8-bom" # For .vb, .cs, .aspx
+web_modern = "utf-8" # For .js, .json, .html
+
+[standards.line_endings]
+default = "crlf" # Windows/ASP.NET requirement
+
+[troubleshooting.apply_diff_failure]
+symptoms = [
+    "Search content not found despite looking identical",
+    "Encoding mismatch errors",
+    "Ghost characters in diffs"
+]
+root_causes = [
+    "Missing BOM in legacy files",
+    "CRLF vs LF mismatch",
+    ".editorconfig missing or ignored"
+]
+solution = """
+1. Check for .editorconfig in root.
+2. Ensure [*.{vb,cs,aspx}] uses charset = utf-8-bom.
+3. Ensure end_of_line = crlf is set.
+"""
+
+[best_practices]
+initialization = "Always check for .editorconfig when starting a session."
