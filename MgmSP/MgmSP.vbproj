@@ -120,6 +120,7 @@
     <Content Include="commcode\ShowData.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="ExpenseClaimForm.aspx" />
+    <Content Include="ExpenseClaimList.aspx" />
     <Content Include="fd\freport.aspx" />
     <Content Include="Global.asax" />
     <Content Include="hr\leave.aspx" />
@@ -193,6 +194,13 @@
     </Compile>
     <Compile Include="ExpenseClaimForm.aspx.vb">
       <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ExpenseClaimList.aspx.designer.vb">
+      <DependentUpon>ExpenseClaimList.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="ExpenseClaimList.aspx.vb">
+      <DependentUpon>ExpenseClaimList.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="fd\freport.aspx.designer.vb">
@@ -412,7 +420,7 @@
     </Compile>
     <Compile Include="usermgm\login.aspx.vb">
       <DependentUpon>login.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\logout.aspx.designer.vb">
       <DependentUpon>logout.aspx</DependentUpon>

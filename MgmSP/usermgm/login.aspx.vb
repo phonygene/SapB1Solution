@@ -9,49 +9,11 @@ Partial Public Class login
     Public conn, connsap As New SqlConnection
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
-        'Dim count As Integer
         If (Not IsPostBack) Then
-            'InitSAPSQLConnection(ServerText.Text, "")
-            'DDLServer.Visible = True
-            'DDLWhs.Visible = True
-            'DDLServer.Items.Clear()
-            'DDLServer.Items.Add("請選擇SAP資料庫")
-
-            'SqlCmd = "SELECT name, database_id, create_date FROM sys.databases"
-            'myCommand = New SqlCommand(SqlCmd, connsap)
-            'dr = myCommand.ExecuteReader()
-            'Do While (dr.Read())
-            '    If (dr(0) <> "master" And dr(0) <> "tempdb" And dr(0) <> "model" And dr(0) <> "msdb" And dr(0) <> "SBO-COMMON") Then
-            '        DDLServer.Items.Add(dr(0))
-            '    End If
-            'Loop
-            'dr.Close()
-            'CloseSAPSQLConnection()
-            'DDLWhs.Items.Clear()
-
-
-            'count = 0
-            'SqlCmd = "SELECT T0.[WhsCode], T0.[WhsName] FROM OWHS T0 order by T0.WhsCode"
-            'dr = CommUtil.SelectSapSqlUsingDr(SqlCmd, connsap)
-
             DDLWhs.Items.Clear()
             DDLWhs.Items.Add("C01 ICT")
             DDLWhs.Items.Add("C02 AOI")
             DDLWhs.SelectedIndex = 1
-            'DDLWhs.Items.Add("請選擇倉別")
-            'Do While (dr.Read())
-            'DDLWhs.Items.Add(dr(0) & " " & dr(1))
-            'count = count + 1
-            'Loop
-            ''''''''
-            'If (count >= 4) Then
-            'DDLWhs.SelectedIndex = 4
-            'Else
-            'DDLWhs.SelectedIndex = 2
-            'End If
-            ''''''''
-            'dr.Close()
-            'connsap.Close()
             Dim actmode, uid, agnid, inchargeid As String
             Dim docnum As Long
             Dim formstatusindex, formtypeindex, sfid As Integer
@@ -81,26 +43,17 @@ Partial Public Class login
                 dr.Close()
                 conn.Close()
                 Session("usingserver") = "127.0.0.1"
-                'Session("usingdb") = "JTSTD"
                 Session("usingdb") = "JTSTD"
                 Session("actmode") = actmode
-                'If (actmode = "todoitem") Then
-                '    Session("actmode") = "todoitem"
-                'Else
-                '    Session("actmode") = "signoff" '表示從email進入
-                'End If
                 str = Split(DDLWhs.SelectedValue, " ")
                 Session("usingwhsfull") = DDLWhs.SelectedValue
                 Session("usingwhs") = str(0)
                 If (actmode = "signoff" Or actmode = "single_signoff") Then
-                    Response.Redirect("~/signoff/cLsignoff.aspx?smid=sg&smode=2&actmode=" & actmode & "&uid=" & uid &
-                                  "&status=" & docstatus & "&formtypeindex=" & formtypeindex & "&formstatusindex=" & formstatusindex &
-                                  "&docnum=" & docnum & "&sfid=" & sfid & "&agnid=" & agnid)
+                    Response.Redirect("~/signoff/cLsignoff.aspx?smid=sg&smode=2&actmode=" & actmode & "&uid=" & uid & "&status=" & docstatus & "&formtypeindex=" & formtypeindex & "&formstatusindex=" & formstatusindex & "&docnum=" & docnum & "&sfid=" & sfid & "&agnid=" & agnid)
                 ElseIf (actmode = "todoitem") Then
                     Response.Redirect("~/signoff/signofftodo.aspx?smid=sg&smode=6&actstr=todoitem&uid=" & uid & "&inchargeid=" & inchargeid)
                 ElseIf (actmode = "informtraceperson") Then
-                    Response.Redirect("~/signoff/signofftodo.aspx?smid=sg&smode=6&actstr=informtraceperson&uid=" & uid & "&inchargeid=" & inchargeid &
-                                      "&num=" & Request.QueryString("num"))
+                    Response.Redirect("~/signoff/signofftodo.aspx?smid=sg&smode=6&actstr=informtraceperson&uid=" & uid & "&inchargeid=" & inchargeid & "&num=" & Request.QueryString("num"))
                 End If
             End If
         End If
@@ -132,7 +85,6 @@ Partial Public Class login
                 Else
                     Session("s_id") = dr("id")
                     Session("s_name") = dr("name")
-                    'Session("usingdb") = "JTSTD"
                     Session("usingdb") = "JTSTD"
                     str = Split(DDLWhs.SelectedValue, " ")
                     Session("usingwhsfull") = DDLWhs.SelectedValue
@@ -141,9 +93,8 @@ Partial Public Class login
                     Session("sappwd") = dr("sappwd")
                     Session("grp") = dr("grp")
                     Session("branch") = dr("branch")
-                    Session("usingserver") = "127.0.0.1" 'ServerText.Text
+                    Session("usingserver") = "127.0.0.1"
                     dr.Close()
-
                     Response.Redirect("~/index.aspx?smid=index")
                 End If
             End If
@@ -152,45 +103,4 @@ Partial Public Class login
         End If
         conn.Close()
     End Sub
-    'object delete
-    'Protected Sub ServerText_TextChanged(ByVal sender As Object, ByVal e As EventArgs) Handles ServerText.TextChanged
-    '    DDLServer.Items.Clear()
-    '    InitSAPSQLConnection(ServerText.Text, "")
-    '    DDLServer.Items.Add("請選擇SAP資料庫")
-    '    SqlCmd = "SELECT name, database_id, create_date FROM sys.databases"
-    '    myCommand = New SqlCommand(SqlCmd, connsap)
-    '    dr = myCommand.ExecuteReader()
-    '    Do While (dr.Read())
-    '        If (dr(0) <> "master" And dr(0) <> "tempdb" And dr(0) <> "model" And dr(0) <> "msdb" And dr(0) <> "SBO-COMMON") Then
-    '            DDLServer.Items.Add(dr(0))
-    '        End If
-    '    Loop
-    '    '''''''''
-    '    DDLServer.SelectedIndex = 1
-    '    '''''''''
-    '    dr.Close()
-    '    CloseSAPSQLConnection()
-    'End Sub
-
-    'object delete
-    'Protected Sub DDLServer_SelectedIndexChanged(ByVal sender As Object, ByVal e As EventArgs) Handles DDLServer.SelectedIndexChanged
-    '    If (DDLServer.SelectedIndex <> 0) Then
-    '        InitSAPSQLConnection(ServerText.Text, DDLServer.SelectedValue)
-    '        SqlCmd = "SELECT T0.[WhsCode], T0.[WhsName] FROM OWHS T0 order by T0.WhsCode"
-    '        myCommand = New SqlCommand(SqlCmd, connsap)
-    '        dr = myCommand.ExecuteReader()
-    '        DDLWhs.Items.Clear()
-    '        DDLWhs.Items.Add("請選擇倉別")
-    '        Do While (dr.Read())
-    '            DDLWhs.Items.Add(dr(0) & " " & dr(1))
-    '        Loop
-    '        ''''''''
-    '        DDLWhs.SelectedIndex = 2
-    '        ''''''''
-    '        dr.Close()
-    '        CloseSAPSQLConnection()
-    '    Else
-    '        DDLWhs.Items.Clear()
-    '    End If
-    'End Sub
 End Class

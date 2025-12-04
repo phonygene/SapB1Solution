@@ -182,7 +182,7 @@ Partial Public Class ExpenseClaimForm
     Private Sub SetDefaultValues()
         lblDocNum.Text = "[新單據]"
         txtOwner.Text = currentUserId
-        If ddlPurchaser.Items.Count > 0 Then ddlPurchaser.SelectedValue = currentUserId
+        ' If ddlPurchaser.Items.Count > 0 Then ddlPurchaser.SelectedValue = currentUserId
         If ddlPurchaser.SelectedIndex = -1 AndAlso ddlPurchaser.Items.Count > 0 Then ddlPurchaser.SelectedIndex = 0
         lblDocStatus.Text = "草稿"
         lblDocStatus.CssClass = "badge status-P"
@@ -211,6 +211,10 @@ Partial Public Class ExpenseClaimForm
         
         btnReject.Visible = True
         btnReject.Enabled = False
+
+        ' 按鈕狀態 (新增模式)
+        btnSave.Text = "暫存 (Draft)"
+        btnDelete.Visible = False
     End Sub
 #End Region
 
@@ -302,11 +306,11 @@ Partial Public Class ExpenseClaimForm
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT SlpName FROM OSLP"
+                Dim sql As String = "SELECT SlpCode, SlpName FROM OSLP"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
-                            ddlPurchaser.Items.Add(New ListItem(dr("SlpName").ToString(), dr("SlpName").ToString()))
+                            ddlPurchaser.Items.Add(New ListItem(dr("SlpName").ToString(), dr("SlpCode").ToString()))
                         End While
                     End Using
                 End Using
@@ -1111,10 +1115,10 @@ Partial Public Class ExpenseClaimForm
                             ' Insert
                             Dim sqlH As String = "INSERT INTO jOPCH (CardCode, CardName, NumAtCard, InvNum, DeliveryAddrID, AddressName, Address, " &
                                                "DocDate, DocDueDate, TaxDate, DocCurrency, DocRate, DocTotal, VatSum, " &
-                                               "GroupNum, Comments, ApprovalStatus, CreateBy, CreateDate, U_PID) " &
+                                               "GroupNum, Comments, ApprovalStatus, CreateBy, CreateDate, U_PID, SlpCode) " &
                                                "VALUES (@CardCode, @CardName, @NumAtCard, @InvNum, @DeliveryAddrID, @AddressName, @Address, " &
                                                "@DocDate, @DocDueDate, @TaxDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, " &
-                                               "@GroupNum, @Comments, @Status, @User, GETDATE(), @UPID); " &
+                                               "@GroupNum, @Comments, @Status, @User, GETDATE(), @UPID, @SlpCode); " &
                                                "SELECT SCOPE_IDENTITY();"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
@@ -1137,7 +1141,7 @@ Partial Public Class ExpenseClaimForm
                                                "DocDate=@DocDate, DocDueDate=@DocDueDate, TaxDate=@TaxDate, DocCurrency=@DocCurrency, " &
                                                "DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, " &
                                                "GroupNum=@GroupNum, Comments=@Comments, ApprovalStatus=@Status, " &
-                                               "UpdateBy=@User, UpdateDate=GETDATE(), U_PID=@UPID WHERE DocEntry=@ID"
+                                               "UpdateBy=@User, UpdateDate=GETDATE(), U_PID=@UPID, SlpCode=@SlpCode WHERE DocEntry=@ID"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
                                 cmd.Parameters.AddWithValue("@ID", currentDocEntry)
@@ -1193,11 +1197,12 @@ Partial Public Class ExpenseClaimForm
                             Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
                             Dim mdrVat As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
 
-                            Dim sqlMdrH As String = "INSERT INTO jMGUIAP (DocEntry, DocNum, DocTotal, VatSum, CreateBy, CreateDate) " &
-                                                  "VALUES (@DocEntry, @DocNum, @DocTotal, @VatSum, @User, GETDATE()); SELECT SCOPE_IDENTITY();"
+                            Dim sqlMdrH As String = "INSERT INTO jMGUIAP (jID, DocEntry, DocNum, DocTotal, VatSum, CreateBy, CreateDate) " &
+                                                  "VALUES (@jID, @DocEntry, @DocNum, @DocTotal, @VatSum, @User, GETDATE()); SELECT SCOPE_IDENTITY();"
 
                             Dim mdrID As Integer = 0
                             Using cmd As New SqlCommand(sqlMdrH, conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", jID)
                                 cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
                                 cmd.Parameters.AddWithValue("@DocNum", currentDocEntry)
                                 cmd.Parameters.AddWithValue("@DocTotal", mdrTotal)
@@ -1311,14 +1316,14 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub btnCancel_Click(sender As Object, e As EventArgs)
-        Response.Redirect("Index.aspx")
+        Response.Redirect("ExpenseClaimList.aspx")
     End Sub
 
     Private Sub SetHeaderParameters(cmd As SqlCommand, status As String)
         cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
         cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
         cmd.Parameters.AddWithValue("@NumAtCard", txtNumAtCard.Text)
-        'cmd.Parameters.AddWithValue("@InvNum", txtInvNum.Text)
+        cmd.Parameters.AddWithValue("@InvNum", "") ' 初次儲存時為空，審核放行後由 SAP 回填
         cmd.Parameters.AddWithValue("@DeliveryAddrID", ddlDeliveryAddr.SelectedValue)
         cmd.Parameters.AddWithValue("@AddressName", ddlDeliveryAddr.SelectedItem.Text)
         cmd.Parameters.AddWithValue("@Address", txtAddress.Text)
@@ -1335,6 +1340,7 @@ Partial Public Class ExpenseClaimForm
         cmd.Parameters.AddWithValue("@Status", status)
         cmd.Parameters.AddWithValue("@User", currentUserId)
         cmd.Parameters.AddWithValue("@UPID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
+        cmd.Parameters.AddWithValue("@SlpCode", ddlPurchaser.SelectedValue)
     End Sub
 #End Region
 
@@ -1381,9 +1387,17 @@ Partial Public Class ExpenseClaimForm
 
                         txtApprovedBy.Text = dr("ApprovedBy").ToString()
                         txtOwner.Text = dr("CreateBy").ToString()
-                        If ddlPurchaser.Items.FindByValue(dr("CreateBy").ToString()) IsNot Nothing Then
-                            ddlPurchaser.SelectedValue = dr("CreateBy").ToString()
-                        End If
+                        
+                        Try
+                            ' 直接嘗試讀取，若欄位不存在會被 Catch 捕獲 (SqlDataReader 不支援 Table.Columns)
+                            If Not IsDBNull(dr("SlpCode")) Then
+                                Dim slp As String = dr("SlpCode").ToString()
+                                If ddlPurchaser.Items.FindByValue(slp) IsNot Nothing Then
+                                    ddlPurchaser.SelectedValue = slp
+                                End If
+                            End If
+                        Catch
+                        End Try
 
                         If Not IsDBNull(dr("U_PID")) Then txtUPID.Text = dr("U_PID").ToString()
 
@@ -1405,6 +1419,10 @@ Partial Public Class ExpenseClaimForm
                         
                         btnReject.Visible = True
                         btnReject.Enabled = isApUser
+
+                        ' 按鈕狀態 (編輯模式)
+                        btnSave.Text = "更新 (Update)"
+                        btnDelete.Visible = True
                     End If
                 End Using
             End Using
