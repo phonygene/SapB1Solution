@@ -725,9 +725,7 @@ Partial Public Class ExpenseClaimForm
             CType(e.Row.FindControl("txtVatSum"), TextBox).Text = line.VatSum.ToString("0.##")
             CType(e.Row.FindControl("txtPriceAfterVat"), TextBox).Text = line.PriceAfterVat.ToString("0.##")
 
-            ' Currency & Rate
-            CType(e.Row.FindControl("txtLineCurrency"), TextBox).Text = line.Currency
-            CType(e.Row.FindControl("txtLineRate"), TextBox).Text = line.Rate.ToString("0.####")
+            ' Currency & Rate - 已移至單頭，不再於明細列顯示
         End If
     End Sub
 
@@ -919,6 +917,46 @@ Partial Public Class ExpenseClaimForm
         BindMDRGrid()
     End Sub
 
+    Protected Sub btnGenerateMDR_Click(sender As Object, e As EventArgs)
+        ' 產生憑證明細: 依據費用申請明細自動產生對應的憑證明細
+        hfActiveTab.Value = "mdr" ' 切換到憑證明細頁籤
+        SyncGridDataToModel()
+        SyncMDRGridToModel()
+
+        Dim mdrLines = CurrentMDRLines
+        Dim expenseLines = CurrentLines
+
+        If expenseLines.Count = 0 Then
+            ShowError("請先新增費用申請明細")
+            Return
+        End If
+
+        Dim startNum As Integer = 1
+        If mdrLines.Count > 0 Then startNum = mdrLines.Max(Function(x) x.LineNum) + 1
+
+        ' 依據費用明細產生對應的憑證明細
+        For Each exp As ExpenseLine In expenseLines
+            mdrLines.Add(New MDRLine With {
+                .LineNum = startNum,
+                .U_LIFNR = txtCardCode.Text, ' 從單頭取得供應商
+                .U_STCEG = "", ' 統一編號空白，需使用者填寫
+                .U_XBLNR = "", ' 憑證號碼空白，需使用者填寫
+                .U_BLDAT = DateTime.Now,
+                .U_VATDATE = DateTime.Now,
+                .U_HWBAS = exp.LineTotal, ' 帶入未稅金額
+                .U_HWSTE = exp.VatSum, ' 帶入稅額
+                .U_TAX_TYPE = If(exp.VatGroup = "1", "1", "2"), ' 1-應稅, 2-零稅
+                .U_ZFORM_CODE = "21" ' 預設統一發票
+            })
+            startNum += 1
+        Next
+
+        CurrentMDRLines = mdrLines
+        BindMDRGrid()
+        ShowError("已產生 " & expenseLines.Count.ToString() & " 筆憑證明細，請填寫統一編號與憑證號碼")
+        lblMessage.ForeColor = System.Drawing.Color.Blue
+    End Sub
+
     Private Sub BindMDRGrid()
         gvMDRDetail.DataSource = CurrentMDRLines
         gvMDRDetail.DataBind()
@@ -945,7 +983,6 @@ Partial Public Class ExpenseClaimForm
             If i < lines.Count Then
                 Dim line = lines(i)
 
-                Dim txtLIFNR As TextBox = CType(row.FindControl("txtLIFNR"), TextBox)
                 Dim txtSTCEG As TextBox = CType(row.FindControl("txtSTCEG"), TextBox)
                 Dim txtXBLNR As TextBox = CType(row.FindControl("txtXBLNR"), TextBox)
                 Dim ddlZFORM As DropDownList = CType(row.FindControl("ddlZFORM_CODE"), DropDownList)
@@ -955,7 +992,7 @@ Partial Public Class ExpenseClaimForm
                 Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
                 Dim ddlTAX As DropDownList = CType(row.FindControl("ddlTAX_TYPE"), DropDownList)
 
-                If txtLIFNR IsNot Nothing Then line.U_LIFNR = txtLIFNR.Text
+                ' 供應商從單頭取得，不再從 GridView 讀取
                 If txtSTCEG IsNot Nothing Then line.U_STCEG = txtSTCEG.Text
                 If txtXBLNR IsNot Nothing Then line.U_XBLNR = txtXBLNR.Text
                 If ddlZFORM IsNot Nothing Then line.U_ZFORM_CODE = ddlZFORM.SelectedValue
@@ -981,6 +1018,9 @@ Partial Public Class ExpenseClaimForm
                         line.U_HWSTE = 0
                     End If
                 End If
+
+                ' 供應商從單頭取得 (不再從 GridView 讀取)
+                line.U_LIFNR = txtCardCode.Text
             End If
         Next
         CurrentMDRLines = lines
@@ -1083,7 +1123,17 @@ Partial Public Class ExpenseClaimForm
 
         ' 明細檢查
         If CurrentLines.Count = 0 AndAlso CurrentMDRLines.Count = 0 Then
-            ShowError("請至少新增一筆費用明細或發票明細")
+            ShowError("請至少新增一筆費用明細或憑證明細")
+            isValid = False
+        End If
+
+        ' 檢查憑證明細是否有空白的統一編號或憑證號碼 (除非是「99-其他」類型)
+        Dim emptyVoucherLines = CurrentMDRLines.Where(Function(x) _
+            (String.IsNullOrEmpty(x.U_STCEG) OrElse String.IsNullOrEmpty(x.U_XBLNR)) _
+            AndAlso x.U_ZFORM_CODE <> "99")
+        
+        If emptyVoucherLines.Any() Then
+            ShowError("憑證明細有空白的統一編號或憑證號碼，請填寫完整。若為非發票類憑證，請選擇憑證類型為「其他」。")
             isValid = False
         End If
 
@@ -1505,27 +1555,39 @@ Partial Public Class ExpenseClaimForm
 #End Region
 
 #Region "附件處理"
+    Private Const FORM_NAME As String = "ExpenseClaimForm"
+    
+    ''' <summary>
+    ''' 取得附件儲存資料夾路徑
+    ''' 結構: AttachFile/User/{UserID}/{FormName}/{jID}/
+    ''' </summary>
+    Private Function GetAttachmentFolder(jID As Integer) As String
+        Dim relativePath As String = String.Format("~/AttachFile/User/{0}/{1}/{2}/", currentUserId, FORM_NAME, jID)
+        Return Server.MapPath(relativePath)
+    End Function
+    
+    ''' <summary>
+    ''' 取得附件相對路徑 (用於資料庫儲存)
+    ''' </summary>
+    Private Function GetAttachmentRelativePath(jID As Integer, fileName As String) As String
+        Return String.Format("AttachFile/User/{0}/{1}/{2}/{3}", currentUserId, FORM_NAME, jID, fileName)
+    End Function
+
     Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
         ' .NET 4.0 相容性修改: 檢查 Request.Files
         If fileUpload.HasFile OrElse Request.Files.Count > 0 Then
             Try
-                Dim folder As String = Server.MapPath("~/Uploads/Expense/")
-                If Not Directory.Exists(folder) Then Directory.CreateDirectory(folder)
-
-                ' 若尚未存檔 (currentDocEntry=0)，是否需要先存草稿？
-                ' 策略：先存入 CurrentAttachments (ViewState/List)，待按下儲存/送出時寫入 jAttach
-                ' 但使用者可能希望上傳後就看得到檔案，且 jAttach 需要 jID (DocEntry)。
-                ' 方案：若 currentDocEntry=0，上傳時先只更新 ViewState，不寫入 DB。
-                ' 若 currentDocEntry > 0，直接寫入 DB 並更新 ViewState。
-                ' 但為了統一邏輯，這裡簡化為：上傳即存檔 (Draft)。若為新單，先執行 SaveDocument("P") 取得 DocEntry。
-                
+                ' 若尚未存檔 (currentDocEntry=0)，先自動儲存為草稿以取得 jID
                 If currentDocEntry = 0 Then
-                    ' 自動儲存為草稿以取得 DocEntry
                     If Not SaveDocument("P", True) Then
                         ShowError("上傳附件前自動儲存草稿失敗，請檢查必填欄位。")
                         Return
                     End If
                 End If
+
+                ' 建立附件資料夾: AttachFile/User/{UserID}/ExpenseClaimForm/{jID}/
+                Dim folder As String = GetAttachmentFolder(currentDocEntry)
+                If Not Directory.Exists(folder) Then Directory.CreateDirectory(folder)
 
                 Dim list = CurrentAttachments
                 Dim successCount As Integer = 0
@@ -1541,6 +1603,9 @@ Partial Public Class ExpenseClaimForm
                         Dim fullPath As String = Path.Combine(folder, savedName)
                         uploadedFile.SaveAs(fullPath)
 
+                        ' 儲存相對路徑到資料庫
+                        Dim relativePath As String = GetAttachmentRelativePath(currentDocEntry, savedName)
+
                         ' 寫入資料庫 jAttach
                         Using conn As New SqlConnection(connStr)
                             conn.Open()
@@ -1549,7 +1614,7 @@ Partial Public Class ExpenseClaimForm
                             Using cmd As New SqlCommand(sql, conn)
                                 cmd.Parameters.AddWithValue("@jID", currentDocEntry) ' jOPCH.jID (DocEntry)
                                 cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
-                                cmd.Parameters.AddWithValue("@FilePath", savedName) ' 存檔名作為路徑/識別
+                                cmd.Parameters.AddWithValue("@FilePath", relativePath) ' 儲存相對路徑
                                 cmd.Parameters.AddWithValue("@FileName", originName)
                                 cmd.Parameters.AddWithValue("@Uploader", currentUserId)
                                 cmd.Parameters.AddWithValue("@UploadTime", DateTime.Now.ToString("HH:mm:ss"))
@@ -1558,8 +1623,8 @@ Partial Public Class ExpenseClaimForm
                                 
                                 list.Add(New AttachmentItem With {
                                     .ID = newId,
-                                    .FileName = savedName, ' 顯示與下載用存檔名，或可改顯示原檔名
-                                    .FilePath = savedName,
+                                    .FileName = originName, ' 顯示原檔名
+                                    .FilePath = relativePath, ' 儲存相對路徑
                                     .UploadDate = DateTime.Today,
                                     .UploadTime = DateTime.Now.ToString("HH:mm:ss"),
                                     .Uploader = currentUserId
