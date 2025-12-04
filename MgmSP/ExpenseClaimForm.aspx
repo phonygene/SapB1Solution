@@ -81,22 +81,40 @@
             if (hf) hf.value = tabName;
 
             // Remove active class
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(div => div.classList.remove('active'));
+            var tabBtns = document.getElementsByClassName('tab-button');
+            for(var i=0; i<tabBtns.length; i++) {
+                tabBtns[i].className = tabBtns[i].className.replace(" active", "");
+            }
+            
+            var tabContents = document.getElementsByClassName('tab-content');
+            for(var i=0; i<tabContents.length; i++) {
+                tabContents[i].style.display = 'none';
+                tabContents[i].className = tabContents[i].className.replace(" active", "");
+            }
 
             // Add active class
             if (tabName === 'expense') {
-                document.getElementById('btnTabExpense').classList.add('active');
-                document.getElementById('divContentExpense').classList.add('active');
+                document.getElementById('btnTabExpense').className += " active";
+                document.getElementById('divContentExpense').style.display = 'block';
+                document.getElementById('divContentExpense').className += " active";
             } else if (tabName === 'mdr') {
-                document.getElementById('btnTabMDR').classList.add('active');
-                document.getElementById('divContentMDR').classList.add('active');
+                document.getElementById('btnTabMDR').className += " active";
+                document.getElementById('divContentMDR').style.display = 'block';
+                document.getElementById('divContentMDR').className += " active";
             }
             return false;
         }
 
         // Keep tab state after postback
         Sys.WebForms.PageRequestManager.getInstance().add_endRequest(function () {
+            var hf = document.getElementById('<%= hfActiveTab.ClientID %>');
+            if (hf && hf.value) {
+                switchTab(hf.value);
+            }
+        });
+        
+        // Init tab on page load
+        Sys.WebForms.PageRequestManager.getInstance().add_pageLoaded(function () {
             var hf = document.getElementById('<%= hfActiveTab.ClientID %>');
             if (hf && hf.value) {
                 switchTab(hf.value);
@@ -252,8 +270,8 @@
 
                     <!-- Tabs -->
                     <div class="tab-container">
-                        <button type="button" class="tab-button active" id="btnTabExpense" onclick="switchTab('expense');">費用申請明細</button>
-                        <button type="button" class="tab-button" id="btnTabMDR" onclick="switchTab('mdr');">MDR 發票明細</button>
+                        <button type="button" class="tab-button active" id="btnTabExpense" runat="server" onclick="switchTab('expense'); return false;">費用申請明細</button>
+                        <button type="button" class="tab-button" id="btnTabMDR" runat="server" onclick="switchTab('mdr'); return false;">MDR 發票明細</button>
                     </div>
 
                     <!-- Tab 1: Expense Lines -->
@@ -263,11 +281,31 @@
                                 <asp:Button ID="btnAddLine" runat="server" Text="+ 新增明細" OnClick="btnAddLine_Click" CssClass="btn btn-primary" />
                                 <asp:Button ID="btnDeleteLine" runat="server" Text="🗑 刪除選取" OnClick="btnDeleteLine_Click" CssClass="btn btn-danger" OnClientClick="return confirm('確定刪除選中的明細行？');" />
                             </div>
-                            <div>
-                                <asp:FileUpload ID="fileUpload" runat="server" style="display:inline-block; width:200px;" />
+                            <div style="display:flex; align-items:center;">
+                                <asp:FileUpload ID="fileUpload" runat="server" style="display:inline-block; width:200px;" AllowMultiple="true" />
                                 <asp:Button ID="btnUpload" runat="server" Text="上傳附件" OnClick="btnUpload_Click" CssClass="btn btn-secondary btn-icon" />
-                                <asp:Label ID="lblAttachment" runat="server" Text="" style="margin-left:5px;"></asp:Label>
                             </div>
+                        </div>
+                        
+                        <div style="margin-bottom:10px;">
+                            <asp:GridView ID="gvAttachments" runat="server" AutoGenerateColumns="False" CssClass="gridview" OnRowCommand="gvAttachments_RowCommand">
+                                <Columns>
+                                    <asp:BoundField DataField="FileName" HeaderText="檔案名稱" />
+                                    <asp:BoundField DataField="UploadDate" HeaderText="上傳日期" DataFormatString="{0:yyyy-MM-dd}" />
+                                    <asp:BoundField DataField="UploadTime" HeaderText="上傳時間" />
+                                    <asp:BoundField DataField="Uploader" HeaderText="上傳者" />
+                                    <asp:TemplateField HeaderText="動作">
+                                        <ItemTemplate>
+                                            <asp:LinkButton ID="lbtnDelete" runat="server" CommandName="DeleteFile" CommandArgument='<%# Container.DataItemIndex %>' Text="刪除" ForeColor="Red" OnClientClick="return confirm('確定刪除此附件？');"></asp:LinkButton>
+                                            <asp:HyperLink ID="hlDownload" runat="server" NavigateUrl='<%# "~/Uploads/Expense/" + Eval("FileName") %>' Target="_blank" Text="下載" style="margin-left:5px;"></asp:HyperLink>
+                                        </ItemTemplate>
+                                        <ItemStyle HorizontalAlign="Center" Width="100px" />
+                                    </asp:TemplateField>
+                                </Columns>
+                                <EmptyDataTemplate>
+                                    <div style="color:gray; padding:5px;">無附件</div>
+                                </EmptyDataTemplate>
+                            </asp:GridView>
                         </div>
                         
                         <div style="overflow-x:auto;">

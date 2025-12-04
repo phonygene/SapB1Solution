@@ -293,6 +293,24 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents txtApprovedBy As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
+    '''btnTabExpense 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnTabExpense As Global.System.Web.UI.HtmlControls.HtmlButton
+
+    '''<summary>
+    '''btnTabMDR 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnTabMDR As Global.System.Web.UI.HtmlControls.HtmlButton
+
+    '''<summary>
     '''divContentExpense 控制項。
     '''</summary>
     '''<remarks>
@@ -336,6 +354,15 @@ Partial Public Class ExpenseClaimForm
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents btnUpload As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''gvAttachments 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents gvAttachments As Global.System.Web.UI.WebControls.GridView
 
     '''<summary>
     '''lblAttachment 控制項。

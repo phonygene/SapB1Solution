@@ -43,6 +43,16 @@ Partial Public Class ExpenseClaimForm
         Public Property U_HWSTE As Decimal ' 稅額
         Public Property U_TAX_TYPE As String
     End Class
+
+    <Serializable()>
+    Public Class AttachmentItem
+        Public Property ID As Integer
+        Public Property FileName As String
+        Public Property FilePath As String
+        Public Property UploadDate As DateTime
+        Public Property UploadTime As String
+        Public Property Uploader As String
+    End Class
 #End Region
 
 #Region "變數宣告"
@@ -79,9 +89,47 @@ Partial Public Class ExpenseClaimForm
             ViewState("CurrentMDRLines") = value
         End Set
     End Property
+
+    Private Property CurrentAttachments As List(Of AttachmentItem)
+        Get
+            If ViewState("CurrentAttachments") Is Nothing Then
+                ViewState("CurrentAttachments") = New List(Of AttachmentItem)()
+            End If
+            Return CType(ViewState("CurrentAttachments"), List(Of AttachmentItem))
+        End Get
+        Set(value As List(Of AttachmentItem))
+            ViewState("CurrentAttachments") = value
+        End Set
+    End Property
 #End Region
 
 #Region "頁面載入"
+    Protected Sub Page_PreRender(sender As Object, e As EventArgs) Handles Me.PreRender
+        ' 根據 hfActiveTab 設定頁籤狀態，確保 Postback (如新增明細) 後 HTML 狀態正確
+        ' 這能避免 UpdatePanel 更新後頁籤跳回預設值的問題
+        Dim activeTab As String = hfActiveTab.Value
+
+        ' Reset CSS
+        btnTabExpense.Attributes("class") = "tab-button"
+        divContentExpense.Attributes("class") = "tab-content"
+        divContentExpense.Style("display") = "none"
+        
+        btnTabMDR.Attributes("class") = "tab-button"
+        divContentMDR.Attributes("class") = "tab-content"
+        divContentMDR.Style("display") = "none"
+
+        If activeTab = "mdr" Then
+            btnTabMDR.Attributes("class") += " active"
+            divContentMDR.Attributes("class") += " active"
+            divContentMDR.Style("display") = "block"
+        Else
+            ' Default to expense
+            btnTabExpense.Attributes("class") += " active"
+            divContentExpense.Attributes("class") += " active"
+            divContentExpense.Style("display") = "block"
+        End If
+    End Sub
+
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Try
             If Session("s_id") Is Nothing Then
@@ -185,6 +233,8 @@ Partial Public Class ExpenseClaimForm
             ' MDR 預設不加空行，由使用者手動新增
         End If
         BindMDRGrid()
+        
+        BindAttachmentGrid()
     End Sub
 
     Private Sub LoadDeliveryAddress()
@@ -1045,7 +1095,7 @@ Partial Public Class ExpenseClaimForm
         Return isValid
     End Function
 
-    Private Sub SaveDocument(status As String)
+    Private Function SaveDocument(status As String, Optional isAutoSave As Boolean = False) As Boolean
         Try
             SyncGridDataToModel()
             SyncMDRGridToModel()
@@ -1113,13 +1163,14 @@ Partial Public Class ExpenseClaimForm
                         End If
 
                         ' 2. jPCH1 (Expense Lines)
-                        Dim sqlL As String = "INSERT INTO jPCH1 (DocEntry, LineNum, ItemCode, Dscription, AcctCode, " &
+                        Dim sqlL As String = "INSERT INTO jPCH1 (jID, DocEntry, LineNum, ItemCode, Dscription, AcctCode, " &
                                            "LineTotal, VatGroup, VatPrcnt, LineVat, GTotal, CostingCode, CostingCode2) " &
-                                           "VALUES (@DocEntry, @LineNum, @ItemCode, @Dscription, @AcctCode, " &
+                                           "VALUES (@jID, @DocEntry, @LineNum, @ItemCode, @Dscription, @AcctCode, " &
                                            "@LineTotal, @VatGroup, @VatPrcnt, @LineVat, @GTotal, @CostingCode, @CostingCode2)"
 
                         For Each line As ExpenseLine In CurrentLines
                             Using cmd As New SqlCommand(sqlL, conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", jID) ' FK to Header jID
                                 cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
                                 cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
                                 cmd.Parameters.AddWithValue("@ItemCode", line.CategoryCode)
@@ -1204,7 +1255,10 @@ Partial Public Class ExpenseClaimForm
                         lblMessage.Text = "儲存成功"
                         lblDocNum.Text = currentDocEntry.ToString()
 
-                        Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
+                        If Not isAutoSave Then
+                            Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
+                        End If
+                        Return True
                     Catch ex As Exception
                         trans.Rollback()
                         Throw ex
@@ -1213,8 +1267,9 @@ Partial Public Class ExpenseClaimForm
             End Using
         Catch ex As Exception
             ShowError("儲存失敗: " & ex.Message)
+            Return False
         End Try
-    End Sub
+    End Function
     Protected Sub btnDelete_Click(sender As Object, e As EventArgs)
         If currentDocEntry > 0 Then
             Try
@@ -1235,6 +1290,10 @@ Partial Public Class ExpenseClaimForm
 
                             ' Delete Header
                             cmd.CommandText = "DELETE FROM jOPCH WHERE DocEntry=@ID"
+                            cmd.ExecuteNonQuery()
+                            
+                            ' Delete Attachments
+                            cmd.CommandText = "DELETE FROM jAttach WHERE jID=@ID"
                             cmd.ExecuteNonQuery()
 
                             trans.Commit()
@@ -1272,7 +1331,7 @@ Partial Public Class ExpenseClaimForm
         cmd.Parameters.AddWithValue("@VatSum", Decimal.Parse(lblVatSum.Text.Replace(",", "")))
         cmd.Parameters.AddWithValue("@GroupNum", ddlGroupNum.SelectedValue)
         cmd.Parameters.AddWithValue("@Comments", txtRemarks.Text)
-        cmd.Parameters.AddWithValue("@Attachment", If(String.IsNullOrEmpty(lblAttachment.Text), DBNull.Value, lblAttachment.Text))
+        'cmd.Parameters.AddWithValue("@Attachment", If(String.IsNullOrEmpty(lblAttachment.Text), DBNull.Value, lblAttachment.Text))
         cmd.Parameters.AddWithValue("@Status", status)
         cmd.Parameters.AddWithValue("@User", currentUserId)
         cmd.Parameters.AddWithValue("@UPID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
@@ -1310,9 +1369,9 @@ Partial Public Class ExpenseClaimForm
                         If Not IsDBNull(dr("GroupNum")) Then ddlGroupNum.SelectedValue = dr("GroupNum").ToString()
                         txtRemarks.Text = dr("Comments").ToString()
 
-                        If Not IsDBNull(dr("Attachment")) Then
-                            lblAttachment.Text = dr("Attachment").ToString()
-                        End If
+                        'If Not IsDBNull(dr("Attachment")) Then
+                        '    lblAttachment.Text = dr("Attachment").ToString()
+                        'End If
 
                         Dim status As String = dr("ApprovalStatus").ToString()
                         lblDocStatus.Text = GetStatusText(status)
@@ -1349,6 +1408,27 @@ Partial Public Class ExpenseClaimForm
                     End If
                 End Using
             End Using
+
+            ' Load Attachments (jAttach)
+            Dim attachList As New List(Of AttachmentItem)
+            sql = "SELECT * FROM jAttach WHERE jID=@ID ORDER BY UploadDate, UploadTime"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@ID", id)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    While dr.Read()
+                        attachList.Add(New AttachmentItem With {
+                            .ID = Convert.ToInt32(dr("ID")),
+                            .FileName = dr("FilePath").ToString(), ' 這裡暫存 FileName (存檔名)
+                            .FilePath = dr("FilePath").ToString(),
+                            .UploadDate = Convert.ToDateTime(dr("UploadDate")),
+                            .UploadTime = dr("UploadTime").ToString(),
+                            .Uploader = dr("Uploader").ToString()
+                        })
+                    End While
+                End Using
+            End Using
+            CurrentAttachments = attachList
+            BindAttachmentGrid()
 
             ' Load Expense Lines
             Dim lines As New List(Of ExpenseLine)
@@ -1408,18 +1488,120 @@ Partial Public Class ExpenseClaimForm
 
 #Region "附件處理"
     Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
-        If fileUpload.HasFile Then
+        ' .NET 4.0 相容性修改: 檢查 Request.Files
+        If fileUpload.HasFile OrElse Request.Files.Count > 0 Then
             Try
                 Dim folder As String = Server.MapPath("~/Uploads/Expense/")
                 If Not Directory.Exists(folder) Then Directory.CreateDirectory(folder)
 
-                Dim fileName As String = DateTime.Now.ToString("yyyyMMddHHmmss") & "_" & fileUpload.FileName
-                fileUpload.SaveAs(folder & fileName)
-                lblAttachment.Text = fileName
+                ' 若尚未存檔 (currentDocEntry=0)，是否需要先存草稿？
+                ' 策略：先存入 CurrentAttachments (ViewState/List)，待按下儲存/送出時寫入 jAttach
+                ' 但使用者可能希望上傳後就看得到檔案，且 jAttach 需要 jID (DocEntry)。
+                ' 方案：若 currentDocEntry=0，上傳時先只更新 ViewState，不寫入 DB。
+                ' 若 currentDocEntry > 0，直接寫入 DB 並更新 ViewState。
+                ' 但為了統一邏輯，這裡簡化為：上傳即存檔 (Draft)。若為新單，先執行 SaveDocument("P") 取得 DocEntry。
+                
+                If currentDocEntry = 0 Then
+                    ' 自動儲存為草稿以取得 DocEntry
+                    If Not SaveDocument("P", True) Then
+                        ShowError("上傳附件前自動儲存草稿失敗，請檢查必填欄位。")
+                        Return
+                    End If
+                End If
+
+                Dim list = CurrentAttachments
+                Dim successCount As Integer = 0
+
+                ' 遍歷 Request.Files 以支援多檔上傳 (.NET 4.0 Workaround)
+                For i As Integer = 0 To Request.Files.Count - 1
+                    Dim uploadedFile As HttpPostedFile = Request.Files(i)
+                    
+                    ' 確保檔案有效且有名稱 (過濾掉空欄位)
+                    If uploadedFile.ContentLength > 0 AndAlso Not String.IsNullOrEmpty(uploadedFile.FileName) Then
+                        Dim originName As String = Path.GetFileName(uploadedFile.FileName)
+                        Dim savedName As String = DateTime.Now.ToString("yyyyMMddHHmmss") & "_" & originName
+                        Dim fullPath As String = Path.Combine(folder, savedName)
+                        uploadedFile.SaveAs(fullPath)
+
+                        ' 寫入資料庫 jAttach
+                        Using conn As New SqlConnection(connStr)
+                            conn.Open()
+                            Dim sql As String = "INSERT INTO jAttach (jID, DocEntry, LineNum, FilePath, FileName, Uploader, UploadTime) " &
+                                              "VALUES (@jID, @DocEntry, -1, @FilePath, @FileName, @Uploader, @UploadTime); SELECT SCOPE_IDENTITY();"
+                            Using cmd As New SqlCommand(sql, conn)
+                                cmd.Parameters.AddWithValue("@jID", currentDocEntry) ' jOPCH.jID (DocEntry)
+                                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                                cmd.Parameters.AddWithValue("@FilePath", savedName) ' 存檔名作為路徑/識別
+                                cmd.Parameters.AddWithValue("@FileName", originName)
+                                cmd.Parameters.AddWithValue("@Uploader", currentUserId)
+                                cmd.Parameters.AddWithValue("@UploadTime", DateTime.Now.ToString("HH:mm:ss"))
+                                
+                                Dim newId As Integer = Convert.ToInt32(cmd.ExecuteScalar())
+                                
+                                list.Add(New AttachmentItem With {
+                                    .ID = newId,
+                                    .FileName = savedName, ' 顯示與下載用存檔名，或可改顯示原檔名
+                                    .FilePath = savedName,
+                                    .UploadDate = DateTime.Today,
+                                    .UploadTime = DateTime.Now.ToString("HH:mm:ss"),
+                                    .Uploader = currentUserId
+                                })
+                                successCount += 1
+                            End Using
+                        End Using
+                    End If
+                Next
+                
+                CurrentAttachments = list
+                BindAttachmentGrid()
+                lblMessage.Text = $"成功上傳 {successCount} 個檔案"
+                lblMessage.ForeColor = System.Drawing.Color.Blue
+
             Catch ex As Exception
                 ShowError("上傳失敗: " & ex.Message)
             End Try
+        Else
+             ShowError("請選擇檔案")
         End If
+    End Sub
+
+    Protected Sub gvAttachments_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "DeleteFile" Then
+            Dim index As Integer = Convert.ToInt32(e.CommandArgument)
+            Dim list = CurrentAttachments
+            
+            If index < list.Count Then
+                Dim item = list(index)
+                
+                Try
+                    ' 刪除 DB
+                    Using conn As New SqlConnection(connStr)
+                        conn.Open()
+                        Dim sql As String = "DELETE FROM jAttach WHERE ID=@ID"
+                        Using cmd As New SqlCommand(sql, conn)
+                            cmd.Parameters.AddWithValue("@ID", item.ID)
+                            cmd.ExecuteNonQuery()
+                        End Using
+                    End Using
+                    
+                    ' 刪除實體檔案 (可選，通常保留備份或標記刪除，這裡先不刪實體檔以防誤刪)
+                    ' Dim path As String = Server.MapPath("~/Uploads/Expense/" & item.FilePath)
+                    ' If File.Exists(path) Then File.Delete(path)
+
+                    list.RemoveAt(index)
+                    CurrentAttachments = list
+                    BindAttachmentGrid()
+                    lblMessage.Text = "附件已刪除"
+                Catch ex As Exception
+                    ShowError("刪除附件失敗: " & ex.Message)
+                End Try
+            End If
+        End If
+    End Sub
+
+    Private Sub BindAttachmentGrid()
+        gvAttachments.DataSource = CurrentAttachments
+        gvAttachments.DataBind()
     End Sub
 #End Region
 

@@ -8,7 +8,7 @@ windows_legacy = "utf-8-bom" # For .vb, .cs, .aspx
 web_modern = "utf-8" # For .js, .json, .html
 
 [standards.line_endings]
-default = "crlf" # Windows/ASP.NET requirement
+default = "lf" # Unified with .editorconfig for consistency
 
 [troubleshooting.apply_diff_failure]
 symptoms = [
@@ -24,7 +24,7 @@ root_causes = [
 solution = """
 1. Check for .editorconfig in root.
 2. Ensure [*.{vb,cs,aspx}] uses charset = utf-8-bom.
-3. Ensure end_of_line = crlf is set.
+3. Ensure end_of_line = lf is set (unified standard).
 """
 
 [best_practices]

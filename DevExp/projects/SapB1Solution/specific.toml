@@ -25,3 +25,21 @@ tags = ["database", "connection"]
 context = "Local Development Database Connection"
 desc = "Local SQL Server Instance for development."
 solution = "Data Source=.\\SQLEXPRESS2008R2;Initial Catalog=jtdb"
+
+[[rules]]
+id = "proj-env-001"
+level = 0
+tags = ["environment", "encoding", "git"]
+context = "File Encoding and Line Endings"
+desc = "Standardize file format to prevent Diff failures and ensure tool compatibility."
+solution = "All .vb and .aspx files must be UTF-8 with BOM and use LF line endings. Enforced via .editorconfig and .gitattributes."
+anti_pattern = "CRLF, UTF-8 without BOM"
+
+[[rules]]
+id = "proj-web-001"
+level = 1
+tags = ["web-forms", "ajax", "update-panel", "ui-state"]
+context = "Tab Switching inside UpdatePanel"
+desc = "Maintain tab state across Postbacks without relying on fragile client-side JS restoration."
+solution = "Use server-side controls (runat='server') for tab buttons and content. Manage 'active' CSS classes in Page_PreRender based on a HiddenField value."
+anti_pattern = "Relying solely on Sys.WebForms.PageRequestManager.getInstance().add_endRequest to restore tabs."
