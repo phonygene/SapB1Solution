@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "sapb1-sql"
+  ],
+  "enableAllProjectMcpServers": true
+}

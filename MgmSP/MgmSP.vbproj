@@ -119,6 +119,7 @@
     <Content Include="cnc\cncmain.aspx" />
     <Content Include="commcode\ShowData.aspx" />
     <Content Include="Default.aspx" />
+    <Content Include="DocumentSearch.aspx" />
     <Content Include="ExpenseClaimForm.aspx" />
     <Content Include="ExpenseClaimList.aspx" />
     <Content Include="fd\freport.aspx" />
@@ -188,6 +189,13 @@
     </Compile>
     <Compile Include="Default.aspx.designer.vb">
       <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="DocumentSearch.aspx.designer.vb">
+      <DependentUpon>DocumentSearch.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="DocumentSearch.aspx.vb">
+      <DependentUpon>DocumentSearch.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="ExpenseClaimForm.aspx.designer.vb">
       <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>

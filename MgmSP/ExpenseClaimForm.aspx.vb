@@ -1556,7 +1556,7 @@ Partial Public Class ExpenseClaimForm
 
 #Region "附件處理"
     Private Const FORM_NAME As String = "ExpenseClaimForm"
-    
+
     ''' <summary>
     ''' 取得附件儲存資料夾路徑
     ''' 結構: AttachFile/User/{UserID}/{FormName}/{jID}/
@@ -1565,7 +1565,7 @@ Partial Public Class ExpenseClaimForm
         Dim relativePath As String = String.Format("~/AttachFile/User/{0}/{1}/{2}/", currentUserId, FORM_NAME, jID)
         Return Server.MapPath(relativePath)
     End Function
-    
+
     ''' <summary>
     ''' 取得附件相對路徑 (用於資料庫儲存)
     ''' </summary>
@@ -1595,7 +1595,7 @@ Partial Public Class ExpenseClaimForm
                 ' 遍歷 Request.Files 以支援多檔上傳 (.NET 4.0 Workaround)
                 For i As Integer = 0 To Request.Files.Count - 1
                     Dim uploadedFile As HttpPostedFile = Request.Files(i)
-                    
+
                     ' 確保檔案有效且有名稱 (過濾掉空欄位)
                     If uploadedFile.ContentLength > 0 AndAlso Not String.IsNullOrEmpty(uploadedFile.FileName) Then
                         Dim originName As String = Path.GetFileName(uploadedFile.FileName)
@@ -1618,9 +1618,9 @@ Partial Public Class ExpenseClaimForm
                                 cmd.Parameters.AddWithValue("@FileName", originName)
                                 cmd.Parameters.AddWithValue("@Uploader", currentUserId)
                                 cmd.Parameters.AddWithValue("@UploadTime", DateTime.Now.ToString("HH:mm:ss"))
-                                
+
                                 Dim newId As Integer = Convert.ToInt32(cmd.ExecuteScalar())
-                                
+
                                 list.Add(New AttachmentItem With {
                                     .ID = newId,
                                     .FileName = originName, ' 顯示原檔名

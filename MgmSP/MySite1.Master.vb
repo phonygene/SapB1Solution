@@ -398,17 +398,11 @@ Partial Public Class MySite1
                 If (InStr(perm, "e")) Then
                     i = i + 1
                     HyperMainMenuGen(i, i, "費用申請", "~/ExpenseClaimForm.aspx?smid=ec&smode=1", mmenusize, perm, "e")
-                    'If (Request.QueryString("smid") = "ec") Then 'smid:橫向次menu smode:次menu順序
-                    '    perm = CommUtil.GetAssignRight("qc100", Session("s_id"))
-                    '    'HyperSubMenuGen(tRow, 1, "qc_" & i, "進料檢驗", "~/qc/iqc.aspx?smid=qc&smode=1&mode=showempty&iqctype=0", smenusize, perm, "e")
-                    '    HyperSubMenuGen(tRow, 1, "qc_" & i, "進料檢驗", "~/qc/qc.aspx?smid=qc&smode=1&funindex=4", smenusize, perm, "e")
-                    '    perm = CommUtil.GetAssignRight("qc200", Session("s_id"))
-                    '    HyperSubMenuGen(tRow, 2, "qc_" & i + 1, "在線檢驗", "~/qc/pqc.aspx?smid=qc&smode=2", smenusize, perm, "e")
-                    '    perm = CommUtil.GetAssignRight("qc300", Session("s_id"))
-                    '    HyperSubMenuGen(tRow, 3, "qc_" & i + 2, "出貨檢驗", "~/qc/oqc.aspx?smid=qc&smode=3", smenusize, perm, "e")
-                    '    TSubMenu.Rows.Add(tRow)
-                    'End If
                 End If
+                '-------------------------------------------
+                ' 單據查詢 - 不需權限，所有登入使用者皆可使用
+                i = i + 1
+                HyperMainMenuGen(i, i, "單據查詢", "~/DocumentSearch.aspx", mmenusize, "nouse", "")
                 Dim nowdate, str(), begindate As String
                 nowdate = Format(Now, "yyyy/MM/dd")
                 str = Split(nowdate, "/")
