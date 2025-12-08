@@ -41,6 +41,15 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents hfActiveTab As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
+    '''hfRateDate 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfRateDate As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
     '''UpdatePanel1 控制項。
     '''</summary>
     '''<remarks>
@@ -194,6 +203,15 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents ddlGroupNum As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
+    '''txtPymntGroup 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents txtPymntGroup As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
     '''txtJID 控制項。
     '''</summary>
     '''<remarks>
@@ -273,6 +291,15 @@ Partial Public Class ExpenseClaimForm
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''lblErrTaxDate 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lblErrTaxDate As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
     '''txtApprovalStatus 控制項。

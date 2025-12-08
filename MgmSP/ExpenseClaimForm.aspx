@@ -332,6 +332,30 @@
                 function confirmDelete() {
                     return confirm('確定要刪除此筆費用申請單嗎？此操作無法復原。');
                 }
+
+                // 防止按鈕連續點擊
+                var isSubmitting = false;
+                function preventDoubleClick(btn, msg) {
+                    if (isSubmitting) {
+                        return false;
+                    }
+                    if (msg && !confirm(msg)) {
+                        return false;
+                    }
+                    isSubmitting = true;
+                    setTimeout(function () { btn.disabled = true; btn.value = '處理中...'; }, 10);
+                    return true;
+                }
+
+                // 重置提交狀態 (UpdatePanel 結束時)
+                Sys.WebForms.PageRequestManager.getInstance().add_endRequest(function () {
+                    isSubmitting = false;
+                    // 重新啟用按鈕
+                    var btns = document.querySelectorAll('.btn');
+                    for (var i = 0; i < btns.length; i++) {
+                        btns[i].disabled = false;
+                    }
+                });
             </script>
         </head>
 
@@ -342,6 +366,8 @@
                 <asp:UpdatePanel ID="UpdatePanel1" runat="server">
                     <ContentTemplate>
                         <asp:HiddenField ID="hfActiveTab" runat="server" Value="expense" />
+                <%-- [F] 用於儲存匯率日期，以便驗證時檢查 --%>
+                <asp:HiddenField ID="hfRateDate" runat="server" Value="" />
                         <div class="form-container">
                             <div
                                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -440,6 +466,12 @@
                                             <asp:DropDownList ID="ddlGroupNum" runat="server"></asp:DropDownList>
                                         </div>
                                     </div>
+                                    <div class="form-group">
+                                        <label class="form-label">付款條件(列印):</label>
+                                        <div class="form-control">
+                                            <asp:TextBox ID="txtPymntGroup" runat="server" placeholder="列印用付款條件名稱"></asp:TextBox>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Right Column -->
@@ -472,9 +504,12 @@
                                         </div>
                                     </div>
                                     <div class="form-group">
-                                        <label class="form-label">過帳日期 (Tax):</label>
+                                        <label class="form-label"><span class="required">*</span>過帳日期:</label>
                                         <div class="form-control">
-                                            <asp:TextBox ID="txtTaxDate" runat="server" TextMode="Date"></asp:TextBox>
+                                            <asp:TextBox ID="txtDocDate" runat="server" TextMode="Date"
+                                                AutoPostBack="true" OnTextChanged="btnRefreshRate_Click"></asp:TextBox>
+                                            <asp:Label ID="lblErrDocDate" runat="server" CssClass="error-text"
+                                                Visible="False"></asp:Label>
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -489,9 +524,8 @@
                                     <div class="form-group">
                                         <label class="form-label"><span class="required">*</span>文件日期:</label>
                                         <div class="form-control">
-                                            <asp:TextBox ID="txtDocDate" runat="server" TextMode="Date"
-                                                AutoPostBack="true" OnTextChanged="btnRefreshRate_Click"></asp:TextBox>
-                                            <asp:Label ID="lblErrDocDate" runat="server" CssClass="error-text"
+                                            <asp:TextBox ID="txtTaxDate" runat="server" TextMode="Date"></asp:TextBox>
+                                            <asp:Label ID="lblErrTaxDate" runat="server" CssClass="error-text"
                                                 Visible="False"></asp:Label>
                                         </div>
                                     </div>
@@ -557,8 +591,9 @@
                                                         CommandArgument='<%# Container.DataItemIndex %>' Text="刪除"
                                                         ForeColor="Red" OnClientClick="return confirm('確定刪除此附件？');">
                                                     </asp:LinkButton>
+                                                    <%-- [C] 使用 Handler 安全下載附件，避免路徑洩漏 --%>
                                                     <asp:HyperLink ID="hlDownload" runat="server"
-                                                        NavigateUrl='<%# "~/" + Eval("FilePath") %>' Target="_blank"
+                                                        NavigateUrl='<%# "DownloadHandler.ashx?id=" & Eval("ID") %>' Target="_blank"
                                                         Text="下載" style="margin-left:5px;">
                                                     </asp:HyperLink>
                                                 </ItemTemplate>
@@ -726,9 +761,11 @@
                                                             <asp:ListItem Value="21" Text="21-統一發票(三聯)"></asp:ListItem>
                                                             <asp:ListItem Value="22" Text="22-公營/二聯/收據"></asp:ListItem>
                                                             <asp:ListItem Value="24" Text="24-高鐵票/車票"></asp:ListItem>
+                                                            <asp:ListItem Value="25" Text="25-電子發票"></asp:ListItem>
                                                             <asp:ListItem Value="28" Text="28-海關報關單"></asp:ListItem>
                                                             <asp:ListItem Value="99" Text="99-其他"></asp:ListItem>
                                                         </asp:DropDownList>
+
                                                     </ItemTemplate>
                                                     <ItemStyle Width="160px" />
                                                 </asp:TemplateField>
@@ -860,11 +897,13 @@
                             <!-- Buttons -->
                             <div style="text-align:center; margin-top:30px;">
                                 <asp:Button ID="btnSave" runat="server" Text="暫存 (Draft)" OnClick="btnSave_Click"
-                                    CssClass="btn btn-primary" />
-                                <asp:Button ID="btnSubmit" runat="server" Text="送出 (Submit)" OnClick="btnSubmit_Click"
-                                    CssClass="btn btn-success" OnClientClick="return confirm('確定要送出審核嗎？');" />
+                                    CssClass="btn btn-primary" Visible="false" />
+                                <asp:Button ID="btnSubmit" runat="server" Text="儲存並送審 (Save & Submit)"
+                                    OnClick="btnSubmit_Click" CssClass="btn btn-success"
+                                    OnClientClick="return preventDoubleClick(this, '確定要送出審核嗎？');" />
                                 <asp:Button ID="btnDelete" runat="server" Text="刪除 (Delete)" OnClick="btnDelete_Click"
-                                    CssClass="btn btn-danger" OnClientClick="return confirmDelete();" />
+                                    CssClass="btn btn-danger"
+                                    OnClientClick="return preventDoubleClick(this, null) && confirmDelete();" />
                                 <asp:Button ID="btnCancel" runat="server" Text="取消 (Cancel)" OnClick="btnCancel_Click"
                                     CssClass="btn btn-secondary" />
 

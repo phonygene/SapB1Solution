@@ -130,34 +130,24 @@ Partial Public Class MySite1
         tRow.Cells.Add(tCell)
     End Sub
 
+    ' [修改] 此版本不使用倉庫選單，保留函數但不再調用
     Sub WhsDropList(tRow As TableRow)
-        Dim tCell As TableCell
-        tCell = New TableCell()
-        DDLWhs = New DropDownList()
-        DDLWhs.Items.Clear()
-        DDLWhs.Items.Add("C01 ICT")
-        DDLWhs.Items.Add("C02 AOI")
-        DDLWhs.SelectedValue = Session("usingwhsfull")
-
-        'SqlCmd = "SELECT T0.[WhsCode], T0.[WhsName] FROM OWHS T0 order by T0.WhsCode"
-        'dr = CommUtil.SelectSapSqlUsingDr(SqlCmd, connsap)
-        'count = 0
-        'DDLWhs.Items.Add("請選擇倉別")
-        'Do While (dr.Read())
-        '    DDLWhs.Items.Add(dr(0) & " " & dr(1))
-        '    count = count + 1
-        'Loop
-        'dr.Close()
-        'DDLWhs.SelectedValue = Session("usingwhsfull")
-        'connsap.Close()
-        DDLWhs.ID = "ddl_whs"
-        DDLWhs.Width = 100
-        AddHandler DDLWhs.SelectedIndexChanged, AddressOf DDLWhs_SelectedIndexChanged
-        DDLWhs.AutoPostBack = True
-        DDLWhs.Attributes.Add("onmouseover", "c=this.style.backgroundColor;this.style.backgroundColor='Gainsboro'")
-        DDLWhs.Attributes.Add("onmouseout", "this.style.backgroundColor=c")
-        tCell.Controls.Add(DDLWhs)
-        tRow.Cells.Add(tCell)
+        ' 此版本不使用生產製造功能，不再顯示倉庫選單
+        ' Dim tCell As TableCell
+        ' tCell = New TableCell()
+        ' DDLWhs = New DropDownList()
+        ' DDLWhs.Items.Clear()
+        ' DDLWhs.Items.Add("C01 ICT")
+        ' DDLWhs.Items.Add("C02 AOI")
+        ' DDLWhs.SelectedValue = Session("usingwhsfull")
+        ' DDLWhs.ID = "ddl_whs"
+        ' DDLWhs.Width = 100
+        ' AddHandler DDLWhs.SelectedIndexChanged, AddressOf DDLWhs_SelectedIndexChanged
+        ' DDLWhs.AutoPostBack = True
+        ' DDLWhs.Attributes.Add("onmouseover", "c=this.style.backgroundColor;this.style.backgroundColor='Gainsboro'")
+        ' DDLWhs.Attributes.Add("onmouseout", "this.style.backgroundColor=c")
+        ' tCell.Controls.Add(DDLWhs)
+        ' tRow.Cells.Add(tCell)
     End Sub
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Dim tRow As TableRow
@@ -230,11 +220,23 @@ Partial Public Class MySite1
                 HyperMainMenuGen(i, "index", "首頁", "index.aspx?smid=index&smode=0", mmenusize, "nouse", "")
                 If (Request.QueryString("smid") = "index") Then
                     HyperSubMenuGen(tRow, 1, "pwdchange", "修改密碼", "~/usermgm/pwdchange.aspx?smid=index&smode=1", smenusize, "nouse", "")
-                    HyperSubMenuGen(tRow, 2, "addsapid", "設定SAP帳密", "~/usermgm/addsapid.aspx?smid=index&smode=2", smenusize, "nouse", "")
-                    DataBaseDropList(tRow)
-                    WhsDropList(tRow)
+                    ' [修改] SAP帳密設定只給管理員 (ron) 使用
+                    If (Session("s_id") = "ron") Then
+                        HyperSubMenuGen(tRow, 2, "addsapid", "設定SAP帳密", "~/usermgm/addsapid.aspx?smid=index&smode=2", smenusize, "nouse", "")
+                        DataBaseDropList(tRow)
+                    End If
+                    ' [修改] 移除倉庫選單，此版本不使用
+                    ' WhsDropList(tRow)
                     TSubMenu.Rows.Add(tRow)
                 End If
+
+                ' [修改] 費用申請 - 所有登入使用者皆可使用（移到前面，不需權限檢查）
+                i = i + 1
+                HyperMainMenuGen(i, "expense", "費用申請", "~/ExpenseClaimForm.aspx?smid=ec&smode=1", mmenusize, "nouse", "")
+
+                ' [修改] 單據查詢 - 所有登入使用者皆可使用（移到前面）
+                i = i + 1
+                HyperMainMenuGen(i, "docsearch", "單據查詢", "~/DocumentSearch.aspx", mmenusize, "nouse", "")
                 '-------------------------------------------
                 perm = CommUtil.GetAssignRight("ac000", Session("s_id"))
                 If (InStr(perm, "n")) Then
@@ -394,15 +396,16 @@ Partial Public Class MySite1
                         TSubMenu.Rows.Add(tRow)
                     End If
                 End If
-                perm = CommUtil.GetAssignRight("ec000", Session("s_id"))
-                If (InStr(perm, "e")) Then
-                    i = i + 1
-                    HyperMainMenuGen(i, i, "費用申請", "~/ExpenseClaimForm.aspx?smid=ec&smode=1", mmenusize, perm, "e")
-                End If
+                ' [修改] 費用申請已移至前面，所有用戶可見，此處移除
+                ' perm = CommUtil.GetAssignRight("ec000", Session("s_id"))
+                ' If (InStr(perm, "e")) Then
+                '     i = i + 1
+                '     HyperMainMenuGen(i, i, "費用申請", "~/ExpenseClaimForm.aspx?smid=ec&smode=1", mmenusize, perm, "e")
+                ' End If
                 '-------------------------------------------
-                ' 單據查詢 - 不需權限，所有登入使用者皆可使用
-                i = i + 1
-                HyperMainMenuGen(i, i, "單據查詢", "~/DocumentSearch.aspx", mmenusize, "nouse", "")
+                ' [修改] 單據查詢已移至前面，此處移除
+                ' i = i + 1
+                ' HyperMainMenuGen(i, i, "單據查詢", "~/DocumentSearch.aspx", mmenusize, "nouse", "")
                 Dim nowdate, str(), begindate As String
                 nowdate = Format(Now, "yyyy/MM/dd")
                 str = Split(nowdate, "/")

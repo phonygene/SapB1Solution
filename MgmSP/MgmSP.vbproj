@@ -120,12 +120,23 @@
     <Content Include="commcode\ShowData.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="DocumentSearch.aspx" />
+    <Content Include="DownloadHandler.ashx" />
     <Content Include="ExpenseClaimForm.aspx" />
     <Content Include="ExpenseClaimList.aspx" />
     <Content Include="fd\freport.aspx" />
     <Content Include="Global.asax" />
     <Content Include="hr\leave.aspx" />
     <Content Include="hr\workevent.aspx" />
+    <Content Include="image\jetlog.jpg" />
+    <Content Include="image\jetlog80%25.jpg" />
+    <Content Include="image\jetword.jpg" />
+    <Content Include="image\logo.png" />
+    <Content Include="image\ok1.jpg" />
+    <Content Include="image\okpdf.jpg" />
+    <Content Include="image\rj1.jpg" />
+    <Content Include="image\rjpdf.jpg" />
+    <Content Include="image\skip.jpg" />
+    <Content Include="image\skip1.jpg" />
     <Content Include="invalid.aspx" />
     <Content Include="kkk.aspx" />
     <Content Include="pu\qv.aspx" />
@@ -148,6 +159,8 @@
     <Content Include="spare\sp.aspx" />
     <Content Include="spare\spmaterial.aspx" />
     <Content Include="spare\spold.aspx" />
+    <Content Include="usermgm\images\Logo.png" />
+    <Content Include="usermgm\images\Logo.svg" />
     <Content Include="usermgm\rolesetup.aspx" />
     <Content Include="Web.config" />
   </ItemGroup>
@@ -157,19 +170,22 @@
     </Compile>
     <Compile Include="cnc\cncitems.aspx.vb">
       <DependentUpon>cncitems.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="cnc\cncmain.aspx.designer.vb">
       <DependentUpon>cncmain.aspx</DependentUpon>
     </Compile>
     <Compile Include="cnc\cncmain.aspx.vb">
       <DependentUpon>cncmain.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="commcode\B1TransactionBase.vb">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="commcode\CommSignOff.vb">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="commcode\AuditLogger.vb">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="commcode\CommUtil.vb">
@@ -180,7 +196,7 @@
     </Compile>
     <Compile Include="commcode\ShowData.aspx.vb">
       <DependentUpon>ShowData.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="commcode\UserVendorTaxId.vb" />
     <Compile Include="Default.aspx.vb">
@@ -196,6 +212,10 @@
     <Compile Include="DocumentSearch.aspx.vb">
       <DependentUpon>DocumentSearch.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="DownloadHandler.ashx.vb">
+      <DependentUpon>DownloadHandler.ashx</DependentUpon>
+      <SubType>ASPXCodebehind</SubType>
     </Compile>
     <Compile Include="ExpenseClaimForm.aspx.designer.vb">
       <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>
@@ -216,7 +236,7 @@
     </Compile>
     <Compile Include="fd\freport.aspx.vb">
       <DependentUpon>freport.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Global.asax.vb">
       <DependentUpon>Global.asax</DependentUpon>
@@ -226,28 +246,28 @@
     </Compile>
     <Compile Include="hr\leave.aspx.vb">
       <DependentUpon>leave.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="hr\workevent.aspx.designer.vb">
       <DependentUpon>workevent.aspx</DependentUpon>
     </Compile>
     <Compile Include="hr\workevent.aspx.vb">
       <DependentUpon>workevent.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="invalid.aspx.designer.vb">
       <DependentUpon>invalid.aspx</DependentUpon>
     </Compile>
     <Compile Include="invalid.aspx.vb">
       <DependentUpon>invalid.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="kkk.aspx.designer.vb">
       <DependentUpon>kkk.aspx</DependentUpon>
     </Compile>
     <Compile Include="kkk.aspx.vb">
       <DependentUpon>kkk.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
@@ -281,56 +301,56 @@
     </Compile>
     <Compile Include="Index.aspx.vb">
       <DependentUpon>Index.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="pu\qv.aspx.designer.vb">
       <DependentUpon>qv.aspx</DependentUpon>
     </Compile>
     <Compile Include="pu\qv.aspx.vb">
       <DependentUpon>qv.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="qc\iqc.aspx.designer.vb">
       <DependentUpon>iqc.aspx</DependentUpon>
     </Compile>
     <Compile Include="qc\iqc.aspx.vb">
       <DependentUpon>iqc.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="qc\qc.aspx.designer.vb">
       <DependentUpon>qc.aspx</DependentUpon>
     </Compile>
     <Compile Include="qc\qc.aspx.vb">
       <DependentUpon>qc.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="rd\mcoderule.aspx.designer.vb">
       <DependentUpon>mcoderule.aspx</DependentUpon>
     </Compile>
     <Compile Include="rd\mcoderule.aspx.vb">
       <DependentUpon>mcoderule.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="rrr.aspx.designer.vb">
       <DependentUpon>rrr.aspx</DependentUpon>
     </Compile>
     <Compile Include="rrr.aspx.vb">
       <DependentUpon>rrr.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="sales\forecastpo.aspx.designer.vb">
       <DependentUpon>forecastpo.aspx</DependentUpon>
     </Compile>
     <Compile Include="sales\forecastpo.aspx.vb">
       <DependentUpon>forecastpo.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\agnsetup.aspx.designer.vb">
       <DependentUpon>agnsetup.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\agnsetup.aspx.vb">
       <DependentUpon>agnsetup.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\cLsignoff.aspx.designer.vb">
       <DependentUpon>cLsignoff.aspx</DependentUpon>
@@ -344,84 +364,84 @@
     </Compile>
     <Compile Include="signoff\printform.aspx.vb">
       <DependentUpon>printform.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\showpdf.aspx.designer.vb">
       <DependentUpon>showpdf.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\showpdf.aspx.vb">
       <DependentUpon>showpdf.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signflowexclude.aspx.designer.vb">
       <DependentUpon>signflowexclude.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signflowexclude.aspx.vb">
       <DependentUpon>signflowexclude.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signoff.aspx.designer.vb">
       <DependentUpon>signoff.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signoff.aspx.vb">
       <DependentUpon>signoff.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signoffsetup.aspx.designer.vb">
       <DependentUpon>signoffsetup.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signoffsetup.aspx.vb">
       <DependentUpon>signoffsetup.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signofftodo.aspx.designer.vb">
       <DependentUpon>signofftodo.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signofftodo.aspx.vb">
       <DependentUpon>signofftodo.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signofftool.aspx.designer.vb">
       <DependentUpon>signofftool.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signofftool.aspx.vb">
       <DependentUpon>signofftool.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="signoff\signoffvip.aspx.designer.vb">
       <DependentUpon>signoffvip.aspx</DependentUpon>
     </Compile>
     <Compile Include="signoff\signoffvip.aspx.vb">
       <DependentUpon>signoffvip.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="spare\sp.aspx.designer.vb">
       <DependentUpon>sp.aspx</DependentUpon>
     </Compile>
     <Compile Include="spare\sp.aspx.vb">
       <DependentUpon>sp.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="spare\spmaterial.aspx.designer.vb">
       <DependentUpon>spmaterial.aspx</DependentUpon>
     </Compile>
     <Compile Include="spare\spmaterial.aspx.vb">
       <DependentUpon>spmaterial.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="spare\spold.aspx.designer.vb">
       <DependentUpon>spold.aspx</DependentUpon>
     </Compile>
     <Compile Include="spare\spold.aspx.vb">
       <DependentUpon>spold.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\addsapid.aspx.designer.vb">
       <DependentUpon>addsapid.aspx</DependentUpon>
     </Compile>
     <Compile Include="usermgm\addsapid.aspx.vb">
       <DependentUpon>addsapid.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\login.aspx.designer.vb">
       <DependentUpon>login.aspx</DependentUpon>
@@ -435,28 +455,28 @@
     </Compile>
     <Compile Include="usermgm\logout.aspx.vb">
       <DependentUpon>logout.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\pwdchange.aspx.designer.vb">
       <DependentUpon>pwdchange.aspx</DependentUpon>
     </Compile>
     <Compile Include="usermgm\pwdchange.aspx.vb">
       <DependentUpon>pwdchange.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\rolemodify.aspx.designer.vb">
       <DependentUpon>rolemodify.aspx</DependentUpon>
     </Compile>
     <Compile Include="usermgm\rolemodify.aspx.vb">
       <DependentUpon>rolemodify.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\rolesetup.aspx.designer.vb">
       <DependentUpon>rolesetup.aspx</DependentUpon>
     </Compile>
     <Compile Include="usermgm\rolesetup.aspx.vb">
       <DependentUpon>rolesetup.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\userlist.aspx.designer.vb">
       <DependentUpon>userlist.aspx</DependentUpon>
@@ -470,63 +490,63 @@
     </Compile>
     <Compile Include="usermgm\usermodify.aspx.vb">
       <DependentUpon>usermodify.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="usermgm\useradd.aspx.designer.vb">
       <DependentUpon>useradd.aspx</DependentUpon>
     </Compile>
     <Compile Include="usermgm\useradd.aspx.vb">
       <DependentUpon>useradd.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\issuedwoinfo.aspx.designer.vb">
       <DependentUpon>issuedwoinfo.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\issuedwoinfo.aspx.vb">
       <DependentUpon>issuedwoinfo.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\moadd_sys.aspx.designer.vb">
       <DependentUpon>moadd_sys.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\moadd_sys.aspx.vb">
       <DependentUpon>moadd_sys.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\molist.aspx.designer.vb">
       <DependentUpon>molist.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\molist.aspx.vb">
       <DependentUpon>molist.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\pcmaterial.aspx.designer.vb">
       <DependentUpon>pcmaterial.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\pcmaterial.aspx.vb">
       <DependentUpon>pcmaterial.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\wostamodify.aspx.designer.vb">
       <DependentUpon>wostamodify.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\wostamodify.aspx.vb">
       <DependentUpon>wostamodify.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\wostatus.aspx.designer.vb">
       <DependentUpon>wostatus.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\wostatus.aspx.vb">
       <DependentUpon>wostatus.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="wo\wolist.aspx.designer.vb">
       <DependentUpon>wolist.aspx</DependentUpon>
     </Compile>
     <Compile Include="wo\wolist.aspx.vb">
       <DependentUpon>wolist.aspx</DependentUpon>
-      <SubType>ASPXCodebehind</SubType>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -539,6 +559,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="App_Data\ExpenseClaimTransactionConfig.json" />
+    <Content Include="jFonts\kaiu.ttf" />
+    <Content Include="jFonts\msjh.ttc" />
+    <Content Include="jFonts\msjhbd.ttc" />
+    <Content Include="jFonts\msjhl.ttc" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>
@@ -570,7 +594,6 @@
   <ItemGroup>
     <Folder Include="App_Code\" />
     <Folder Include="attachfile\" />
-    <Folder Include="image\" />
     <Folder Include="renderdir\" />
   </ItemGroup>
   <ItemGroup>
@@ -615,7 +638,7 @@
     <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <PropertyGroup>
-    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">16.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.VisualBasic.targets" />
@@ -638,6 +661,6 @@
     </VisualStudio>
   </ProjectExtensions>
   <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets')" />
-  <Import Project="$(ProgramFiles(x86))\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(ProgramFiles(x86))\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets')" />
+  <Import Project="$(ProgramFiles(x86))\Microsoft Visual Studio\2019\Professional\MSBuild\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets" Condition="Exists('$(ProgramFiles(x86))\Microsoft Visual Studio\2019\Professional\MSBuild\Microsoft\VisualStudio\v16.0\WebApplications\Microsoft.WebApplication.targets')" />
 </Project>

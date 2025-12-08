@@ -10,10 +10,10 @@ Partial Public Class login
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         If (Not IsPostBack) Then
+            ' [修改] 移除 C01 ICT / C02 AOI 選項，此版本不使用生產製造功能
             DDLWhs.Items.Clear()
-            DDLWhs.Items.Add("C01 ICT")
-            DDLWhs.Items.Add("C02 AOI")
-            DDLWhs.SelectedIndex = 1
+            DDLWhs.Items.Add("JET")  ' 預設選項
+            DDLWhs.SelectedIndex = 0
             Dim actmode, uid, agnid, inchargeid As String
             Dim docnum As Long
             Dim formstatusindex, formtypeindex, sfid As Integer

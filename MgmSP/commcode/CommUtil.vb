@@ -7,7 +7,16 @@ Imports iTextSharp.text.pdf
 Imports AjaxControlToolkit
 Public Class CommUtil
     Inherits System.Web.UI.Page
-    Public oCompany As New SAPbobsCOM.Company
+    ' [修改] 延遲載入 SAP COM 物件，避免在未安裝 DI API 的環境啟動失敗
+    Private _oCompany As SAPbobsCOM.Company = Nothing
+    Public ReadOnly Property oCompany As SAPbobsCOM.Company
+        Get
+            If _oCompany Is Nothing Then
+                _oCompany = New SAPbobsCOM.Company()
+            End If
+            Return _oCompany
+        End Get
+    End Property
     Public connsap, conn As New SqlConnection
     Public SqlCmd As String
     Public dr, dr1, drsap As SqlDataReader

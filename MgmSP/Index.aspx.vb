@@ -30,21 +30,22 @@ Partial Public Class WebForm1
         If (act = "modifypwd") Then
             CommUtil.ShowMsg(Me, "修改密碼成功")
         End If
-        perm = CommUtil.GetAssignRight("sg300", Session("s_id"))
-        If (InStr(perm, "m") Or InStr(perm, "n") Or InStr(perm, "d")) Then
-            str = Split(CommSignOff.ArchiveCheck(), "-")
-            If (str(0) <> 0 And str(1) <> 0) Then
-                SqlCmd = "select T0.sfname from [dbo].[@XSFTT] T0 " & 'XSFTT 簽核表單種類
-                        "where T0.sfid=" & str(0)
-                drL = CommUtil.SelectSapSqlUsingDr(SqlCmd, connL)
-                If (drL.HasRows) Then
-                    drL.Read()
-                    CommUtil.ShowMsg(Me, "簽核表單(" & drL(0) & ")設定歸檔屬性有" & str(2) & "個,但發現有" & str(1) & "個未設定部門排除,請前往簽核管理設定")
-                End If
-                drL.Close()
-                connL.Close()
-            End If
-        End If
+        ' [移除] 生產管理簽核功能，此版本不使用 SAP 簽核資料表 (@XSPMT, @XSDET, @XSFTT)
+        ' perm = CommUtil.GetAssignRight("sg300", Session("s_id"))
+        ' If (InStr(perm, "m") Or InStr(perm, "n") Or InStr(perm, "d")) Then
+        '     str = Split(CommSignOff.ArchiveCheck(), "-")
+        '     If (str(0) <> 0 And str(1) <> 0) Then
+        '         SqlCmd = "select T0.sfname from [dbo].[@XSFTT] T0 " & 'XSFTT 簽核表單種類
+        '                 "where T0.sfid=" & str(0)
+        '         drL = CommUtil.SelectSapSqlUsingDr(SqlCmd, connL)
+        '         If (drL.HasRows) Then
+        '             drL.Read()
+        '             CommUtil.ShowMsg(Me, "簽核表單(" & drL(0) & ")設定歸檔屬性有" & str(2) & "個,但發現有" & str(1) & "個未設定部門排除,請前往簽核管理設定")
+        '         End If
+        '         drL.Close()
+        '         connL.Close()
+        '     End If
+        ' End If
         'SqlCmd = "update [dbo].[@UPSP] set " &
         '"u_shiploc='台北發貨'"
         'CommUtil.SqlSapExecute("upd", SqlCmd, connL)

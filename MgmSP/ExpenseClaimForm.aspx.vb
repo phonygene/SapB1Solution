@@ -184,14 +184,15 @@ Partial Public Class ExpenseClaimForm
         txtOwner.Text = currentUserId
         ' If ddlPurchaser.Items.Count > 0 Then ddlPurchaser.SelectedValue = currentUserId
         If ddlPurchaser.SelectedIndex = -1 AndAlso ddlPurchaser.Items.Count > 0 Then ddlPurchaser.SelectedIndex = 0
-        lblDocStatus.Text = "草稿"
-        lblDocStatus.CssClass = "badge status-P"
-        txtStatusDisplay.Text = "草稿"
+        ' [B] 新單據直接顯示為「新增中」，送出後即為待審核
+        lblDocStatus.Text = "新增中"
+        lblDocStatus.CssClass = "badge status-W"
+        txtStatusDisplay.Text = "新增中"
 
         Dim today As String = DateTime.Now.ToString("yyyy-MM-dd")
-        txtDocDate.Text = today
-        txtTaxDate.Text = today
-        txtDocDueDate.Text = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")
+        txtDocDate.Text = today      ' 過帳日期預設今天
+        txtTaxDate.Text = today      ' 文件日期預設今天
+        txtDocDueDate.Text = ""      ' 到期日預設空白
 
         If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
             ddlDocCurrency.SelectedValue = "NTD"
@@ -202,18 +203,18 @@ Partial Public Class ExpenseClaimForm
 
         ' 新增單據時，審核區塊預設唯讀且停用按鈕 (但保持顯示以確認版面)
         txtApprovalComments.ReadOnly = True
-        
+
         btnApprove.Visible = True
         btnApprove.Enabled = False
-        
+
         btnUpdateComment.Visible = True
         btnUpdateComment.Enabled = False
-        
+
         btnReject.Visible = True
         btnReject.Enabled = False
 
-        ' 按鈕狀態 (新增模式)
-        btnSave.Text = "暫存 (Draft)"
+        ' [B] 按鈕狀態 (新增模式) - 移除暫存草稿按鈕
+        btnSave.Visible = False
         btnDelete.Visible = False
     End Sub
 #End Region
@@ -578,12 +579,17 @@ Partial Public Class ExpenseClaimForm
         End Using
     End Sub
 
+    ''' <summary>
+    ''' [F] 匯率取得邏輯，加入日期範圍限制和警告
+    ''' </summary>
     Protected Sub ddlDocCurrency_SelectedIndexChanged(sender As Object, e As EventArgs)
         Dim curr As String = ddlDocCurrency.SelectedValue
         Dim rate As Decimal = 1D
+        Dim rateDate As DateTime? = Nothing
 
-        If curr = "TWD" Then
+        If curr = "TWD" OrElse curr = "NTD" Then
             txtDocRate.Text = "1.0"
+            hfRateDate.Value = DateTime.Today.ToString("yyyy-MM-dd")
         Else
             ' 取得 DocDate，若無值則預設為今天
             Dim docDate As DateTime = DateTime.Today
@@ -593,19 +599,32 @@ Partial Public Class ExpenseClaimForm
 
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT TOP 1 Rate FROM ORTT WHERE Currency=@Curr AND RateDate <= @DocDate ORDER BY RateDate DESC"
+                ' [F] 取得最近的匯率資料，同時取得匯率日期
+                Dim sql As String = "SELECT TOP 1 Rate, RateDate FROM ORTT WHERE Currency=@Curr AND RateDate <= @DocDate ORDER BY RateDate DESC"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@Curr", curr)
                     cmd.Parameters.AddWithValue("@DocDate", docDate)
-                    Dim res = cmd.ExecuteScalar()
-                    If res IsNot Nothing Then
-                        rate = Convert.ToDecimal(res)
-                        txtDocRate.Text = rate.ToString("F4")
-                    Else
-                        txtDocRate.Text = "1.0"
-                    End If
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            rate = Convert.ToDecimal(dr("Rate"))
+                            rateDate = Convert.ToDateTime(dr("RateDate"))
+                            txtDocRate.Text = rate.ToString("F4")
+                            hfRateDate.Value = rateDate.Value.ToString("yyyy-MM-dd")
+                        Else
+                            txtDocRate.Text = "1.0"
+                            hfRateDate.Value = ""
+                        End If
+                    End Using
                 End Using
             End Using
+
+            ' [F] 檢查匯率日期是否為當天
+            If rateDate.HasValue Then
+                Dim daysDiff As Integer = CInt((DateTime.Today - rateDate.Value).TotalDays)
+                If daysDiff > 0 Then
+                    ShowWarning(String.Format("提醒：匯率資料為 {0:yyyy-MM-dd}，距今已 {1} 天，請確認匯率是否正確。", rateDate.Value, daysDiff))
+                End If
+            End If
         End If
 
         ' 同步更新明細列的幣別與匯率
@@ -738,14 +757,38 @@ Partial Public Class ExpenseClaimForm
         Dim row As GridViewRow = CType(ddl.NamingContainer, GridViewRow)
         Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
 
-        If ddl.SelectedIndex > 0 Then
-            txtAcct.Text = ddl.SelectedItem.Attributes("data-acct")
+        If ddl.SelectedIndex > 0 AndAlso Not String.IsNullOrEmpty(ddl.SelectedValue) Then
+            ' ListItem.Attributes 在 PostBack 後會丟失，改用資料庫查詢
+            txtAcct.Text = GetAcctCodeByCategory(ddl.SelectedValue)
         Else
             txtAcct.Text = ""
         End If
 
         SyncGridDataToModel()
     End Sub
+
+    ''' <summary>
+    ''' 根據費用類別代碼查詢對應的會計科目代碼
+    ''' </summary>
+    Private Function GetAcctCodeByCategory(categoryCode As String) As String
+        If String.IsNullOrEmpty(categoryCode) Then Return ""
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode FROM expense_category WHERE CategoryCode = @CategoryCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@CategoryCode", categoryCode)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return result.ToString()
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 查詢失敗時返回空字串
+        End Try
+        Return ""
+    End Function
 
     Protected Sub txtDescription_TextChanged(sender As Object, e As EventArgs)
         SyncGridDataToModel()
@@ -953,8 +996,7 @@ Partial Public Class ExpenseClaimForm
 
         CurrentMDRLines = mdrLines
         BindMDRGrid()
-        ShowError("已產生 " & expenseLines.Count.ToString() & " 筆憑證明細，請填寫統一編號與憑證號碼")
-        lblMessage.ForeColor = System.Drawing.Color.Blue
+        ShowInfo("已產生 " & expenseLines.Count.ToString() & " 筆憑證明細，請填寫統一編號與憑證號碼")
     End Sub
 
     Private Sub BindMDRGrid()
@@ -1028,28 +1070,27 @@ Partial Public Class ExpenseClaimForm
 
     Protected Sub txtXBLNR_TextChanged(sender As Object, e As EventArgs)
         ' 當發票號碼改變時，自動判斷類型
+        hfActiveTab.Value = "mdr" ' 保持在 MDR 頁籤
+        
         Dim txt As TextBox = CType(sender, TextBox)
         Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
         Dim ddlZForm As DropDownList = CType(row.FindControl("ddlZFORM_CODE"), DropDownList)
 
-        Dim invNum As String = txt.Text.Trim()
+        Dim invNum As String = txt.Text.Trim().ToUpper()
         Dim formCode As String = "99" ' Default: 其他
+        Dim needWarning As Boolean = False
+        Dim prefix As String = "" ' 發票字軌 (前2碼)
 
-        ' 判斷邏輯
-        ' 1. 統一發票: 2碼英文 + 8碼數字
-        ' 2. 海關報關單: 3碼英文
-        ' 3. 高鐵票: 數字
-        ' 4. 公營事業: BB或BBN
-        ' 5. 其他: 警告
-
+        ' 判斷是否符合統一發票格式: 2碼英文 + 8碼數字
         If System.Text.RegularExpressions.Regex.IsMatch(invNum, "^[A-Z]{2}\d{8}$") Then
-            formCode = "21"
+            prefix = invNum.Substring(0, 2)
+            formCode = GetFormCodeByPrefix(prefix, needWarning)
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^[A-Z]{3}") Then
-            formCode = "28"
+            formCode = "28" ' 海關報關單
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^(BB|BBN)") Then
-            formCode = "22"
+            formCode = "22" ' 公營事業
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^\d+$") Then
-            formCode = "24"
+            formCode = "24" ' 高鐵票/車票
         Else
             formCode = "99"
         End If
@@ -1060,8 +1101,81 @@ Partial Public Class ExpenseClaimForm
             End If
         End If
 
+        ' 如果需要警告（字軌不在當年度表中）
+        If needWarning AndAlso Not String.IsNullOrEmpty(prefix) Then
+            ' 使用 JavaScript confirm 彈窗
+            Dim script As String = String.Format(
+                "if(!confirm('發票字軌 {0} 不在114年度發票字軌表中，是否仍要使用此字軌？')) {{ document.getElementById('{1}').value = ''; }}", 
+                prefix, txt.ClientID)
+            ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "invWarning_" & txt.ClientID, script, True)
+        End If
+
         SyncMDRGridToModel()
     End Sub
+
+
+    ''' <summary>
+    ''' 根據發票字軌取得對應的憑證類型代碼
+    ''' 114年度發票字軌對照表
+    ''' </summary>
+    Private Function GetFormCodeByPrefix(prefix As String, ByRef needWarning As Boolean) As String
+        needWarning = False
+        
+        ' 114年度 甲種統一發票字軌 (三聯式手開) -> 21
+        Dim typeA As String() = {
+            "HT", "HU", "KT", "KU", "MT", "MU", 
+            "PT", "PU", "RT", "RU", "TT", "TU"
+        }
+        
+        ' 114年度 乙種統一發票字軌 (二聯式手開) -> 22
+        Dim typeB As String() = {
+            "HV", "HW", "HX", "KV", "KW", "KX", 
+            "MV", "MW", "MX", "PV", "PW", "PX", 
+            "RV", "RW", "RX", "TV", "TW", "TX"
+        }
+        
+        ' 114年度 丙種統一發票字軌 (收銀機) -> 22
+        Dim typeC As String() = {
+            "HY", "KY", "MY", "PY", "RY", "TY"
+        }
+        
+        ' 114年度 丁種統一發票字軌 (電子發票) -> 25
+        ' 期別1-2月: HZ, JA-JV, JW-KS
+        ' 期別3-4月: KZ, LA-LV, LW-MS
+        ' 期別5-6月: MZ, NA-NV, NW-PS
+        ' 期別7-8月: PZ, QA-QV, QW-RS
+        ' 期別9-10月: RZ, SA-SV, SW-TS
+        ' 期別11-12月: TZ, UA-UV, UW-VS
+        Dim typeD As String() = {
+            "HZ", "JA", "JB", "JC", "JD", "JE", "JF", "JG", "JH", "JJ", "JK", "JL", "JM", "JN", "JP", "JQ", "JR", "JS", "JT", "JU", "JV",
+            "JW", "JX", "JY", "JZ", "KA", "KB", "KC", "KD", "KE", "KF", "KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP", "KQ", "KR", "KS",
+            "KZ", "LA", "LB", "LC", "LD", "LE", "LF", "LG", "LH", "LJ", "LK", "LL", "LM", "LN", "LP", "LQ", "LR", "LS", "LT", "LU", "LV",
+            "LW", "LX", "LY", "LZ", "MA", "MB", "MC", "MD", "ME", "MF", "MG", "MH", "MJ", "MK", "ML", "MM", "MN", "MP", "MQ", "MR", "MS",
+            "MZ", "NA", "NB", "NC", "ND", "NE", "NF", "NG", "NH", "NJ", "NK", "NL", "NM", "NN", "NP", "NQ", "NR", "NS", "NT", "NU", "NV",
+            "NW", "NX", "NY", "NZ", "PA", "PB", "PC", "PD", "PE", "PF", "PG", "PH", "PJ", "PK", "PL", "PM", "PN", "PP", "PQ", "PR", "PS",
+            "PZ", "QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH", "QJ", "QK", "QL", "QM", "QN", "QP", "QQ", "QR", "QS", "QT", "QU", "QV",
+            "QW", "QX", "QY", "QZ", "RA", "RB", "RC", "RD", "RE", "RF", "RG", "RH", "RJ", "RK", "RL", "RM", "RN", "RP", "RQ", "RR", "RS",
+            "RZ", "SA", "SB", "SC", "SD", "SE", "SF", "SG", "SH", "SJ", "SK", "SL", "SM", "SN", "SP", "SQ", "SR", "SS", "ST", "SU", "SV",
+            "SW", "SX", "SY", "SZ", "TA", "TB", "TC", "TD", "TE", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TP", "TQ", "TR", "TS",
+            "TZ", "UA", "UB", "UC", "UD", "UE", "UF", "UG", "UH", "UJ", "UK", "UL", "UM", "UN", "UP", "UQ", "UR", "US", "UT", "UU", "UV",
+            "UW", "UX", "UY", "UZ", "VA", "VB", "VC", "VD", "VE", "VF", "VG", "VH", "VJ", "VK", "VL", "VM", "VN", "VP", "VQ", "VR", "VS"
+        }
+
+        
+        ' 檢查各類型
+        If typeA.Contains(prefix) Then
+            Return "21" ' 甲種 -> 三聯式統一發票
+        ElseIf typeB.Contains(prefix) OrElse typeC.Contains(prefix) Then
+            Return "22" ' 乙種/丙種 -> 二聯式/收銀機發票
+        ElseIf typeD.Contains(prefix) Then
+            Return "25" ' 丁種 -> 電子發票
+        Else
+            ' 不在114年度字軌表中
+            needWarning = True
+            Return "99" ' 其他
+        End If
+    End Function
+
 #End Region
 
 #Region "總計與表尾"
@@ -1077,11 +1191,24 @@ Partial Public Class ExpenseClaimForm
 #End Region
 
 #Region "存檔與讀取"
+    ''' <summary>
+    ''' [B] 暫存按鈕 - 已移除草稿狀態，此按鈕保留供編輯已退回的單據使用
+    ''' 退回的單據可以修改後再次送審
+    ''' </summary>
     Protected Sub btnSave_Click(sender As Object, e As EventArgs)
         If Not ValidateAll() Then Return
-        SaveDocument("P") ' P = 草稿
+        ' 若是被退回的單據 (R)，則儲存時維持退回狀態，等待使用者修改後重新送審
+        ' 若是待審核的單據 (W)，則維持待審核狀態
+        Dim currentStatus As String = txtApprovalStatus.Text
+        If String.IsNullOrEmpty(currentStatus) OrElse currentStatus = "P" Then
+            currentStatus = "W" ' 新單據直接改為待審核
+        End If
+        SaveDocument(currentStatus)
     End Sub
 
+    ''' <summary>
+    ''' [B] 儲存並送審 - 直接進入待審核狀態
+    ''' </summary>
     Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)
         If Not ValidateAll() Then Return
         SaveDocument("W") ' W = 待審核
@@ -1099,8 +1226,22 @@ Partial Public Class ExpenseClaimForm
         End Set
     End Property
 
+    ''' <summary>
+    ''' [A] 放行時的金額不一致警告確認狀態
+    ''' </summary>
+    Private Property ApprovalWarningConfirmed As Boolean
+        Get
+            If ViewState("ApprovalWarningConfirmed") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("ApprovalWarningConfirmed"))
+        End Get
+        Set(value As Boolean)
+            ViewState("ApprovalWarningConfirmed") = value
+        End Set
+    End Property
+
     Private Function ValidateAll() As Boolean
         Dim isValid As Boolean = True
+        Dim warnings As New List(Of String)()
         lblMessage.Text = ""
 
         If String.IsNullOrEmpty(txtCardCode.Text) Then
@@ -1121,17 +1262,63 @@ Partial Public Class ExpenseClaimForm
             isValid = False
         End If
 
+        ' 文件日期 (TaxDate) 驗證
+        If String.IsNullOrEmpty(txtTaxDate.Text) Then
+            lblErrTaxDate.Text = "必填"
+            lblErrTaxDate.Visible = True
+            isValid = False
+        End If
+
         ' 明細檢查
         If CurrentLines.Count = 0 AndAlso CurrentMDRLines.Count = 0 Then
             ShowError("請至少新增一筆費用明細或憑證明細")
             isValid = False
         End If
 
+        ' 單據總額檢查
+        Dim docTotal As Decimal = 0
+        Decimal.TryParse(lblDocTotalWithTax.Text.Replace(",", ""), docTotal)
+        If docTotal <= 0 Then
+            ShowError("單據總額不可為0，請確認費用明細金額")
+            isValid = False
+        End If
+
+        ' [A] 費用明細與憑證明細金額一致性警告 (警告但不卡死)
+        If CurrentLines.Count > 0 AndAlso CurrentMDRLines.Count > 0 Then
+            Dim expenseTotal As Decimal = CurrentLines.Sum(Function(x) x.LineTotal)
+            Dim expenseVatSum As Decimal = CurrentLines.Sum(Function(x) x.VatSum)
+            Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
+            Dim mdrVatSum As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
+
+            If Math.Abs(expenseTotal - mdrTotal) > 0.01D Then
+                warnings.Add(String.Format("費用明細未稅總額 ({0:N2}) 與憑證明細未稅總額 ({1:N2}) 不一致", expenseTotal, mdrTotal))
+            End If
+            If Math.Abs(expenseVatSum - mdrVatSum) > 0.01D Then
+                warnings.Add(String.Format("費用明細稅額 ({0:N2}) 與憑證明細稅額 ({1:N2}) 不一致", expenseVatSum, mdrVatSum))
+            End If
+        End If
+
+        ' [F] 匯率日期檢查 (警告但不卡死)
+        Dim curr As String = ddlDocCurrency.SelectedValue
+        If curr <> "TWD" AndAlso curr <> "NTD" Then
+            If Not String.IsNullOrEmpty(hfRateDate.Value) Then
+                Dim rateDate As DateTime
+                If DateTime.TryParse(hfRateDate.Value, rateDate) Then
+                    Dim daysDiff As Integer = CInt((DateTime.Today - rateDate).TotalDays)
+                    If daysDiff > 0 Then
+                        warnings.Add(String.Format("匯率資料為 {0:yyyy-MM-dd}，距今已 {1} 天", rateDate, daysDiff))
+                    End If
+                End If
+            ElseIf String.IsNullOrEmpty(hfRateDate.Value) AndAlso txtDocRate.Text <> "1.0" Then
+                warnings.Add("無法確認匯率日期，請確認匯率是否正確")
+            End If
+        End If
+
         ' 檢查憑證明細是否有空白的統一編號或憑證號碼 (除非是「99-其他」類型)
         Dim emptyVoucherLines = CurrentMDRLines.Where(Function(x) _
             (String.IsNullOrEmpty(x.U_STCEG) OrElse String.IsNullOrEmpty(x.U_XBLNR)) _
             AndAlso x.U_ZFORM_CODE <> "99")
-        
+
         If emptyVoucherLines.Any() Then
             ShowError("憑證明細有空白的統一編號或憑證號碼，請填寫完整。若為非發票類憑證，請選擇憑證類型為「其他」。")
             isValid = False
@@ -1140,9 +1327,13 @@ Partial Public Class ExpenseClaimForm
         ' 檢查是否有 "99-其他" 類型的發票且未確認
         Dim hasOtherType As Boolean = CurrentMDRLines.Any(Function(x) x.U_ZFORM_CODE = "99")
         If hasOtherType AndAlso Not WarningConfirmed Then
-            ShowError("警告：有「其他」類型的單據，請確認格式是否正確。若確定要新增，請再次點擊儲存/送出。")
-            lblMessage.ForeColor = System.Drawing.Color.Orange
-            WarningConfirmed = True ' 設定已確認旗標
+            warnings.Add("有「其他」類型的單據，請確認格式是否正確")
+        End If
+
+        ' 顯示警告 (不阻止儲存，但需確認)
+        If warnings.Count > 0 AndAlso Not WarningConfirmed Then
+            ShowWarning("警告：" & String.Join("；", warnings) & "。若確定要繼續，請再次點擊儲存/送出。")
+            WarningConfirmed = True
             isValid = False
         End If
 
@@ -1165,10 +1356,10 @@ Partial Public Class ExpenseClaimForm
                             ' Insert
                             Dim sqlH As String = "INSERT INTO jOPCH (CardCode, CardName, NumAtCard, InvNum, DeliveryAddrID, AddressName, Address, " &
                                                "DocDate, DocDueDate, TaxDate, DocCurrency, DocRate, DocTotal, VatSum, " &
-                                               "GroupNum, Comments, ApprovalStatus, CreateBy, CreateDate, U_PID, SlpCode) " &
+                                               "GroupNum, PymntGroup, Comments, ApprovalStatus, CreateBy, CreateDate, U_PID, SlpCode) " &
                                                "VALUES (@CardCode, @CardName, @NumAtCard, @InvNum, @DeliveryAddrID, @AddressName, @Address, " &
                                                "@DocDate, @DocDueDate, @TaxDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, " &
-                                               "@GroupNum, @Comments, @Status, @User, GETDATE(), @UPID, @SlpCode); " &
+                                               "@GroupNum, @PymntGroup, @Comments, @Status, @User, GETDATE(), @UPID, @SlpCode); " &
                                                "SELECT SCOPE_IDENTITY();"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
@@ -1190,7 +1381,7 @@ Partial Public Class ExpenseClaimForm
                                                "DeliveryAddrID=@DeliveryAddrID, AddressName=@AddressName, Address=@Address, " &
                                                "DocDate=@DocDate, DocDueDate=@DocDueDate, TaxDate=@TaxDate, DocCurrency=@DocCurrency, " &
                                                "DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, " &
-                                               "GroupNum=@GroupNum, Comments=@Comments, ApprovalStatus=@Status, " &
+                                               "GroupNum=@GroupNum, PymntGroup=@PymntGroup, Comments=@Comments, ApprovalStatus=@Status, " &
                                                "UpdateBy=@User, UpdateDate=GETDATE(), U_PID=@UPID, SlpCode=@SlpCode WHERE DocEntry=@ID"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
@@ -1285,30 +1476,33 @@ Partial Public Class ExpenseClaimForm
                             Next
                         End If
 
-                        ' Update U_LastCur in OCRD if needed
+                        ' Update U_LastCur in OCRD if needed (選用功能)
                         ' (若表頭幣別為多幣別的業務夥伴，每次新增單據時更新 U_LastCur)
-                        ' 這裡簡化邏輯：直接嘗試更新，若 U_LastCur 不存在會報錯，但我們假設已建立
+                        ' 注意：需要先在 SAP 中建立 OCRD.U_LastCur UDF，否則會跳過此功能
                         If ddlDocCurrency.Enabled Then ' 表示該業務夥伴為多幣別 (##)
-                            Dim sqlUpdCur As String = "UPDATE OCRD SET U_LastCur = @Curr WHERE CardCode = @CardCode"
-                            Using cmd As New SqlCommand(sqlUpdCur, conn, trans)
-                                ' 注意：OCRD 在 SAP DB，這裡 conn 是 jtdb...
-                                ' 跨庫交易較複雜，我們可能需要另開連線到 SAP DB，但不參與此 Transaction (風險可接受)
-                            End Using
-
-                            ' 分開執行 SAP DB Update
-                            Using sapConn As New SqlConnection(sapConnStr)
-                                sapConn.Open()
-                                Using cmdSap As New SqlCommand(sqlUpdCur, sapConn)
-                                    cmdSap.Parameters.AddWithValue("@Curr", ddlDocCurrency.SelectedValue)
-                                    cmdSap.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
-                                    cmdSap.ExecuteNonQuery()
+                            Try
+                                Dim sqlUpdCur As String = "UPDATE OCRD SET U_LastCur = @Curr WHERE CardCode = @CardCode"
+                                Using sapConn As New SqlConnection(sapConnStr)
+                                    sapConn.Open()
+                                    Using cmdSap As New SqlCommand(sqlUpdCur, sapConn)
+                                        cmdSap.Parameters.AddWithValue("@Curr", ddlDocCurrency.SelectedValue)
+                                        cmdSap.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
+                                        cmdSap.ExecuteNonQuery()
+                                    End Using
                                 End Using
-                            End Using
+                            Catch ex As Exception
+                                ' U_LastCur UDF 可能不存在，忽略此錯誤 (非核心功能)
+                            End Try
                         End If
 
                         trans.Commit()
-                        lblMessage.Text = "儲存成功"
+                        ShowSuccess("儲存成功")
                         lblDocNum.Text = currentDocEntry.ToString()
+
+                        ' [E] 記錄稽核日誌 (非阻塞)
+                        Dim action As String = If(jID = currentDocEntry, AuditLogger.Actions.Create, AuditLogger.Actions.Update)
+                        AuditLogger.Log("jOPCH", currentDocEntry, action, currentUserId,
+                                        changes:=String.Format("Status={0}, Total={1}", status, lblDocTotalWithTax.Text))
 
                         If Not isAutoSave Then
                             Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
@@ -1346,12 +1540,17 @@ Partial Public Class ExpenseClaimForm
                             ' Delete Header
                             cmd.CommandText = "DELETE FROM jOPCH WHERE DocEntry=@ID"
                             cmd.ExecuteNonQuery()
-                            
+
                             ' Delete Attachments
                             cmd.CommandText = "DELETE FROM jAttach WHERE jID=@ID"
                             cmd.ExecuteNonQuery()
 
                             trans.Commit()
+
+                            ' [E] 記錄刪除稽核日誌 (非阻塞)
+                            AuditLogger.Log("jOPCH", currentDocEntry, AuditLogger.Actions.Delete, currentUserId,
+                                            changes:=String.Format("CardCode={0}, Total={1}", txtCardCode.Text, lblDocTotalWithTax.Text))
+
                             Response.Redirect("Index.aspx")
                         Catch ex As Exception
                             trans.Rollback()
@@ -1377,14 +1576,19 @@ Partial Public Class ExpenseClaimForm
         cmd.Parameters.AddWithValue("@DeliveryAddrID", ddlDeliveryAddr.SelectedValue)
         cmd.Parameters.AddWithValue("@AddressName", ddlDeliveryAddr.SelectedItem.Text)
         cmd.Parameters.AddWithValue("@Address", txtAddress.Text)
-        cmd.Parameters.AddWithValue("@DocDate", txtDocDate.Text)
-        cmd.Parameters.AddWithValue("@DocDueDate", txtDocDueDate.Text)
-        cmd.Parameters.AddWithValue("@TaxDate", If(String.IsNullOrEmpty(txtTaxDate.Text), DBNull.Value, txtTaxDate.Text))
+        ' [H] 使用安全日期解析，確保格式一致性
+        Dim docDate As DateTime? = ParseDateSafe(txtDocDate.Text, DateTime.Today)
+        Dim docDueDate As DateTime? = ParseDateSafe(txtDocDueDate.Text, DateTime.Today.AddDays(30))
+        Dim taxDate As DateTime? = ParseDateSafe(txtTaxDate.Text)
+        cmd.Parameters.AddWithValue("@DocDate", If(docDate.HasValue, docDate.Value, DBNull.Value))
+        cmd.Parameters.AddWithValue("@DocDueDate", If(docDueDate.HasValue, docDueDate.Value, DBNull.Value))
+        cmd.Parameters.AddWithValue("@TaxDate", If(taxDate.HasValue, taxDate.Value, DBNull.Value))
         cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
         cmd.Parameters.AddWithValue("@DocRate", txtDocRate.Text)
         cmd.Parameters.AddWithValue("@DocTotal", Decimal.Parse(lblDocTotalWithTax.Text.Replace(",", "")))
         cmd.Parameters.AddWithValue("@VatSum", Decimal.Parse(lblVatSum.Text.Replace(",", "")))
         cmd.Parameters.AddWithValue("@GroupNum", ddlGroupNum.SelectedValue)
+        cmd.Parameters.AddWithValue("@PymntGroup", If(String.IsNullOrEmpty(txtPymntGroup.Text), DBNull.Value, txtPymntGroup.Text))
         cmd.Parameters.AddWithValue("@Comments", txtRemarks.Text)
         'cmd.Parameters.AddWithValue("@Attachment", If(String.IsNullOrEmpty(lblAttachment.Text), DBNull.Value, lblAttachment.Text))
         cmd.Parameters.AddWithValue("@Status", status)
@@ -1423,6 +1627,7 @@ Partial Public Class ExpenseClaimForm
                         txtDocRate.Text = dr("DocRate").ToString()
 
                         If Not IsDBNull(dr("GroupNum")) Then ddlGroupNum.SelectedValue = dr("GroupNum").ToString()
+                        If Not IsDBNull(dr("PymntGroup")) Then txtPymntGroup.Text = dr("PymntGroup").ToString()
                         txtRemarks.Text = dr("Comments").ToString()
 
                         'If Not IsDBNull(dr("Attachment")) Then
@@ -1477,9 +1682,9 @@ Partial Public Class ExpenseClaimForm
                 End Using
             End Using
 
-            ' Load Attachments (jAttach)
+            ' Load Attachments (jAttach) - [I] 只讀取未刪除的附件
             Dim attachList As New List(Of AttachmentItem)
-            sql = "SELECT * FROM jAttach WHERE jID=@ID ORDER BY UploadDate, UploadTime"
+            sql = "SELECT * FROM jAttach WHERE jID=@ID AND (IsDeleted=0 OR IsDeleted IS NULL) ORDER BY UploadDate, UploadTime"
             Using cmd As New SqlCommand(sql, conn)
                 cmd.Parameters.AddWithValue("@ID", id)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
@@ -1637,8 +1842,7 @@ Partial Public Class ExpenseClaimForm
                 
                 CurrentAttachments = list
                 BindAttachmentGrid()
-                lblMessage.Text = $"成功上傳 {successCount} 個檔案"
-                lblMessage.ForeColor = System.Drawing.Color.Blue
+                ShowSuccess($"成功上傳 {successCount} 個檔案")
 
             Catch ex As Exception
                 ShowError("上傳失敗: " & ex.Message)
@@ -1648,33 +1852,40 @@ Partial Public Class ExpenseClaimForm
         End If
     End Sub
 
+    ''' <summary>
+    ''' [I] 附件刪除改用 Soft Delete 機制
+    ''' </summary>
     Protected Sub gvAttachments_RowCommand(sender As Object, e As GridViewCommandEventArgs)
         If e.CommandName = "DeleteFile" Then
             Dim index As Integer = Convert.ToInt32(e.CommandArgument)
             Dim list = CurrentAttachments
-            
+
             If index < list.Count Then
                 Dim item = list(index)
-                
+
                 Try
-                    ' 刪除 DB
+                    ' [I] 改用 Soft Delete，不實際刪除資料
                     Using conn As New SqlConnection(connStr)
                         conn.Open()
-                        Dim sql As String = "DELETE FROM jAttach WHERE ID=@ID"
+                        Dim sql As String = "UPDATE jAttach SET IsDeleted=1, DeletedDate=GETDATE(), DeletedBy=@UserId WHERE ID=@ID"
                         Using cmd As New SqlCommand(sql, conn)
                             cmd.Parameters.AddWithValue("@ID", item.ID)
+                            cmd.Parameters.AddWithValue("@UserId", currentUserId)
                             cmd.ExecuteNonQuery()
                         End Using
                     End Using
-                    
-                    ' 刪除實體檔案 (可選，通常保留備份或標記刪除，這裡先不刪實體檔以防誤刪)
-                    ' Dim path As String = Server.MapPath("~/Uploads/Expense/" & item.FilePath)
-                    ' If File.Exists(path) Then File.Delete(path)
+
+                    ' 不刪除實體檔案，保留備份
+                    ' 可設定定期清理 Job 來處理 IsDeleted=1 且超過保留期限的檔案
+
+                    ' [E] 記錄刪除附件稽核日誌
+                    AuditLogger.Log("jAttach", currentDocEntry, AuditLogger.Actions.Delete, currentUserId,
+                                    changes:=String.Format("FileName={0}, FilePath={1}", item.FileName, item.FilePath))
 
                     list.RemoveAt(index)
                     CurrentAttachments = list
                     BindAttachmentGrid()
-                    lblMessage.Text = "附件已刪除"
+                    ShowSuccess("附件已刪除")
                 Catch ex As Exception
                     ShowError("刪除附件失敗: " & ex.Message)
                 End Try
@@ -1694,6 +1905,16 @@ Partial Public Class ExpenseClaimForm
             ShowError("無權限執行此操作")
             Return
         End If
+
+        ' [A] 放行時檢查金額一致性，顯示警告但不卡死
+        Dim warnings = CheckAmountConsistency()
+        If warnings.Count > 0 AndAlso Not ApprovalWarningConfirmed Then
+            ShowWarning("警告：" & String.Join("；", warnings) & "。若確定要放行，請再次點擊放行按鈕。")
+            ApprovalWarningConfirmed = True
+            Return
+        End If
+
+        ApprovalWarningConfirmed = False ' 重置
         UpdateStatus("A")
     End Sub
 
@@ -1722,20 +1943,45 @@ Partial Public Class ExpenseClaimForm
                     cmd.ExecuteNonQuery()
                 End Using
             End Using
-            ShowError("意見已更新") ' 用紅色顯示有點怪，但先這樣
-            lblMessage.ForeColor = System.Drawing.Color.Blue
+            ShowSuccess("意見已更新")
         Catch ex As Exception
             ShowError("更新失敗: " & ex.Message)
         End Try
     End Sub
 
-    Private Sub UpdateStatus(status As String)
+    ''' <summary>
+    ''' [B] 狀態轉換驗證與更新
+    ''' 狀態轉換規則：
+    ''' - W (待審) → A (核准) 或 R (駁回)
+    ''' - R (駁回) → W (待審)
+    ''' - A (核准) → 無 (終態)
+    ''' </summary>
+    Private Sub UpdateStatus(newStatus As String)
         Try
+            ' 先取得當前狀態
+            Dim currentStatus As String = ""
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Using cmd As New SqlCommand("SELECT ApprovalStatus FROM jOPCH WHERE DocEntry=@ID", conn)
+                    cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing Then
+                        currentStatus = result.ToString()
+                    End If
+                End Using
+            End Using
+
+            ' [B] 狀態轉換驗證
+            If Not IsValidStatusTransition(currentStatus, newStatus) Then
+                ShowError(String.Format("無效的狀態轉換：{0} → {1}", GetStatusText(currentStatus), GetStatusText(newStatus)))
+                Return
+            End If
+
             Using conn As New SqlConnection(connStr)
                 conn.Open()
                 Dim sql As String = "UPDATE jOPCH SET ApprovalStatus=@Status, ApprovedBy=@User, ApprovalDate=GETDATE(), ApprovalComments=@Comm WHERE DocEntry=@ID"
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@Status", status)
+                    cmd.Parameters.AddWithValue("@Status", newStatus)
                     cmd.Parameters.AddWithValue("@User", currentUserId)
                     cmd.Parameters.AddWithValue("@Comm", txtApprovalComments.Text)
                     cmd.Parameters.AddWithValue("@ID", currentDocEntry)
@@ -1743,8 +1989,16 @@ Partial Public Class ExpenseClaimForm
                 End Using
             End Using
 
+            ' [E] 記錄狀態變更稽核日誌 (非阻塞)
+            Dim auditAction As String = AuditLogger.Actions.StatusChange
+            If newStatus = "A" Then auditAction = AuditLogger.Actions.Approve
+            If newStatus = "R" Then auditAction = AuditLogger.Actions.Reject
+            AuditLogger.Log("jOPCH", currentDocEntry, auditAction, currentUserId,
+                            oldValue:=currentStatus, newValue:=newStatus,
+                            changes:=String.Format("{0} → {1}, Comment={2}", GetStatusText(currentStatus), GetStatusText(newStatus), txtApprovalComments.Text))
+
             ' 如果是放行 (A)，這裡應呼叫 SAP B1 API 建立 AP Invoice
-            If status = "A" Then
+            If newStatus = "A" Then
                 ' TODO: Call SAP B1 API & MDR Integration
                 ' CreateAPInvoiceInSAP(currentDocEntry)
             End If
@@ -1754,11 +2008,56 @@ Partial Public Class ExpenseClaimForm
             ShowError("更新狀態失敗: " & ex.Message)
         End Try
     End Sub
+
+    ''' <summary>
+    ''' [B] 驗證狀態轉換是否有效
+    ''' </summary>
+    Private Function IsValidStatusTransition(currentStatus As String, newStatus As String) As Boolean
+        Select Case currentStatus
+            Case "W" ' 待審核 → 可以放行(A)或駁回(R)
+                Return newStatus = "A" OrElse newStatus = "R"
+            Case "R" ' 駁回 → 可以重新送審(W)
+                Return newStatus = "W"
+            Case "A" ' 已核准 → 終態，不可變更
+                Return False
+            Case "P", "" ' 草稿或空 → 可以送審(W) - 相容舊資料
+                Return newStatus = "W"
+            Case Else
+                Return False
+        End Select
+    End Function
 #End Region
 #Region "輔助函式"
+    ''' <summary>
+    ''' [G] 顯示錯誤訊息 (紅色)
+    ''' </summary>
     Private Sub ShowError(msg As String)
         lblMessage.Text = msg
         lblMessage.ForeColor = System.Drawing.Color.Red
+    End Sub
+
+    ''' <summary>
+    ''' [G] 顯示成功訊息 (綠色)
+    ''' </summary>
+    Private Sub ShowSuccess(msg As String)
+        lblMessage.Text = msg
+        lblMessage.ForeColor = System.Drawing.Color.Green
+    End Sub
+
+    ''' <summary>
+    ''' [G] 顯示警告訊息 (橘色)
+    ''' </summary>
+    Private Sub ShowWarning(msg As String)
+        lblMessage.Text = msg
+        lblMessage.ForeColor = System.Drawing.Color.FromArgb(255, 152, 0) ' Orange
+    End Sub
+
+    ''' <summary>
+    ''' [G] 顯示資訊訊息 (藍色)
+    ''' </summary>
+    Private Sub ShowInfo(msg As String)
+        lblMessage.Text = msg
+        lblMessage.ForeColor = System.Drawing.Color.Blue
     End Sub
 
     Private Function GetVatRate(vatCode As String) As Decimal
@@ -1774,6 +2073,63 @@ Partial Public Class ExpenseClaimForm
             Case "R" : Return "駁回"
             Case Else : Return status
         End Select
+    End Function
+
+    ''' <summary>
+    ''' [A] 檢查費用明細與憑證明細金額一致性，回傳警告訊息列表
+    ''' </summary>
+    Private Function CheckAmountConsistency() As List(Of String)
+        Dim warnings As New List(Of String)()
+
+        If CurrentLines.Count > 0 AndAlso CurrentMDRLines.Count > 0 Then
+            Dim expenseTotal As Decimal = CurrentLines.Sum(Function(x) x.LineTotal)
+            Dim expenseVatSum As Decimal = CurrentLines.Sum(Function(x) x.VatSum)
+            Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
+            Dim mdrVatSum As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
+
+            If Math.Abs(expenseTotal - mdrTotal) > 0.01D Then
+                warnings.Add(String.Format("費用明細未稅總額 ({0:N2}) 與憑證明細未稅總額 ({1:N2}) 不一致", expenseTotal, mdrTotal))
+            End If
+            If Math.Abs(expenseVatSum - mdrVatSum) > 0.01D Then
+                warnings.Add(String.Format("費用明細稅額 ({0:N2}) 與憑證明細稅額 ({1:N2}) 不一致", expenseVatSum, mdrVatSum))
+            End If
+        End If
+
+        Return warnings
+    End Function
+
+    ''' <summary>
+    ''' [H] 安全解析日期字串，確保格式一致性
+    ''' 支援格式：yyyy-MM-dd, yyyy/MM/dd, MM/dd/yyyy 等常見格式
+    ''' </summary>
+    Private Function ParseDateSafe(dateStr As String, Optional defaultValue As DateTime? = Nothing) As DateTime?
+        If String.IsNullOrEmpty(dateStr) Then Return defaultValue
+
+        Dim result As DateTime
+        ' 嘗試使用精確格式解析
+        Dim formats As String() = {"yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy", "dd/MM/yyyy", "yyyyMMdd"}
+
+        If DateTime.TryParseExact(dateStr, formats, System.Globalization.CultureInfo.InvariantCulture,
+                                   System.Globalization.DateTimeStyles.None, result) Then
+            Return result
+        End If
+
+        ' 若精確格式失敗，嘗試一般解析
+        If DateTime.TryParse(dateStr, result) Then
+            Return result
+        End If
+
+        Return defaultValue
+    End Function
+
+    ''' <summary>
+    ''' [H] 格式化日期為標準字串格式 (yyyy-MM-dd)
+    ''' </summary>
+    Private Function FormatDate(dt As DateTime?) As String
+        If dt.HasValue Then
+            Return dt.Value.ToString("yyyy-MM-dd")
+        End If
+        Return ""
     End Function
 #End Region
 
