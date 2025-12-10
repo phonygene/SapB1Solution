@@ -3,6 +3,7 @@ Imports System.IO
 Imports System.Web
 Imports System.Web.Configuration
 Imports CrystalDecisions.CrystalReports.Engine
+Imports CrystalDecisions.Shared
 
 ''' <summary>
 ''' 費用申請單 Crystal Report PDF 匯出 Handler
@@ -94,14 +95,8 @@ Public Class ExpenseClaimReport
     ''' 匯出為 PDF 並寫入 Response
     ''' </summary>
     Private Sub ExportToPdfResponse(report As ReportDocument, context As HttpContext, jID As String)
-        ' 使用反射取得 ExportFormatType.PortableDocFormat 枚舉值
-        ' 這樣就不需要直接參考 CrystalDecisions.Shared 組件
-        Dim sharedAssembly As System.Reflection.Assembly = System.Reflection.Assembly.Load("CrystalDecisions.Shared, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304")
-        Dim exportFormatEnumType As Type = sharedAssembly.GetType("CrystalDecisions.Shared.ExportFormatType")
-        Dim pdfFormat As Object = [Enum].Parse(exportFormatEnumType, "PortableDocFormat")
-
         ' 匯出為 PDF Stream
-        Dim pdfStream As Stream = report.ExportToStream(pdfFormat)
+        Dim pdfStream As Stream = report.ExportToStream(ExportFormatType.PortableDocFormat)
 
         ' 輸出 PDF
         context.Response.Clear()

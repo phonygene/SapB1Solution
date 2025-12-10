@@ -1888,6 +1888,53 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     ''' <summary>
+    ''' 更新按鈕 - 在檢視模式下更新單據資料（PID、明細、備註等）
+    ''' 權限控制：
+    ''' - 草稿(P)/待審核(W)/駁回(R)：單據擁有者或審核者可更新完整資料
+    ''' - 已核准(A)：僅可更新備註欄
+    ''' </summary>
+    Protected Sub btnUpdate_Click(sender As Object, e As EventArgs)
+        If currentDocEntry = 0 Then
+            ShowError("無法更新：尚未儲存的單據")
+            Return
+        End If
+
+        Dim status As String = txtApprovalStatus.Text
+        Dim isOwner As Boolean = (txtOwner.Text = currentUserId)
+        Dim canEditFull As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        Dim isApproved As Boolean = (status = "A")
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+
+                If canEditFull Then
+                    ' 草稿/待審核/駁回：更新完整資料（維持原狀態）
+                    If SaveDocument(status) Then
+                        ShowSuccess("更新成功")
+                        LoadDocument(currentDocEntry)
+                    End If
+                ElseIf isApproved Then
+                    ' 已核准：僅更新備註欄
+                    Dim sql As String = "UPDATE jOPCH SET Comments=@Comments, UpdateBy=@User, UpdateDate=GETDATE() WHERE DocEntry=@ID"
+                    Using cmd As New SqlCommand(sql, conn)
+                        cmd.Parameters.AddWithValue("@Comments", txtRemarks.Text)
+                        cmd.Parameters.AddWithValue("@User", currentUserId)
+                        cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                        cmd.ExecuteNonQuery()
+                    End Using
+                    ShowSuccess("備註更新成功")
+                    LoadDocument(currentDocEntry)
+                Else
+                    ShowError("您沒有權限更新此單據")
+                End If
+            End Using
+        Catch ex As Exception
+            ShowError("更新失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    ''' <summary>
     ''' 匯出 PDF - 使用 Crystal Report 將費用申請單匯出為 PDF 格式
     ''' </summary>
     Protected Sub btnExportPDF_Click(sender As Object, e As EventArgs)
@@ -1903,51 +1950,103 @@ Partial Public Class ExpenseClaimForm
 
     ''' <summary>
     ''' 設定為檢視模式 (已存檔的單據)
+    ''' 依據狀態決定可編輯的欄位：
+    ''' - 草稿(P)/待審核(W)/駁回(R)：可編輯大部分欄位並更新
+    ''' - 已核准(A)：僅備註欄可編輯
     ''' </summary>
     Private Sub SetViewMode()
+        Dim status As String = txtApprovalStatus.Text
+        Dim isOwner As Boolean = (txtOwner.Text = currentUserId)
+        Dim canEdit As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        Dim isApproved As Boolean = (status = "A")
+
         ' 隱藏新增/編輯模式按鈕
         btnSubmit.Visible = False
         btnSave.Visible = False
         btnDelete.Visible = False
 
         ' 顯示檢視模式按鈕
+        btnUpdate.Visible = canEdit OrElse isApproved ' 只要能編輯備註就顯示更新按鈕
         btnExportPDF.Visible = True
         btnNewDocument.Visible = True
         btnCancel.Text = "返回列表"
 
-        ' 將所有輸入欄位設為唯讀
-        txtCardCode.ReadOnly = True
-        txtCardName.ReadOnly = True
-        txtNumAtCard.ReadOnly = True
-        txtDocDate.ReadOnly = True
-        txtDocDueDate.ReadOnly = True
-        txtTaxDate.ReadOnly = True
-        txtDocRate.ReadOnly = True
-        txtRemarks.ReadOnly = True
-        txtAddress.ReadOnly = True
-        txtPymntGroup.ReadOnly = True
+        ' ===== 備註欄：任何狀態都可編輯 =====
+        txtRemarks.ReadOnly = False
 
-        ' 停用下拉選單
-        ddlDeliveryAddr.Enabled = False
-        ddlDocCurrency.Enabled = False
-        ddlGroupNum.Enabled = False
-        ddlPurchaser.Enabled = False
+        If canEdit Then
+            ' ===== 草稿/待審核/駁回：允許編輯大部分欄位 =====
 
-        ' 停用供應商搜尋按鈕
-        btnSearchCardCode.Visible = False
-        btnSearchCardName.Visible = False
-        btnRefreshRate.Visible = False
+            ' 標頭欄位
+            txtCardCode.ReadOnly = False
+            txtCardName.ReadOnly = False
+            txtNumAtCard.ReadOnly = False
+            txtDocDate.ReadOnly = False
+            txtDocDueDate.ReadOnly = False
+            txtTaxDate.ReadOnly = False
+            txtDocRate.ReadOnly = False
+            txtAddress.ReadOnly = False
+            txtPymntGroup.ReadOnly = False
+            txtUPID.ReadOnly = False
 
-        ' 停用明細編輯按鈕
-        btnAddLine.Visible = False
-        btnDeleteLine.Visible = False
-        btnGenerateMDR.Visible = False
-        btnAddMDRRow.Visible = False
-        btnDeleteMDRRow.Visible = False
+            ' 下拉選單
+            ddlDeliveryAddr.Enabled = True
+            ddlDocCurrency.Enabled = True
+            ddlGroupNum.Enabled = True
+            ddlPurchaser.Enabled = True
 
-        ' 停用附件上傳
-        btnUpload.Visible = False
-        fileUpload.Visible = False
+            ' 供應商搜尋按鈕
+            btnSearchCardCode.Visible = True
+            btnSearchCardName.Visible = True
+            btnRefreshRate.Visible = True
+
+            ' 明細編輯按鈕
+            btnAddLine.Visible = True
+            btnDeleteLine.Visible = True
+            btnGenerateMDR.Visible = True
+            btnAddMDRRow.Visible = True
+            btnDeleteMDRRow.Visible = True
+
+            ' 附件上傳
+            btnUpload.Visible = True
+            fileUpload.Visible = True
+        Else
+            ' ===== 已核准或無權限：除備註外其他欄位唯讀 =====
+
+            ' 標頭欄位設為唯讀
+            txtCardCode.ReadOnly = True
+            txtCardName.ReadOnly = True
+            txtNumAtCard.ReadOnly = True
+            txtDocDate.ReadOnly = True
+            txtDocDueDate.ReadOnly = True
+            txtTaxDate.ReadOnly = True
+            txtDocRate.ReadOnly = True
+            txtAddress.ReadOnly = True
+            txtPymntGroup.ReadOnly = True
+            txtUPID.ReadOnly = True
+
+            ' 停用下拉選單
+            ddlDeliveryAddr.Enabled = False
+            ddlDocCurrency.Enabled = False
+            ddlGroupNum.Enabled = False
+            ddlPurchaser.Enabled = False
+
+            ' 停用供應商搜尋按鈕
+            btnSearchCardCode.Visible = False
+            btnSearchCardName.Visible = False
+            btnRefreshRate.Visible = False
+
+            ' 停用明細編輯按鈕
+            btnAddLine.Visible = False
+            btnDeleteLine.Visible = False
+            btnGenerateMDR.Visible = False
+            btnAddMDRRow.Visible = False
+            btnDeleteMDRRow.Visible = False
+
+            ' 停用附件上傳
+            btnUpload.Visible = False
+            fileUpload.Visible = False
+        End If
     End Sub
 
     ''' <summary>

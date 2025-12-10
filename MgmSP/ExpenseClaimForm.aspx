@@ -1023,6 +1023,8 @@
                                         OnClick="btnCancel_Click" CssClass="btn btn-secondary" />
 
                                     <!-- 檢視模式按鈕 -->
+                                    <asp:Button ID="btnUpdate" runat="server" Text="更新 (Update)"
+                                        OnClick="btnUpdate_Click" CssClass="btn btn-primary" Visible="false" />
                                     <asp:Button ID="btnExportPDF" runat="server" Text="匯出 PDF"
                                         OnClick="btnExportPDF_Click" CssClass="btn btn-info" Visible="false" />
                                     <asp:Button ID="btnNewDocument" runat="server" Text="新增新單據"
