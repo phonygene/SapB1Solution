@@ -914,7 +914,10 @@ Partial Public Class ExpenseClaimForm
 
     ''' <summary>
     ''' 根據費用項目代碼和使用者費用部門，從 EPI1 查詢對應的會計科目
-    ''' 邏輯: User.expDEPT -> jDEPT.ExpClass -> EPI1 (ExpItemCode + ExpClass) -> AcctCode, AcctName
+    ''' 邏輯:
+    ''' 1. 先檢查該費用項目是否有 ExpClass='公' 的科目（公共費用，不分部門）
+    ''' 2. 若有，直接使用「公」的科目
+    ''' 3. 若無，則依 User.expDEPT -> jDEPT.ExpClass -> EPI1 對照
     ''' </summary>
     Private Function GetAcctCodeByExpItem(expItemCode As String) As AcctInfo
         Dim result As New AcctInfo()
@@ -924,7 +927,24 @@ Partial Public Class ExpenseClaimForm
         If String.IsNullOrEmpty(expItemCode) Then Return result
 
         Try
-            ' 步驟1: 取得使用者的 expDEPT
+            ' 步驟1: 先檢查是否為公共費用項目（ExpClass='公'）
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode, AcctName FROM EPI1 WHERE ExpItemCode = @ExpItemCode AND ExpClass = N'公'"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ExpItemCode", expItemCode)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            ' 找到「公」的科目，直接返回
+                            result.AcctCode = If(dr("AcctCode") IsNot DBNull.Value, dr("AcctCode").ToString(), "")
+                            result.AcctName = If(dr("AcctName") IsNot DBNull.Value, dr("AcctName").ToString(), "")
+                            Return result
+                        End If
+                    End Using
+                End Using
+            End Using
+
+            ' 步驟2: 非公共費用，取得使用者的 expDEPT
             Dim userExpDept As String = ""
             Using conn As New SqlConnection(connStr)
                 conn.Open()
@@ -940,7 +960,7 @@ Partial Public Class ExpenseClaimForm
 
             If String.IsNullOrEmpty(userExpDept) Then Return result
 
-            ' 步驟2: 從 jDEPT 取得 ExpClass
+            ' 步驟3: 從 jDEPT 取得 ExpClass
             Dim expClass As String = ""
             Using conn As New SqlConnection(connStr)
                 conn.Open()
@@ -956,7 +976,7 @@ Partial Public Class ExpenseClaimForm
 
             If String.IsNullOrEmpty(expClass) Then Return result
 
-            ' 步驟3: 從 EPI1 查詢會計科目
+            ' 步驟4: 從 EPI1 查詢會計科目
             Using conn As New SqlConnection(connStr)
                 conn.Open()
                 Dim sql As String = "SELECT AcctCode, AcctName FROM EPI1 WHERE ExpItemCode = @ExpItemCode AND ExpClass = @ExpClass"
