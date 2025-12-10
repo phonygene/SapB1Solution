@@ -365,6 +365,15 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents btnDeleteLine As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
+    '''btnGenerateMDR 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnGenerateMDR As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''fileUpload 控制項。
     '''</summary>
     '''<remarks>
@@ -536,6 +545,24 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents btnCancel As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
+    '''btnExportPDF 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnExportPDF As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnNewDocument 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnNewDocument As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''lblMessage 控制項。
     '''</summary>
     '''<remarks>
@@ -669,4 +696,84 @@ Partial Public Class ExpenseClaimForm
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents gvVendorSearch As Global.System.Web.UI.WebControls.GridView
+
+    '''<summary>
+    '''btnValidationDummy 控制項。
+    '''</summary>
+    Protected WithEvents btnValidationDummy As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''mpeValidation 控制項。
+    '''</summary>
+    Protected WithEvents mpeValidation As Global.AjaxControlToolkit.ModalPopupExtender
+
+    '''<summary>
+    '''pnlValidation 控制項。
+    '''</summary>
+    Protected WithEvents pnlValidation As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''divValidationHeader 控制項。
+    '''</summary>
+    Protected WithEvents divValidationHeader As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
+    '''btnValidationClose 控制項。
+    '''</summary>
+    Protected WithEvents btnValidationClose As Global.System.Web.UI.WebControls.LinkButton
+
+    '''<summary>
+    '''pnlErrors 控制項。
+    '''</summary>
+    Protected WithEvents pnlErrors As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''blErrors 控制項。
+    '''</summary>
+    Protected WithEvents blErrors As Global.System.Web.UI.WebControls.BulletedList
+
+    '''<summary>
+    '''pnlWarnings 控制項。
+    '''</summary>
+    Protected WithEvents pnlWarnings As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''blWarnings 控制項。
+    '''</summary>
+    Protected WithEvents blWarnings As Global.System.Web.UI.WebControls.BulletedList
+
+    '''<summary>
+    '''btnValidationBack 控制項。
+    '''</summary>
+    Protected WithEvents btnValidationBack As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnValidationConfirm 控制項。
+    '''</summary>
+    Protected WithEvents btnValidationConfirm As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnExpDeptDummy 控制項。
+    '''</summary>
+    Protected WithEvents btnExpDeptDummy As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''mpeExpDept 控制項。
+    '''</summary>
+    Protected WithEvents mpeExpDept As Global.AjaxControlToolkit.ModalPopupExtender
+
+    '''<summary>
+    '''pnlExpDept 控制項。
+    '''</summary>
+    Protected WithEvents pnlExpDept As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''ddlExpDeptSelect 控制項。
+    '''</summary>
+    Protected WithEvents ddlExpDeptSelect As Global.System.Web.UI.WebControls.DropDownList
+
+    '''<summary>
+    '''btnExpDeptConfirm 控制項。
+    '''</summary>
+    Protected WithEvents btnExpDeptConfirm As Global.System.Web.UI.WebControls.Button
 End Class

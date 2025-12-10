@@ -11,10 +11,10 @@
     <OutputType>Library</OutputType>
     <RootNamespace>MgmSP</RootNamespace>
     <AssemblyName>MgmSP</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <MyType>Custom</MyType>
     <OptionExplicit>On</OptionExplicit>
-    <OptionCompare>Binary</OptionCompare>
+    <OptionCompare>Text</OptionCompare>
     <OptionStrict>Off</OptionStrict>
     <OptionInfer>On</OptionInfer>
     <FileUpgradeFlags>
@@ -57,6 +57,21 @@
   <ItemGroup>
     <Reference Include="AjaxControlToolkit, Version=20.1.0.0, Culture=neutral, PublicKeyToken=28f01b0e84b6d53e, processorArchitecture=MSIL">
       <HintPath>..\packages\AjaxControlToolkit.20.1.0\lib\net40\AjaxControlToolkit.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportAppServer.ClientDoc, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportAppServer.CommLayer, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportAppServer.DataDefModel, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="CrystalDecisions.Shared, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="ExcelDataReader, Version=3.6.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
       <HintPath>..\packages\ExcelDataReader.3.6.0\lib\net20\ExcelDataReader.dll</HintPath>
@@ -123,6 +138,7 @@
     <Content Include="DownloadHandler.ashx" />
     <Content Include="ExpenseClaimForm.aspx" />
     <Content Include="ExpenseClaimList.aspx" />
+    <Content Include="ExpenseClaimReport.ashx" />
     <Content Include="fd\freport.aspx" />
     <Content Include="Global.asax" />
     <Content Include="hr\leave.aspx" />
@@ -139,6 +155,7 @@
     <Content Include="image\skip1.jpg" />
     <Content Include="invalid.aspx" />
     <Content Include="kkk.aspx" />
+    <Content Include="Maintenance.aspx" />
     <Content Include="pu\qv.aspx" />
     <Content Include="qc\iqc.aspx" />
     <Content Include="qc\qc.aspx" />
@@ -162,7 +179,6 @@
     <Content Include="usermgm\images\Logo.png" />
     <Content Include="usermgm\images\Logo.svg" />
     <Content Include="usermgm\rolesetup.aspx" />
-    <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="cnc\cncitems.aspx.designer.vb">
@@ -217,6 +233,10 @@
       <DependentUpon>DownloadHandler.ashx</DependentUpon>
       <SubType>ASPXCodebehind</SubType>
     </Compile>
+    <Compile Include="ExpenseClaimReport.ashx.vb">
+      <DependentUpon>ExpenseClaimReport.ashx</DependentUpon>
+      <SubType>ASPXCodebehind</SubType>
+    </Compile>
     <Compile Include="ExpenseClaimForm.aspx.designer.vb">
       <DependentUpon>ExpenseClaimForm.aspx</DependentUpon>
     </Compile>
@@ -269,6 +289,14 @@
       <DependentUpon>kkk.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="Maintenance.aspx.designer.vb">
+      <DependentUpon>Maintenance.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Maintenance.aspx.vb">
+      <DependentUpon>Maintenance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="MaintenanceHelper.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -563,6 +591,7 @@
     <Content Include="jFonts\msjh.ttc" />
     <Content Include="jFonts\msjhbd.ttc" />
     <Content Include="jFonts\msjhl.ttc" />
+    <Content Include="CrystalReport\費用申請單.rpt" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>
@@ -582,6 +611,7 @@
     <Content Include="usermgm\userlist.aspx" />
     <Content Include="usermgm\usermodify.aspx" />
     <Content Include="usermgm\useradd.aspx" />
+    <Content Include="Web.config" />
     <Content Include="wo\issuedwoinfo.aspx" />
     <Content Include="wo\moadd_sys.aspx" />
     <Content Include="wo\molist.aspx" />
@@ -590,9 +620,14 @@
     <Content Include="wo\wostatus.aspx" />
     <Content Include="wo\wolist.aspx" />
     <None Include="packages.config" />
+    <None Include="Web.Debug.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
+    <None Include="Web.Release.config">
+      <DependentUpon>Web.config</DependentUpon>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="App_Code\" />
     <Folder Include="attachfile\" />
     <Folder Include="renderdir\" />
   </ItemGroup>

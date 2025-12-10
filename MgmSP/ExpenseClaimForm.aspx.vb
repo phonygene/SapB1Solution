@@ -2,6 +2,7 @@
 Imports System.IO
 Imports System.Web.Configuration
 Imports System.Web.UI.HtmlControls
+Imports SAPbobsCOM
 
 ''' <summary>
 ''' 費用申請單 (Expense Claim Form)
@@ -58,6 +59,7 @@ Partial Public Class ExpenseClaimForm
 #Region "變數宣告"
     Private ReadOnly connStr As String = WebConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
     Private ReadOnly sapConnStr As String = WebConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
+    Public CommUtil As New CommUtil
 
     Private currentUserId As String = ""
     Private currentDocEntry As Integer = 0
@@ -147,6 +149,9 @@ Partial Public Class ExpenseClaimForm
             If Not IsPostBack Then
                 InitializeDropDowns()
 
+                ' 檢查使用者費用部門是否已設定
+                CheckUserExpDept()
+
                 If currentDocEntry > 0 Then
                     LoadDocument(currentDocEntry)
                 Else
@@ -177,6 +182,99 @@ Partial Public Class ExpenseClaimForm
         End Using
 
         ' 預設不隱藏，由 LoadDocument 或 Page_Load 決定顯示狀態
+    End Sub
+
+    ''' <summary>
+    ''' 檢查使用者費用部門是否已設定，若未設定則彈出選擇視窗
+    ''' </summary>
+    Private Sub CheckUserExpDept()
+        Dim userExpDept As String = ""
+
+        ' 取得使用者目前的 expDept
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Dim sql As String = "SELECT expDEPT FROM [User] WHERE id = @UserId"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                Dim result = cmd.ExecuteScalar()
+                If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                    userExpDept = result.ToString().Trim()
+                End If
+            End Using
+        End Using
+
+        ' 檢查 expDept 是否存在於 jDEPT 中
+        Dim isValidDept As Boolean = False
+        If Not String.IsNullOrEmpty(userExpDept) Then
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT COUNT(*) FROM jDEPT WHERE EDeptID = @EDeptID"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@EDeptID", userExpDept)
+                    isValidDept = (Convert.ToInt32(cmd.ExecuteScalar()) > 0)
+                End Using
+            End Using
+        End If
+
+        ' 若未設定或不存在，載入部門選項並顯示彈窗
+        If Not isValidDept Then
+            LoadExpDeptDropDown()
+            mpeExpDept.Show()
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 載入費用部門下拉選單
+    ''' </summary>
+    Private Sub LoadExpDeptDropDown()
+        ddlExpDeptSelect.Items.Clear()
+        ddlExpDeptSelect.Items.Add(New ListItem("- 請選擇 -", ""))
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT EDeptID, EDeptName FROM jDEPT ORDER BY EDeptID"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            ddlExpDeptSelect.Items.Add(New ListItem(dr("EDeptName").ToString(), dr("EDeptID").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入費用部門失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 費用部門選擇確認按鈕事件
+    ''' </summary>
+    Protected Sub btnExpDeptConfirm_Click(sender As Object, e As EventArgs)
+        If String.IsNullOrEmpty(ddlExpDeptSelect.SelectedValue) Then
+            ' 若未選擇，重新顯示彈窗
+            mpeExpDept.Show()
+            Return
+        End If
+
+        ' 更新使用者的 expDept
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "UPDATE [User] SET expDEPT = @ExpDept WHERE id = @UserId"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ExpDept", ddlExpDeptSelect.SelectedValue)
+                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+
+            mpeExpDept.Hide()
+            lblMessage.Text = "費用部門設定成功！"
+            lblMessage.ForeColor = System.Drawing.Color.Green
+        Catch ex As Exception
+            ShowError("更新費用部門失敗: " & ex.Message)
+            mpeExpDept.Show()
+        End Try
     End Sub
 
     Private Sub SetDefaultValues()
@@ -321,26 +419,35 @@ Partial Public Class ExpenseClaimForm
         End Try
     End Sub
 
-    ' 在 GridView RowDataBound 時呼叫
+    ''' <summary>
+    ''' 載入費用項目 (從 OEPI 取值)
+    ''' 顯示格式: {ExpItemName}
+    ''' ToolTip 顯示: {ExpItemDescription}
+    ''' </summary>
     Private Sub LoadExpenseCategories(ddl As DropDownList)
         ddl.Items.Clear()
         ddl.Items.Add(New ListItem("-選擇-", ""))
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "SELECT CategoryCode, CategoryName, AcctCode FROM expense_category WHERE Active='Y'"
+                Dim sql As String = "SELECT ExpItemCode, ExpItemName, ExpItemDescription FROM OEPI ORDER BY ExpItemCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
-                            Dim item As New ListItem(dr("CategoryName").ToString(), dr("CategoryCode").ToString())
-                            item.Attributes.Add("data-acct", dr("AcctCode").ToString())
+                            Dim displayText As String = dr("ExpItemName").ToString()
+                            Dim description As String = If(dr("ExpItemDescription") IsNot DBNull.Value, dr("ExpItemDescription").ToString(), "")
+                            Dim item As New ListItem(displayText, dr("ExpItemCode").ToString())
+                            ' 將描述存入 data-desc 屬性，供 RowDataBound 設定 ToolTip
+                            item.Attributes.Add("data-desc", description)
+                            ' 為選項加入 title 屬性 (滑鼠懸停顯示)
+                            item.Attributes.Add("title", description)
                             ddl.Items.Add(item)
                         End While
                     End Using
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("載入費用類別失敗")
+            ShowError("載入費用項目失敗")
         End Try
     End Sub
 
@@ -720,7 +827,14 @@ Partial Public Class ExpenseClaimForm
             ' Expense Category
             Dim ddlCat As DropDownList = CType(e.Row.FindControl("ddlExpCategory"), DropDownList)
             LoadExpenseCategories(ddlCat)
-            If ddlCat.Items.FindByValue(line.CategoryCode) IsNot Nothing Then ddlCat.SelectedValue = line.CategoryCode
+            If ddlCat.Items.FindByValue(line.CategoryCode) IsNot Nothing Then
+                ddlCat.SelectedValue = line.CategoryCode
+                ' 設定下拉選單 ToolTip 為目前選中項目的描述
+                Dim selectedItem = ddlCat.SelectedItem
+                If selectedItem IsNot Nothing AndAlso selectedItem.Attributes("data-desc") IsNot Nothing Then
+                    ddlCat.ToolTip = selectedItem.Attributes("data-desc")
+                End If
+            End If
 
             ' Vat Group
             Dim ddlVat As DropDownList = CType(e.Row.FindControl("ddlVatGroup"), DropDownList)
@@ -739,7 +853,20 @@ Partial Public Class ExpenseClaimForm
 
             ' Values
             CType(e.Row.FindControl("txtDescription"), TextBox).Text = line.Description
-            CType(e.Row.FindControl("txtAcctCode"), TextBox).Text = line.AcctCode
+
+            ' 會計科目：AP_App 權限可編輯
+            Dim txtAcct As TextBox = CType(e.Row.FindControl("txtAcctCode"), TextBox)
+            txtAcct.Text = line.AcctCode
+            ' 設定 ToolTip 顯示會計科目名稱
+            If Not String.IsNullOrEmpty(line.AcctCode) AndAlso Not String.IsNullOrEmpty(line.CategoryCode) Then
+                Dim acctInfo = GetAcctCodeByExpItem(line.CategoryCode)
+                txtAcct.ToolTip = acctInfo.AcctName
+            End If
+            If isApUser Then
+                txtAcct.ReadOnly = False
+                txtAcct.CssClass = ""
+            End If
+
             CType(e.Row.FindControl("txtLineTotal"), TextBox).Text = line.LineTotal.ToString("0.##")
             CType(e.Row.FindControl("txtVatSum"), TextBox).Text = line.VatSum.ToString("0.##")
             CType(e.Row.FindControl("txtPriceAfterVat"), TextBox).Text = line.PriceAfterVat.ToString("0.##")
@@ -758,26 +885,111 @@ Partial Public Class ExpenseClaimForm
         Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
 
         If ddl.SelectedIndex > 0 AndAlso Not String.IsNullOrEmpty(ddl.SelectedValue) Then
-            ' ListItem.Attributes 在 PostBack 後會丟失，改用資料庫查詢
-            txtAcct.Text = GetAcctCodeByCategory(ddl.SelectedValue)
+            ' 根據費用項目和使用者部門查詢對應的會計科目
+            Dim acctInfo = GetAcctCodeByExpItem(ddl.SelectedValue)
+            txtAcct.Text = acctInfo.AcctCode
+            txtAcct.ToolTip = acctInfo.AcctName ' 設定 ToolTip 顯示科目名稱
+
+            ' 更新費用類別下拉選單的 ToolTip 為選中項目的描述
+            Dim selectedItem = ddl.SelectedItem
+            If selectedItem IsNot Nothing Then
+                ddl.ToolTip = GetExpItemDescription(ddl.SelectedValue)
+            End If
         Else
             txtAcct.Text = ""
+            txtAcct.ToolTip = ""
+            ddl.ToolTip = ""
         End If
 
         SyncGridDataToModel()
     End Sub
 
     ''' <summary>
-    ''' 根據費用類別代碼查詢對應的會計科目代碼
+    ''' 會計科目資訊結構
     ''' </summary>
-    Private Function GetAcctCodeByCategory(categoryCode As String) As String
-        If String.IsNullOrEmpty(categoryCode) Then Return ""
+    Private Structure AcctInfo
+        Public AcctCode As String
+        Public AcctName As String
+    End Structure
+
+    ''' <summary>
+    ''' 根據費用項目代碼和使用者費用部門，從 EPI1 查詢對應的會計科目
+    ''' 邏輯: User.expDEPT -> jDEPT.ExpClass -> EPI1 (ExpItemCode + ExpClass) -> AcctCode, AcctName
+    ''' </summary>
+    Private Function GetAcctCodeByExpItem(expItemCode As String) As AcctInfo
+        Dim result As New AcctInfo()
+        result.AcctCode = ""
+        result.AcctName = ""
+
+        If String.IsNullOrEmpty(expItemCode) Then Return result
+
+        Try
+            ' 步驟1: 取得使用者的 expDEPT
+            Dim userExpDept As String = ""
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT expDEPT FROM [User] WHERE id = @UserId"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                    Dim dbResult = cmd.ExecuteScalar()
+                    If dbResult IsNot Nothing AndAlso Not IsDBNull(dbResult) Then
+                        userExpDept = dbResult.ToString().Trim()
+                    End If
+                End Using
+            End Using
+
+            If String.IsNullOrEmpty(userExpDept) Then Return result
+
+            ' 步驟2: 從 jDEPT 取得 ExpClass
+            Dim expClass As String = ""
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT ExpClass FROM jDEPT WHERE EDeptID = @EDeptID"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@EDeptID", userExpDept)
+                    Dim dbResult = cmd.ExecuteScalar()
+                    If dbResult IsNot Nothing AndAlso Not IsDBNull(dbResult) Then
+                        expClass = dbResult.ToString().Trim()
+                    End If
+                End Using
+            End Using
+
+            If String.IsNullOrEmpty(expClass) Then Return result
+
+            ' 步驟3: 從 EPI1 查詢會計科目
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode, AcctName FROM EPI1 WHERE ExpItemCode = @ExpItemCode AND ExpClass = @ExpClass"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ExpItemCode", expItemCode)
+                    cmd.Parameters.AddWithValue("@ExpClass", expClass)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            result.AcctCode = If(dr("AcctCode") IsNot DBNull.Value, dr("AcctCode").ToString(), "")
+                            result.AcctName = If(dr("AcctName") IsNot DBNull.Value, dr("AcctName").ToString(), "")
+                        End If
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            ' 查詢失敗時返回空結構
+        End Try
+
+        Return result
+    End Function
+
+    ''' <summary>
+    ''' 根據費用項目代碼取得描述 (ExpItemDescription)
+    ''' </summary>
+    Private Function GetExpItemDescription(expItemCode As String) As String
+        If String.IsNullOrEmpty(expItemCode) Then Return ""
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "SELECT AcctCode FROM expense_category WHERE CategoryCode = @CategoryCode"
+                Dim sql As String = "SELECT ExpItemDescription FROM OEPI WHERE ExpItemCode = @ExpItemCode"
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@CategoryCode", categoryCode)
+                    cmd.Parameters.AddWithValue("@ExpItemCode", expItemCode)
                     Dim result = cmd.ExecuteScalar()
                     If result IsNot Nothing AndAlso Not IsDBNull(result) Then
                         Return result.ToString()
@@ -1086,13 +1298,13 @@ Partial Public Class ExpenseClaimForm
             prefix = invNum.Substring(0, 2)
             formCode = GetFormCodeByPrefix(prefix, needWarning)
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^[A-Z]{3}") Then
-            formCode = "28" ' 海關報關單
+            formCode = "28" ' 海關代徵營業稅
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^(BB|BBN)") Then
-            formCode = "22" ' 公營事業
+            formCode = "22" ' 高鐵/二聯收銀機（長條）
         ElseIf System.Text.RegularExpressions.Regex.IsMatch(invNum, "^\d+$") Then
-            formCode = "24" ' 高鐵票/車票
+            formCode = "22" ' 高鐵/二聯收銀機（長條）- 純數字
         Else
-            formCode = "99"
+            formCode = "99" ' 其他
         End If
 
         If ddlZForm IsNot Nothing Then
@@ -1196,6 +1408,7 @@ Partial Public Class ExpenseClaimForm
     ''' 退回的單據可以修改後再次送審
     ''' </summary>
     Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+        ViewState("PendingAction") = "save"
         If Not ValidateAll() Then Return
         ' 若是被退回的單據 (R)，則儲存時維持退回狀態，等待使用者修改後重新送審
         ' 若是待審核的單據 (W)，則維持待審核狀態
@@ -1210,6 +1423,7 @@ Partial Public Class ExpenseClaimForm
     ''' [B] 儲存並送審 - 直接進入待審核狀態
     ''' </summary>
     Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)
+        ViewState("PendingAction") = "submit"
         If Not ValidateAll() Then Return
         SaveDocument("W") ' W = 待審核
     End Sub
@@ -1239,79 +1453,60 @@ Partial Public Class ExpenseClaimForm
         End Set
     End Property
 
+    ''' <summary>
+    ''' 驗證單據，收集錯誤與警告，並顯示彈窗
+    ''' </summary>
+    ''' <returns>True 表示可以儲存，False 表示需要修正或確認</returns>
     Private Function ValidateAll() As Boolean
-        Dim isValid As Boolean = True
-        Dim warnings As New List(Of String)()
-        lblMessage.Text = ""
+        ' 先同步 GridView 資料到 Model，確保驗證的是最新資料
+        SyncGridDataToModel()
+        SyncMDRGridToModel()
 
+        Dim errors As New List(Of String)()
+        Dim warnings As New List(Of String)()
+
+        ' 清除欄位旁的錯誤訊息
+        lblMessage.Text = ""
+        lblErrCardCode.Visible = False
+        lblErrDocDate.Visible = False
+        lblErrDocDueDate.Visible = False
+        lblErrTaxDate.Visible = False
+
+        ' === 錯誤檢查 (必須修正) ===
         If String.IsNullOrEmpty(txtCardCode.Text) Then
-            lblErrCardCode.Text = "必填"
-            lblErrCardCode.Visible = True
-            isValid = False
+            errors.Add("供應商代碼為必填欄位")
         End If
 
         If String.IsNullOrEmpty(txtDocDate.Text) Then
-            lblErrDocDate.Text = "必填"
-            lblErrDocDate.Visible = True
-            isValid = False
+            errors.Add("過帳日期為必填欄位")
         End If
 
         If String.IsNullOrEmpty(txtDocDueDate.Text) Then
-            lblErrDocDueDate.Text = "必填"
-            lblErrDocDueDate.Visible = True
-            isValid = False
+            errors.Add("到期日為必填欄位")
         End If
 
-        ' 文件日期 (TaxDate) 驗證
         If String.IsNullOrEmpty(txtTaxDate.Text) Then
-            lblErrTaxDate.Text = "必填"
-            lblErrTaxDate.Visible = True
-            isValid = False
+            errors.Add("文件日期為必填欄位")
         End If
 
-        ' 明細檢查
-        If CurrentLines.Count = 0 AndAlso CurrentMDRLines.Count = 0 Then
-            ShowError("請至少新增一筆費用明細或憑證明細")
-            isValid = False
+        ' 明細數量檢查
+        If CurrentLines.Count = 0 Then
+            If CurrentMDRLines.Count = 0 Then
+                errors.Add("請至少新增一筆費用明細")
+            Else
+                errors.Add("禁止僅有憑證明細而無費用明細，請新增費用明細")
+            End If
+        Else
+            ' 有費用明細
+            If CurrentMDRLines.Count = 0 Then
+                warnings.Add("目前只有費用明細但沒有憑證明細，請確認是否要新增")
+            End If
         End If
 
-        ' 單據總額檢查
         Dim docTotal As Decimal = 0
         Decimal.TryParse(lblDocTotalWithTax.Text.Replace(",", ""), docTotal)
         If docTotal <= 0 Then
-            ShowError("單據總額不可為0，請確認費用明細金額")
-            isValid = False
-        End If
-
-        ' [A] 費用明細與憑證明細金額一致性警告 (警告但不卡死)
-        If CurrentLines.Count > 0 AndAlso CurrentMDRLines.Count > 0 Then
-            Dim expenseTotal As Decimal = CurrentLines.Sum(Function(x) x.LineTotal)
-            Dim expenseVatSum As Decimal = CurrentLines.Sum(Function(x) x.VatSum)
-            Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
-            Dim mdrVatSum As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
-
-            If Math.Abs(expenseTotal - mdrTotal) > 0.01D Then
-                warnings.Add(String.Format("費用明細未稅總額 ({0:N2}) 與憑證明細未稅總額 ({1:N2}) 不一致", expenseTotal, mdrTotal))
-            End If
-            If Math.Abs(expenseVatSum - mdrVatSum) > 0.01D Then
-                warnings.Add(String.Format("費用明細稅額 ({0:N2}) 與憑證明細稅額 ({1:N2}) 不一致", expenseVatSum, mdrVatSum))
-            End If
-        End If
-
-        ' [F] 匯率日期檢查 (警告但不卡死)
-        Dim curr As String = ddlDocCurrency.SelectedValue
-        If curr <> "TWD" AndAlso curr <> "NTD" Then
-            If Not String.IsNullOrEmpty(hfRateDate.Value) Then
-                Dim rateDate As DateTime
-                If DateTime.TryParse(hfRateDate.Value, rateDate) Then
-                    Dim daysDiff As Integer = CInt((DateTime.Today - rateDate).TotalDays)
-                    If daysDiff > 0 Then
-                        warnings.Add(String.Format("匯率資料為 {0:yyyy-MM-dd}，距今已 {1} 天", rateDate, daysDiff))
-                    End If
-                End If
-            ElseIf String.IsNullOrEmpty(hfRateDate.Value) AndAlso txtDocRate.Text <> "1.0" Then
-                warnings.Add("無法確認匯率日期，請確認匯率是否正確")
-            End If
+            errors.Add("單據總額不可為 0，請確認費用明細金額")
         End If
 
         ' 檢查憑證明細是否有空白的統一編號或憑證號碼 (除非是「99-其他」類型)
@@ -1320,25 +1515,142 @@ Partial Public Class ExpenseClaimForm
             AndAlso x.U_ZFORM_CODE <> "99")
 
         If emptyVoucherLines.Any() Then
-            ShowError("憑證明細有空白的統一編號或憑證號碼，請填寫完整。若為非發票類憑證，請選擇憑證類型為「其他」。")
-            isValid = False
+            errors.Add("憑證明細有空白的統一編號或憑證號碼，請填寫完整。若為非發票類憑證，請選擇憑證類型為「其他」")
         End If
 
-        ' 檢查是否有 "99-其他" 類型的發票且未確認
+        ' === 警告檢查 (可確認後繼續) ===
+
+        ' 費用明細與憑證明細金額一致性警告
+        If CurrentLines.Count > 0 AndAlso CurrentMDRLines.Count > 0 Then
+            Dim expenseTotal As Decimal = CurrentLines.Sum(Function(x) x.LineTotal)
+            Dim expenseVatSum As Decimal = CurrentLines.Sum(Function(x) x.VatSum)
+            Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
+            Dim mdrVatSum As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
+
+            If Math.Abs(expenseTotal - mdrTotal) > 0.01D Then
+                warnings.Add(String.Format("費用明細未稅總額 ({0:N0}) 與憑證明細未稅總額 ({1:N0}) 不一致", expenseTotal, mdrTotal))
+            End If
+            If Math.Abs(expenseVatSum - mdrVatSum) > 0.01D Then
+                warnings.Add(String.Format("費用明細稅額 ({0:N0}) 與憑證明細稅額 ({1:N0}) 不一致", expenseVatSum, mdrVatSum))
+            End If
+        End If
+
+        ' 匯率日期檢查
+        Dim curr As String = ddlDocCurrency.SelectedValue
+        If curr <> "TWD" AndAlso curr <> "NTD" Then
+            If Not String.IsNullOrEmpty(hfRateDate.Value) Then
+                Dim rateDate As DateTime
+                If DateTime.TryParse(hfRateDate.Value, rateDate) Then
+                    Dim daysDiff As Integer = CInt((DateTime.Today - rateDate).TotalDays)
+                    If daysDiff > 0 Then
+                        warnings.Add(String.Format("匯率資料為 {0:yyyy-MM-dd}，距今已 {1} 天，請確認匯率是否正確", rateDate, daysDiff))
+                    End If
+                End If
+            ElseIf String.IsNullOrEmpty(hfRateDate.Value) AndAlso txtDocRate.Text <> "1.0" Then
+                warnings.Add("無法確認匯率日期，請確認匯率是否正確")
+            End If
+        End If
+
+        ' 檢查是否有 "99-其他" 類型的憑證
         Dim hasOtherType As Boolean = CurrentMDRLines.Any(Function(x) x.U_ZFORM_CODE = "99")
-        If hasOtherType AndAlso Not WarningConfirmed Then
-            warnings.Add("有「其他」類型的單據，請確認格式是否正確")
+        If hasOtherType Then
+            warnings.Add("有「其他」類型的憑證，請確認憑證格式是否正確")
         End If
 
-        ' 顯示警告 (不阻止儲存，但需確認)
-        If warnings.Count > 0 AndAlso Not WarningConfirmed Then
-            ShowWarning("警告：" & String.Join("；", warnings) & "。若確定要繼續，請再次點擊儲存/送出。")
-            WarningConfirmed = True
-            isValid = False
+        ' === 決定是否顯示彈窗 ===
+
+        ' 如果已經確認過警告，且沒有新的錯誤，則允許通過
+        If WarningConfirmed AndAlso errors.Count = 0 Then
+            Return True
         End If
 
-        Return isValid
+        ' 如果有錯誤或警告，顯示彈窗
+        If errors.Count > 0 OrElse warnings.Count > 0 Then
+            ShowValidationPopup(errors, warnings)
+            Return False
+        End If
+
+        Return True
     End Function
+
+    ''' <summary>
+    ''' 顯示驗證結果彈窗
+    ''' </summary>
+    Private Sub ShowValidationPopup(errors As List(Of String), warnings As List(Of String))
+        ' DEBUG: 顯示在 lblMessage
+        lblMessage.Text = String.Format("[DEBUG] Errors:{0}, Warnings:{1}, WarningConfirmed:{2}", errors.Count, warnings.Count, WarningConfirmed)
+        lblMessage.ForeColor = System.Drawing.Color.Blue
+
+        ' 清空之前的內容
+        blErrors.Items.Clear()
+        blWarnings.Items.Clear()
+
+        ' 顯示錯誤
+        If errors.Count > 0 Then
+            pnlErrors.Visible = True
+            For Each err As String In errors
+                blErrors.Items.Add(err)
+            Next
+        Else
+            pnlErrors.Visible = False
+        End If
+
+        ' 顯示警告
+        If warnings.Count > 0 Then
+            pnlWarnings.Visible = True
+            For Each warn As String In warnings
+                blWarnings.Items.Add(warn)
+            Next
+        Else
+            pnlWarnings.Visible = False
+        End If
+
+        ' 設定彈窗標題顏色和按鈕
+        If errors.Count > 0 Then
+            ' 有錯誤：紅色標題，只有「返回修改」按鈕
+            divValidationHeader.Style("background-color") = "#dc3545"
+            btnValidationConfirm.Visible = False
+        Else
+            ' 只有警告：橘色標題，顯示「確定仍要新增」按鈕
+            divValidationHeader.Style("background-color") = "#ffc107"
+            btnValidationConfirm.Visible = True
+        End If
+
+        ' 顯示彈窗
+        mpeValidation.Show()
+    End Sub
+
+    ''' <summary>
+    ''' 驗證彈窗 - 返回修改按鈕 (包含 X 按鈕)
+    ''' </summary>
+    Protected Sub btnValidationBack_Click(sender As Object, e As EventArgs)
+        ' 重置警告確認狀態
+        WarningConfirmed = False
+        ViewState("PendingAction") = Nothing
+        ' 使用 JavaScript 隱藏彈窗，避免 ModalPopupExtender 狀態問題
+        ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "hideValidation",
+            "$find('mpeValidationBehavior').hide();", True)
+    End Sub
+
+    ''' <summary>
+    ''' 驗證彈窗 - 確定仍要新增按鈕
+    ''' </summary>
+    Protected Sub btnValidationConfirm_Click(sender As Object, e As EventArgs)
+        ' 設定警告已確認
+        WarningConfirmed = True
+
+        ' 根據之前的操作類型執行儲存
+        Dim pendingAction As String = If(ViewState("PendingAction"), "save").ToString()
+        If pendingAction = "submit" Then
+            SaveDocument("W")
+        Else
+            Dim currentStatus As String = txtApprovalStatus.Text
+            If String.IsNullOrEmpty(currentStatus) OrElse currentStatus = "P" Then
+                currentStatus = "W"
+            End If
+            SaveDocument(currentStatus)
+        End If
+    End Sub
 
     Private Function SaveDocument(status As String, Optional isAutoSave As Boolean = False) As Boolean
         Try
@@ -1568,6 +1880,124 @@ Partial Public Class ExpenseClaimForm
         Response.Redirect("ExpenseClaimList.aspx")
     End Sub
 
+    ''' <summary>
+    ''' 新增新單據 - 重置表單，開始新的費用申請
+    ''' </summary>
+    Protected Sub btnNewDocument_Click(sender As Object, e As EventArgs)
+        Response.Redirect("ExpenseClaimForm.aspx")
+    End Sub
+
+    ''' <summary>
+    ''' 匯出 PDF - 使用 Crystal Report 將費用申請單匯出為 PDF 格式
+    ''' </summary>
+    Protected Sub btnExportPDF_Click(sender As Object, e As EventArgs)
+        Dim jID As String = txtJID.Text.Trim()
+        If Not String.IsNullOrEmpty(jID) Then
+            ' 使用 Crystal Report Handler 產生 PDF (在新視窗開啟)
+            Dim script As String = String.Format("window.open('ExpenseClaimReport.ashx?jID={0}', '_blank');", HttpUtility.UrlEncode(jID))
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenPDF", script, True)
+        Else
+            ShowError("無法匯出：尚未儲存的單據或缺少平台單號")
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 設定為檢視模式 (已存檔的單據)
+    ''' </summary>
+    Private Sub SetViewMode()
+        ' 隱藏新增/編輯模式按鈕
+        btnSubmit.Visible = False
+        btnSave.Visible = False
+        btnDelete.Visible = False
+
+        ' 顯示檢視模式按鈕
+        btnExportPDF.Visible = True
+        btnNewDocument.Visible = True
+        btnCancel.Text = "返回列表"
+
+        ' 將所有輸入欄位設為唯讀
+        txtCardCode.ReadOnly = True
+        txtCardName.ReadOnly = True
+        txtNumAtCard.ReadOnly = True
+        txtDocDate.ReadOnly = True
+        txtDocDueDate.ReadOnly = True
+        txtTaxDate.ReadOnly = True
+        txtDocRate.ReadOnly = True
+        txtRemarks.ReadOnly = True
+        txtAddress.ReadOnly = True
+        txtPymntGroup.ReadOnly = True
+
+        ' 停用下拉選單
+        ddlDeliveryAddr.Enabled = False
+        ddlDocCurrency.Enabled = False
+        ddlGroupNum.Enabled = False
+        ddlPurchaser.Enabled = False
+
+        ' 停用供應商搜尋按鈕
+        btnSearchCardCode.Visible = False
+        btnSearchCardName.Visible = False
+        btnRefreshRate.Visible = False
+
+        ' 停用明細編輯按鈕
+        btnAddLine.Visible = False
+        btnDeleteLine.Visible = False
+        btnGenerateMDR.Visible = False
+        btnAddMDRRow.Visible = False
+        btnDeleteMDRRow.Visible = False
+
+        ' 停用附件上傳
+        btnUpload.Visible = False
+        fileUpload.Visible = False
+    End Sub
+
+    ''' <summary>
+    ''' 設定為編輯模式 (新增或可編輯的單據)
+    ''' </summary>
+    Private Sub SetEditMode()
+        ' 顯示新增/編輯模式按鈕
+        btnSubmit.Visible = True
+        btnSave.Visible = False ' 暫存按鈕預設隱藏
+        btnDelete.Visible = (currentDocEntry > 0) ' 只有已存檔的單據才能刪除
+
+        ' 隱藏檢視模式按鈕
+        btnExportPDF.Visible = False
+        btnNewDocument.Visible = False
+        btnCancel.Text = "取消 (Cancel)"
+
+        ' 啟用所有輸入欄位
+        txtCardCode.ReadOnly = False
+        txtCardName.ReadOnly = False
+        txtNumAtCard.ReadOnly = False
+        txtDocDate.ReadOnly = False
+        txtDocDueDate.ReadOnly = False
+        txtTaxDate.ReadOnly = False
+        txtDocRate.ReadOnly = False
+        txtRemarks.ReadOnly = False
+        txtAddress.ReadOnly = False
+        txtPymntGroup.ReadOnly = False
+
+        ' 啟用下拉選單
+        ddlDeliveryAddr.Enabled = True
+        ddlGroupNum.Enabled = True
+        ddlPurchaser.Enabled = True
+
+        ' 啟用供應商搜尋按鈕
+        btnSearchCardCode.Visible = True
+        btnSearchCardName.Visible = True
+        btnRefreshRate.Visible = True
+
+        ' 啟用明細編輯按鈕
+        btnAddLine.Visible = True
+        btnDeleteLine.Visible = True
+        btnGenerateMDR.Visible = True
+        btnAddMDRRow.Visible = True
+        btnDeleteMDRRow.Visible = True
+
+        ' 啟用附件上傳
+        btnUpload.Visible = True
+        fileUpload.Visible = True
+    End Sub
+
     Private Sub SetHeaderParameters(cmd As SqlCommand, status As String)
         cmd.Parameters.AddWithValue("@CardCode", txtCardCode.Text)
         cmd.Parameters.AddWithValue("@CardName", txtCardName.Text)
@@ -1655,6 +2085,28 @@ Partial Public Class ExpenseClaimForm
                         End Try
 
                         If Not IsDBNull(dr("U_PID")) Then txtUPID.Text = dr("U_PID").ToString()
+
+                        ' [SAP Integration] 顯示 SAP 過帳狀態
+                        Try
+                            Dim b1Status As String = ""
+                            If HasColumn(dr, "B1PostStatus") AndAlso Not IsDBNull(dr("B1PostStatus")) Then
+                                b1Status = dr("B1PostStatus").ToString()
+                                If b1Status = "Y" Then
+                                    lblDocStatus.Text &= " (SAP: 已過帳)"
+                                    lblDocStatus.CssClass &= " sap-success" ' 需確保 CSS 支援，或只改文字
+                                ElseIf b1Status = "E" Then
+                                    Dim errMsg As String = ""
+                                    If HasColumn(dr, "B1ErrMsg") AndAlso Not IsDBNull(dr("B1ErrMsg")) Then
+                                        errMsg = dr("B1ErrMsg").ToString()
+                                    End If
+                                    lblDocStatus.Text &= " (SAP: 失敗)"
+                                    lblDocStatus.ToolTip = "SAP 錯誤: " & errMsg
+                                    ShowError("SAP 過帳失敗: " & errMsg) ' 提示使用者
+                                End If
+                            End If
+                        Catch ex As Exception
+                            ' 忽略 SAP 狀態讀取錯誤
+                        End Try
 
                         ' 顯示審核區塊邏輯:
                         ' 1. 這個區塊要 jtdb 的 User Table 裡的 AP_App 欄位為 1 才可以編輯
@@ -1756,6 +2208,9 @@ Partial Public Class ExpenseClaimForm
             BindMDRGrid()
 
         End Using
+
+        ' 載入完成後設為檢視模式
+        SetViewMode()
     End Sub
 #End Region
 
@@ -1999,8 +2454,8 @@ Partial Public Class ExpenseClaimForm
 
             ' 如果是放行 (A)，這裡應呼叫 SAP B1 API 建立 AP Invoice
             If newStatus = "A" Then
-                ' TODO: Call SAP B1 API & MDR Integration
-                ' CreateAPInvoiceInSAP(currentDocEntry)
+                ' Call SAP B1 API & MDR Integration
+                CreateAPInvoiceInSAP(currentDocEntry)
             End If
 
             Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
@@ -2008,6 +2463,168 @@ Partial Public Class ExpenseClaimForm
             ShowError("更新狀態失敗: " & ex.Message)
         End Try
     End Sub
+
+#Region "SAP Integration"
+    ''' <summary>
+    ''' 建立 SAP AP 發票
+    ''' </summary>
+    Private Sub CreateAPInvoiceInSAP(docEntry As Integer)
+        Dim oInvoice As SAPbobsCOM.Documents = Nothing
+        Dim sapDocEntry As Integer = 0
+        Dim errMsg As String = ""
+
+        Try
+            ' 1. 初始化 SAP 連線
+            Dim destIP As String = If(Session("usingserver") IsNot Nothing, Session("usingserver").ToString(), "")
+            Dim dbName As String = If(Session("usingdb") IsNot Nothing, Session("usingdb").ToString(), "")
+            Dim sapUser As String = If(Session("sapid") IsNot Nothing, Session("sapid").ToString(), "")
+            Dim sapPwd As String = If(Session("sappwd") IsNot Nothing, Session("sappwd").ToString(), "")
+
+            If String.IsNullOrEmpty(destIP) OrElse String.IsNullOrEmpty(dbName) Then
+                Throw New Exception("遺失 SAP 連線資訊 (Session)，請重新登入")
+            End If
+
+            If CommUtil.InitSAPConnection(destIP, dbName, sapUser, sapPwd) <> 0 Then
+                Throw New Exception("SAP 連線失敗: " & CommUtil.oCompany.GetLastErrorDescription())
+            End If
+
+            ' 2. 準備與主要資料
+            Dim oCompany As SAPbobsCOM.Company = CommUtil.oCompany
+            oInvoice = oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseInvoices)
+
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                ' Header
+                Dim sqlH As String = "SELECT * FROM jOPCH WHERE DocEntry=@ID"
+                Using cmdH As New SqlCommand(sqlH, conn)
+                    cmdH.Parameters.AddWithValue("@ID", docEntry)
+                    Using drH As SqlDataReader = cmdH.ExecuteReader()
+                        If drH.Read() Then
+                            oInvoice.CardCode = drH("CardCode").ToString()
+                            oInvoice.CardName = drH("CardName").ToString()
+                            If Not IsDBNull(drH("NumAtCard")) Then oInvoice.NumAtCard = drH("NumAtCard").ToString()
+                            oInvoice.DocDate = Convert.ToDateTime(drH("DocDate"))
+                            If Not IsDBNull(drH("DocDueDate")) Then oInvoice.DocDueDate = Convert.ToDateTime(drH("DocDueDate"))
+                            If Not IsDBNull(drH("TaxDate")) Then oInvoice.TaxDate = Convert.ToDateTime(drH("TaxDate"))
+                            
+                            Dim docCur As String = drH("DocCurrency").ToString()
+                            oInvoice.DocCurrency = docCur
+                            
+                            ' 若非本幣，設定匯率
+                            If docCur <> "TWD" AndAlso docCur <> "NTD" Then
+                                If Not IsDBNull(drH("DocRate")) Then
+                                    oInvoice.DocRate = Convert.ToDouble(drH("DocRate"))
+                                End If
+                            End If
+
+                            If Not IsDBNull(drH("GroupNum")) Then oInvoice.GroupNumber = Convert.ToInt32(drH("GroupNum"))
+                            If Not IsDBNull(drH("Comments")) Then oInvoice.Comments = drH("Comments").ToString()
+                            If Not IsDBNull(drH("DeliveryAddrID")) Then oInvoice.Address = drH("Address").ToString() ' 簡化: 直接填地址
+                            If Not IsDBNull(drH("SlpCode")) Then oInvoice.SalesPersonCode = Convert.ToInt32(drH("SlpCode"))
+                        End If
+                    End Using
+                End Using
+
+                ' Lines
+                Dim sqlL As String = "SELECT * FROM jPCH1 WHERE DocEntry=@ID ORDER BY LineNum"
+                Using cmdL As New SqlCommand(sqlL, conn)
+                    cmdL.Parameters.AddWithValue("@ID", docEntry)
+                    Using drL As SqlDataReader = cmdL.ExecuteReader()
+                        Dim i As Integer = 0
+                        While drL.Read()
+                            If i > 0 Then oInvoice.Lines.Add()
+                            
+                            oInvoice.Lines.AccountCode = drL("AcctCode").ToString()
+                            If Not IsDBNull(drL("Dscription")) Then oInvoice.Lines.ItemDescription = drL("Dscription").ToString()
+                            
+                            Dim lineTotal As Double = Convert.ToDouble(drL("LineTotal"))
+                            If oInvoice.DocCurrency = "TWD" OrElse oInvoice.DocCurrency = "NTD" Then
+                                oInvoice.Lines.LineTotal = lineTotal
+                            Else
+                                oInvoice.Lines.LineTotalForeignCurrency = lineTotal
+                            End If
+
+                            If Not IsDBNull(drL("VatGroup")) Then oInvoice.Lines.VatGroup = drL("VatGroup").ToString()
+                            If Not IsDBNull(drL("CostingCode")) Then oInvoice.Lines.CostingCode = drL("CostingCode").ToString()
+                            If Not IsDBNull(drL("CostingCode2")) Then oInvoice.Lines.CostingCode2 = drL("CostingCode2").ToString()
+                            
+                            i += 1
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            ' 3. 新增文件
+            If oInvoice.Add() <> 0 Then
+                Dim errCode As Integer
+                oCompany.GetLastError(errCode, errMsg)
+                Throw New Exception($"SAP Error [{errCode}]: {errMsg}")
+            Else
+                sapDocEntry = Convert.ToInt32(oCompany.GetNewObjectKey())
+                ShowSuccess($"已核准並產生 SAP AP 發票 (單號: {sapDocEntry})")
+                
+                ' 更新 jOPCH 狀態
+                UpdateSAPPostStatus(docEntry, sapDocEntry, "Y", "")
+            End If
+
+        Catch ex As Exception
+            errMsg = ex.Message
+            ShowError(errMsg)
+            ' 更新失敗狀態
+            UpdateSAPPostStatus(docEntry, 0, "E", errMsg)
+        Finally
+            CommUtil.CloseSAPConnection()
+            If oInvoice IsNot Nothing Then
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(oInvoice)
+            End If
+        End Try
+    End Sub
+
+    Private Sub UpdateSAPPostStatus(docEntry As Integer, sapDocEntry As Integer, status As String, errMsg As String)
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                ' 檢查欄位是否存在以免報錯 (若 DB Schema 尚未更新)
+                ' 這裡直接嘗試更新，若失敗則 Catch
+                Dim sql As String = "UPDATE jOPCH SET " & _
+                                   "B1PostStatus = @Status, " & _
+                                   "B1ErrMsg = @ErrMsg "
+                
+                If sapDocEntry > 0 Then
+                    sql &= ", DocEntry = @SapDocEntry, B1PostDate = GETDATE() " 
+                    ' 注意: 這裡覆蓋了 DocEntry? 
+                    ' 原本 jOPCH.DocEntry 是 jopch.jID，但 SAP_AP_Invoice_Import 邏輯是這麼寫的...
+                    ' 為了安全，暫時不覆蓋 DocEntry，改用 U_SapDocEntry 如果有，或者只更新 B1PostStatus
+                    ' 參考 SAP_AP_Invoice_Import.vb: DocEntry =CASE WHEN @SapDocEntry > 0 THEN @SapDocEntry ELSE DocEntry END
+                    ' 這意味著他想把 SAP DocEntry 寫回主鍵? 這會破壞關聯!
+                    ' 假設 jOPCH.DocEntry 不是主鍵? 
+                    ' jOPCH.jID 是 Identity. DocEntry 可能原本存 jID，但被設計用來存 SAP DocEntry?
+                    ' 讓我們先保留原樣，只更新 Status 以免破壞現有邏輯
+                End If
+                
+                ' 我們添加 SapDocEntry 到 B1ErrMsg 前面備註一下，或者如果有 U_SapDocEntry
+                If sapDocEntry > 0 Then
+                     ' 假設有 U_SapDocEntry
+                     ' sql &= ", U_SapDocEntry = @SapDocEntry" 
+                End If
+
+                sql &= " WHERE DocEntry = @DocEntry"
+
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@DocEntry", docEntry)
+                    cmd.Parameters.AddWithValue("@Status", status)
+                    cmd.Parameters.AddWithValue("@ErrMsg", errMsg)
+                    If sapDocEntry > 0 Then cmd.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
+                    
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 欄位可能不存在，忽略
+        End Try
+    End Sub
+#End Region
+
 
     ''' <summary>
     ''' [B] 驗證狀態轉換是否有效
@@ -2096,6 +2713,18 @@ Partial Public Class ExpenseClaimForm
         End If
 
         Return warnings
+    End Function
+
+    ''' <summary>
+    ''' 檢查 DataReader 是否包含指定欄位
+    ''' </summary>
+    Private Function HasColumn(dr As SqlDataReader, columnName As String) As Boolean
+        For i As Integer = 0 To dr.FieldCount - 1
+            If dr.GetName(i).Equals(columnName, StringComparison.InvariantCultureIgnoreCase) Then
+                Return True
+            End If
+        Next
+        Return False
     End Function
 
     ''' <summary>

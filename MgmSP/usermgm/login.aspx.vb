@@ -9,6 +9,9 @@ Partial Public Class login
     Public conn, connsap As New SqlConnection
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        ' 檢查系統維護狀態
+        MaintenanceHelper.CheckAndRedirect(Response, Request.Url.AbsolutePath)
+
         If (Not IsPostBack) Then
             ' [修改] 移除 C01 ICT / C02 AOI 選項，此版本不使用生產製造功能
             DDLWhs.Items.Clear()
