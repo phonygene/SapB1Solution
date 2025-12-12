@@ -53,10 +53,13 @@ Public Class CommUtil
         oCompany.UserName = sapid
         oCompany.Password = sappwd
         oCompany.UseTrusted = False
-        oCompany.DbUserName = "sa"
-        oCompany.DbPassword = "sap19690123"
+        ' 從 Web.config 讀取資料庫帳密
+        Dim dbUser As String = System.Configuration.ConfigurationManager.AppSettings("SapDbUserName")
+        Dim dbPwd As String = System.Configuration.ConfigurationManager.AppSettings("SapDbPassword")
+        oCompany.DbUserName = If(String.IsNullOrEmpty(dbUser), "sa", dbUser)
+        oCompany.DbPassword = If(String.IsNullOrEmpty(dbPwd), "", dbPwd)
         oCompany.language = SAPbobsCOM.BoSuppLangs.ln_English
-        oCompany.DbServerType = SAPbobsCOM.BoDataServerTypes.dst_MSSQL2005
+        oCompany.DbServerType = SAPbobsCOM.BoDataServerTypes.dst_MSSQL2019
         InitSAPConnection = oCompany.Connect
     End Function
 

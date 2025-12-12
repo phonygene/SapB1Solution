@@ -61,8 +61,11 @@ Partial Public Class ExpenseClaimForm
     Private ReadOnly sapConnStr As String = WebConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
     Public CommUtil As New CommUtil
 
+    ' SAP DI API Company 物件 (Page 層級，參考廠長的做法)
+    Public oCompany As New SAPbobsCOM.Company
+
     Private currentUserId As String = ""
-    Private currentDocEntry As Integer = 0
+    Private currentJID As Integer = 0
     Private canApprove As Boolean = False
     Private isApUser As Boolean = False ' AP_App 權限
 #End Region
@@ -142,8 +145,11 @@ Partial Public Class ExpenseClaimForm
 
             CheckApprovalPermission()
 
-            If Request.QueryString("DocEntry") IsNot Nothing Then
-                Integer.TryParse(Request.QueryString("DocEntry"), currentDocEntry)
+            ' 支援 jID 和 DocEntry 兩種參數名稱（向下相容）
+            If Request.QueryString("jID") IsNot Nothing Then
+                Integer.TryParse(Request.QueryString("jID"), currentJID)
+            ElseIf Request.QueryString("DocEntry") IsNot Nothing Then
+                Integer.TryParse(Request.QueryString("DocEntry"), currentJID)
             End If
 
             If Not IsPostBack Then
@@ -152,8 +158,8 @@ Partial Public Class ExpenseClaimForm
                 ' 檢查使用者費用部門是否已設定
                 CheckUserExpDept()
 
-                If currentDocEntry > 0 Then
-                    LoadDocument(currentDocEntry)
+                If currentJID > 0 Then
+                    LoadDocument(currentJID)
                 Else
                     SetDefaultValues()
                     InitializeGridViews()
@@ -294,8 +300,6 @@ Partial Public Class ExpenseClaimForm
 
         If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
             ddlDocCurrency.SelectedValue = "NTD"
-        ElseIf ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
-            ddlDocCurrency.SelectedValue = "TWD"
         End If
         txtDocRate.Text = "1.0"
 
@@ -402,10 +406,12 @@ Partial Public Class ExpenseClaimForm
 
     Private Sub LoadPurchasers()
         ddlPurchaser.Items.Clear()
+        ddlPurchaser.Items.Add(New ListItem("-- 請選擇 --", ""))  ' 加入空白選項
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT SlpCode, SlpName FROM OSLP"
+                ' 只載入有效的銷售人員 (Active = 'Y')
+                Dim sql As String = "SELECT SlpCode, SlpName FROM OSLP WHERE Active = 'Y' ORDER BY SlpName"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
@@ -416,6 +422,49 @@ Partial Public Class ExpenseClaimForm
             End Using
         Catch ex As Exception
             ShowError("載入採購人員失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 付款條件變更事件 - 自動計算到期日
+    ''' </summary>
+    Protected Sub ddlGroupNum_SelectedIndexChanged(sender As Object, e As EventArgs)
+        CalculateDueDate()
+    End Sub
+
+    ''' <summary>
+    ''' 根據付款條件計算到期日
+    ''' SAP B1 OCTG 表：ExtraMonth=加月數, ExtraDays=加天數
+    ''' 到期日 = 過帳日期 + ExtraMonth 月 + ExtraDays 天
+    ''' </summary>
+    Private Sub CalculateDueDate()
+        Try
+            If String.IsNullOrEmpty(ddlGroupNum.SelectedValue) Then Return
+            If String.IsNullOrEmpty(txtDocDate.Text) Then Return
+
+            Dim groupNum As Integer = Integer.Parse(ddlGroupNum.SelectedValue)
+            Dim docDate As DateTime = DateTime.Parse(txtDocDate.Text)
+
+            ' 從 SAP OCTG 取得付款條件的 ExtraMonth 和 ExtraDays
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT ExtraMonth, ExtraDays FROM OCTG WHERE GroupNum = @GroupNum"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@GroupNum", groupNum)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            Dim extraMonth As Integer = If(IsDBNull(dr("ExtraMonth")), 0, Convert.ToInt32(dr("ExtraMonth")))
+                            Dim extraDays As Integer = If(IsDBNull(dr("ExtraDays")), 0, Convert.ToInt32(dr("ExtraDays")))
+
+                            ' 計算到期日：過帳日期 + 月數 + 天數
+                            Dim dueDate As DateTime = docDate.AddMonths(extraMonth).AddDays(extraDays)
+                            txtDocDueDate.Text = dueDate.ToString("yyyy-MM-dd")
+                        End If
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 計算失敗不阻斷流程，靜默處理
         End Try
     End Sub
 
@@ -467,17 +516,24 @@ Partial Public Class ExpenseClaimForm
         ddl.Items.Add(item3)
     End Sub
 
+    ''' <summary>
+    ''' 載入產品下拉選單 (CostingCode - 成本中心維度1)
+    ''' 來源：OPRC 中 DimCode=1 且排除一般中心
+    ''' </summary>
     Private Sub LoadProducts(ddl As DropDownList)
         ddl.Items.Clear()
         ddl.Items.Add(New ListItem("", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT DimCode, DimDesc FROM ODIM"
+                ' 產品：DimCode=1 (1030-AOI, 1040-ICT)，排除一般中心 Centr_z
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC " &
+                                    "WHERE DimCode = 1 AND PrcCode NOT LIKE 'Centr%' " &
+                                    "ORDER BY PrcCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
-                            ddl.Items.Add(New ListItem(dr("DimDesc").ToString(), dr("DimCode").ToString()))
+                            ddl.Items.Add(New ListItem(dr("PrcName").ToString() & " (" & dr("PrcCode").ToString() & ")", dr("PrcCode").ToString()))
                         End While
                     End Using
                 End Using
@@ -487,13 +543,20 @@ Partial Public Class ExpenseClaimForm
         End Try
     End Sub
 
+    ''' <summary>
+    ''' 載入部門下拉選單 (CostingCode2 - 成本中心維度2)
+    ''' 來源：OPRC 中 DimCode=2 且排除一般中心
+    ''' </summary>
     Private Sub LoadDepartments(ddl As DropDownList)
         ddl.Items.Clear()
         ddl.Items.Add(New ListItem("", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC"
+                ' 部門：DimCode=2 (1050~1300)，排除一般中心 Centr_z2
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC " &
+                                    "WHERE DimCode = 2 AND PrcCode NOT LIKE 'Centr%' " &
+                                    "ORDER BY PrcCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
@@ -628,8 +691,6 @@ Partial Public Class ExpenseClaimForm
                                 Else
                                     If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
                                         ddlDocCurrency.SelectedValue = "NTD"
-                                    ElseIf ddlDocCurrency.Items.FindByValue("TWD") IsNot Nothing Then
-                                        ddlDocCurrency.SelectedValue = "TWD"
                                     End If
                                 End If
                             Else
@@ -655,6 +716,8 @@ Partial Public Class ExpenseClaimForm
                         Dim grpNum As String = grp.ToString()
                         If ddlGroupNum.Items.FindByValue(grpNum) IsNot Nothing Then
                             ddlGroupNum.SelectedValue = grpNum
+                            ' 自動計算到期日
+                            CalculateDueDate()
                         End If
                     End If
                 End Using
@@ -760,6 +823,8 @@ Partial Public Class ExpenseClaimForm
 
     Protected Sub btnRefreshRate_Click(sender As Object, e As EventArgs)
         ddlDocCurrency_SelectedIndexChanged(Nothing, Nothing)
+        ' 過帳日期變更時，重新計算到期日
+        CalculateDueDate()
     End Sub
 #End Region
 
@@ -883,10 +948,19 @@ Partial Public Class ExpenseClaimForm
         Dim ddl As DropDownList = CType(sender, DropDownList)
         Dim row As GridViewRow = CType(ddl.NamingContainer, GridViewRow)
         Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+        Dim ddlDept As DropDownList = CType(row.FindControl("ddlCostingCode2"), DropDownList)
 
         If ddl.SelectedIndex > 0 AndAlso Not String.IsNullOrEmpty(ddl.SelectedValue) Then
-            ' 根據費用項目和使用者部門查詢對應的會計科目
-            Dim acctInfo = GetAcctCodeByExpItem(ddl.SelectedValue)
+            ' 根據費用項目和部門查詢對應的會計科目
+            Dim deptCode As String = If(ddlDept IsNot Nothing, ddlDept.SelectedValue, "")
+            Dim acctInfo As AcctInfo
+            If Not String.IsNullOrEmpty(deptCode) Then
+                ' 有選擇部門，使用新的函數
+                acctInfo = GetAcctCodeByExpItemAndDept(ddl.SelectedValue, deptCode)
+            Else
+                ' 沒有選擇部門，使用原本的函數（依使用者預設部門）
+                acctInfo = GetAcctCodeByExpItem(ddl.SelectedValue)
+            End If
             txtAcct.Text = acctInfo.AcctCode
             txtAcct.ToolTip = acctInfo.AcctName ' 設定 ToolTip 顯示科目名稱
 
@@ -895,10 +969,47 @@ Partial Public Class ExpenseClaimForm
             If selectedItem IsNot Nothing Then
                 ddl.ToolTip = GetExpItemDescription(ddl.SelectedValue)
             End If
+
+            ' 進出口報關費 (E030) 特殊警告 - 格式28處理
+            If ddl.SelectedValue = "E030" Then
+                Dim script As String = "alert('注意：進出口報關費 (格式28)\n\n" &
+                                      "此項目寫入SAP時只會過帳「稅額」金額。\n\n" &
+                                      "請在營業稅區填入：\n" &
+                                      "- 未稅金額 = 營業稅基\n" &
+                                      "- 稅額 = 實際應繳稅額');"
+                ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "expE030Warning", script, True)
+            End If
         Else
             txtAcct.Text = ""
             txtAcct.ToolTip = ""
             ddl.ToolTip = ""
+        End If
+
+        SyncGridDataToModel()
+    End Sub
+
+    ''' <summary>
+    ''' 部門 (CostingCode2) 變更事件 - 根據部門重新查詢會計科目
+    ''' </summary>
+    Protected Sub ddlCostingCode2_SelectedIndexChanged(sender As Object, e As EventArgs)
+        Dim ddlDept As DropDownList = CType(sender, DropDownList)
+        Dim row As GridViewRow = CType(ddlDept.NamingContainer, GridViewRow)
+        Dim ddlExpItem As DropDownList = CType(row.FindControl("ddlExpCategory"), DropDownList)
+        Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+
+        ' 只有當費用項目已選擇時才更新會計科目
+        If ddlExpItem IsNot Nothing AndAlso ddlExpItem.SelectedIndex > 0 AndAlso Not String.IsNullOrEmpty(ddlExpItem.SelectedValue) Then
+            Dim deptCode As String = ddlDept.SelectedValue
+            Dim acctInfo As AcctInfo
+            If Not String.IsNullOrEmpty(deptCode) Then
+                ' 有選擇部門，根據部門的 CCTypeCode 查詢會計科目
+                acctInfo = GetAcctCodeByExpItemAndDept(ddlExpItem.SelectedValue, deptCode)
+            Else
+                ' 沒有選擇部門，使用原本的函數（依使用者預設部門）
+                acctInfo = GetAcctCodeByExpItem(ddlExpItem.SelectedValue)
+            End If
+            txtAcct.Text = acctInfo.AcctCode
+            txtAcct.ToolTip = acctInfo.AcctName
         End If
 
         SyncGridDataToModel()
@@ -1000,6 +1111,89 @@ Partial Public Class ExpenseClaimForm
     End Function
 
     ''' <summary>
+    ''' 根據 SAP 部門代碼 (PrcCode) 查詢費用分類 (CCTypeCode)
+    ''' CCTypeCode 對應：製、銷、管、研、製-CNC
+    ''' </summary>
+    Private Function GetExpClassByDept(deptCode As String) As String
+        If String.IsNullOrEmpty(deptCode) Then Return ""
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT CCTypeCode FROM OPRC WHERE PrcCode = @PrcCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@PrcCode", deptCode)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return result.ToString().Trim()
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 查詢失敗時返回空字串
+        End Try
+        Return ""
+    End Function
+
+    ''' <summary>
+    ''' 根據費用項目代碼和部門代碼，從 EPI1 查詢對應的會計科目
+    ''' 邏輯:
+    ''' 1. 先檢查該費用項目是否有 ExpClass='公' 的科目（公共費用，不分部門）
+    ''' 2. 若有，直接使用「公」的科目
+    ''' 3. 若無，則根據部門的 CCTypeCode (製/銷/管/研/製-CNC) 查詢 EPI1
+    ''' </summary>
+    Private Function GetAcctCodeByExpItemAndDept(expItemCode As String, deptCode As String) As AcctInfo
+        Dim result As New AcctInfo()
+        result.AcctCode = ""
+        result.AcctName = ""
+
+        If String.IsNullOrEmpty(expItemCode) Then Return result
+
+        Try
+            ' 步驟1: 先檢查是否為公共費用項目（ExpClass='公'）
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode, AcctName FROM EPI1 WHERE ExpItemCode = @ExpItemCode AND ExpClass = N'公'"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ExpItemCode", expItemCode)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            ' 找到「公」的科目，直接返回
+                            result.AcctCode = If(dr("AcctCode") IsNot DBNull.Value, dr("AcctCode").ToString(), "")
+                            result.AcctName = If(dr("AcctName") IsNot DBNull.Value, dr("AcctName").ToString(), "")
+                            Return result
+                        End If
+                    End Using
+                End Using
+            End Using
+
+            ' 步驟2: 非公共費用，從 SAP OPRC 取得部門的 ExpClass (CCTypeCode)
+            Dim expClass As String = GetExpClassByDept(deptCode)
+            If String.IsNullOrEmpty(expClass) Then Return result
+
+            ' 步驟3: 從 EPI1 查詢會計科目
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctCode, AcctName FROM EPI1 WHERE ExpItemCode = @ExpItemCode AND ExpClass = @ExpClass"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ExpItemCode", expItemCode)
+                    cmd.Parameters.AddWithValue("@ExpClass", expClass)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            result.AcctCode = If(dr("AcctCode") IsNot DBNull.Value, dr("AcctCode").ToString(), "")
+                            result.AcctName = If(dr("AcctName") IsNot DBNull.Value, dr("AcctName").ToString(), "")
+                        End If
+                    End Using
+                End Using
+            End Using
+
+        Catch ex As Exception
+            ' 查詢失敗時返回空結構
+        End Try
+
+        Return result
+    End Function
+
+    ''' <summary>
     ''' 根據費用項目代碼取得描述 (ExpItemDescription)
     ''' </summary>
     Private Function GetExpItemDescription(expItemCode As String) As String
@@ -1044,7 +1238,7 @@ Partial Public Class ExpenseClaimForm
                 ' 重新計算稅額與含稅金額
                 If line.VatGroup = "1" Then ' 1-應稅 (5%)
                     line.VatRate = 5
-                    line.VatSum = Math.Round(line.LineTotal * 0.05D, 0)
+                    line.VatSum = Math.Round(line.LineTotal * 0.05D, 0, MidpointRounding.AwayFromZero)
                 Else
                     line.VatRate = 0
                     line.VatSum = 0
@@ -1095,7 +1289,7 @@ Partial Public Class ExpenseClaimForm
             ' 1-應稅 (5%)
             If line.VatGroup = "1" Then
                 line.VatRate = 5
-                line.LineTotal = Math.Round(priceAfterVat / 1.05D, 0)
+                line.LineTotal = Math.Round(priceAfterVat / 1.05D, 0, MidpointRounding.AwayFromZero)
                 line.VatSum = priceAfterVat - line.LineTotal
             Else
                 line.VatRate = 0
@@ -1109,6 +1303,12 @@ Partial Public Class ExpenseClaimForm
 
     Private Sub SyncGridDataToModel(Optional readPriceAfterVat As Boolean = False)
         Dim lines = CurrentLines
+
+        ' 從頁面取得幣別和匯率
+        Dim docCurrency As String = If(ddlDocCurrency.SelectedValue, "NTD")
+        Dim docRate As Decimal = 1
+        Decimal.TryParse(txtDocRate.Text, docRate)
+
         For i As Integer = 0 To gvExpenseDetail.Rows.Count - 1
             Dim row As GridViewRow = gvExpenseDetail.Rows(i)
             If i < lines.Count Then
@@ -1131,6 +1331,10 @@ Partial Public Class ExpenseClaimForm
                 If txtVatSum IsNot Nothing Then Decimal.TryParse(txtVatSum.Text, line.VatSum)
                 If ddlCost IsNot Nothing Then line.CostingCode = ddlCost.SelectedValue
                 If ddlCost2 IsNot Nothing Then line.CostingCode2 = ddlCost2.SelectedValue
+
+                ' 同步幣別和匯率
+                line.Currency = docCurrency
+                line.Rate = docRate
 
                 ' 注意：這裡不再自動重算 VatSum，避免覆蓋使用者手動輸入的稅額。
                 ' 重算邏輯移至 CalculateLineTotal (當 LineTotal 或 VatGroup 改變時)
@@ -1287,7 +1491,7 @@ Partial Public Class ExpenseClaimForm
                 If Not isManualTax Then
                     ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
                     If line.U_TAX_TYPE = "1" Then
-                        line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0)
+                        line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0, MidpointRounding.AwayFromZero)
                     Else
                         line.U_HWSTE = 0
                     End If
@@ -1333,16 +1537,52 @@ Partial Public Class ExpenseClaimForm
             End If
         End If
 
+        ' 格式28 (海關代徵營業稅) 特殊處理
+        If formCode = "28" Then
+            HandleFormat28Row(row)
+        End If
+
         ' 如果需要警告（字軌不在當年度表中）
         If needWarning AndAlso Not String.IsNullOrEmpty(prefix) Then
             ' 使用 JavaScript confirm 彈窗
             Dim script As String = String.Format(
-                "if(!confirm('發票字軌 {0} 不在114年度發票字軌表中，是否仍要使用此字軌？')) {{ document.getElementById('{1}').value = ''; }}", 
+                "if(!confirm('發票字軌 {0} 不在114年度發票字軌表中，是否仍要使用此字軌？')) {{ document.getElementById('{1}').value = ''; }}",
                 prefix, txt.ClientID)
             ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "invWarning_" & txt.ClientID, script, True)
         End If
 
         SyncMDRGridToModel()
+    End Sub
+
+    ''' <summary>
+    ''' 格式28 (海關代徵營業稅/進出口報關費) 特殊處理
+    ''' - 未稅金額欄位變為「營業稅基」
+    ''' - 含稅金額 = 稅額 且禁止更改
+    ''' - 彈窗提示使用者填入營業稅基並核對稅額
+    ''' - 匯入 SAP 時只過帳稅額金額
+    ''' </summary>
+    Private Sub HandleFormat28Row(row As GridViewRow)
+        Dim txtHWBAS As TextBox = CType(row.FindControl("txtHWBAS"), TextBox)
+        Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
+
+        If txtHWBAS IsNot Nothing Then
+            ' 清空金額，等待使用者輸入營業稅基
+            txtHWBAS.Text = ""
+            txtHWBAS.Attributes("placeholder") = "請輸入營業稅基"
+        End If
+
+        If txtHWSTE IsNot Nothing Then
+            txtHWSTE.Text = ""
+            txtHWSTE.Attributes("placeholder") = "請輸入稅額"
+        End If
+
+        ' 彈窗提示
+        Dim script As String = "alert('此為格式28 (海關代徵營業稅)：\n\n" &
+                              "1. 「未稅金額」欄位請填入「營業稅基」\n" &
+                              "2. 「稅額」欄位請填入實際稅額\n" &
+                              "3. 匯入SAP時將只過帳稅額金額\n\n" &
+                              "請核對海關稅單上的營業稅基與稅額。');"
+        ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "format28Warning_" & row.RowIndex, script, True)
     End Sub
 
 
@@ -1682,9 +1922,10 @@ Partial Public Class ExpenseClaimForm
                 Using trans = conn.BeginTransaction()
                     Try
                         Dim jID As Integer = 0
+                        Dim isNewDocument As Boolean = (currentJID = 0)  ' 記錄是否為新增，供稽核日誌使用
 
                         ' 1. jOPCH (Header)
-                        If currentDocEntry = 0 Then
+                        If currentJID = 0 Then
                             ' Insert
                             Dim sqlH As String = "INSERT INTO jOPCH (CardCode, CardName, NumAtCard, InvNum, DeliveryAddrID, AddressName, Address, " &
                                                "DocDate, DocDueDate, TaxDate, DocCurrency, DocRate, DocTotal, VatSum, " &
@@ -1698,57 +1939,51 @@ Partial Public Class ExpenseClaimForm
                                 SetHeaderParameters(cmd, status)
                                 jID = Convert.ToInt32(cmd.ExecuteScalar())
                             End Using
-
-                            ' Update DocEntry = jID
-                            Dim sqlUpd As String = "UPDATE jOPCH SET DocEntry=@ID, DocNum=@ID WHERE jID=@ID"
-                            Using cmd As New SqlCommand(sqlUpd, conn, trans)
-                                cmd.Parameters.AddWithValue("@ID", jID)
-                                cmd.ExecuteNonQuery()
-                            End Using
-                            currentDocEntry = jID
+                            ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
+                            currentJID = jID
                         Else
-                            ' Update
-                            jID = currentDocEntry
+                            ' Update (使用 jID 作為主鍵)
+                            jID = currentJID
                             Dim sqlH As String = "UPDATE jOPCH SET CardCode=@CardCode, CardName=@CardName, NumAtCard=@NumAtCard, InvNum=@InvNum, " &
                                                "DeliveryAddrID=@DeliveryAddrID, AddressName=@AddressName, Address=@Address, " &
                                                "DocDate=@DocDate, DocDueDate=@DocDueDate, TaxDate=@TaxDate, DocCurrency=@DocCurrency, " &
                                                "DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, " &
                                                "GroupNum=@GroupNum, PymntGroup=@PymntGroup, Comments=@Comments, ApprovalStatus=@Status, " &
-                                               "UpdateBy=@User, UpdateDate=GETDATE(), U_PID=@UPID, SlpCode=@SlpCode WHERE DocEntry=@ID"
+                                               "UpdateBy=@User, UpdateDate=GETDATE(), U_PID=@UPID, SlpCode=@SlpCode WHERE jID=@jID"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
-                                cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                                cmd.Parameters.AddWithValue("@jID", currentJID)
                                 SetHeaderParameters(cmd, status)
                                 cmd.ExecuteNonQuery()
                             End Using
 
-                            ' Delete old lines
-                            Using cmd As New SqlCommand("DELETE FROM jPCH1 WHERE DocEntry=@ID", conn, trans)
-                                cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                            ' Delete old lines (使用 jID 作為關聯鍵)
+                            Using cmd As New SqlCommand("DELETE FROM jPCH1 WHERE jID=@jID", conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", currentJID)
                                 cmd.ExecuteNonQuery()
                             End Using
 
-                            ' Delete old MDR
-                            Using cmd As New SqlCommand("DELETE FROM jMGUIAP WHERE DocEntry=@ID", conn, trans)
-                                cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                            ' Delete old MDR (使用 jID 作為關聯鍵)
+                            Using cmd As New SqlCommand("DELETE FROM jMGUIAP WHERE jID=@jID", conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", currentJID)
                                 cmd.ExecuteNonQuery()
                             End Using
-                            Using cmd As New SqlCommand("DELETE FROM jMGUIAPDetail WHERE DocEntry=@ID", conn, trans)
-                                cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                            Using cmd As New SqlCommand("DELETE FROM jMGUIAPDetail WHERE jID=@jID", conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", currentJID)
                                 cmd.ExecuteNonQuery()
                             End Using
                         End If
 
                         ' 2. jPCH1 (Expense Lines)
-                        Dim sqlL As String = "INSERT INTO jPCH1 (jID, DocEntry, LineNum, ItemCode, Dscription, AcctCode, " &
-                                           "LineTotal, VatGroup, VatPrcnt, LineVat, GTotal, CostingCode, CostingCode2) " &
-                                           "VALUES (@jID, @DocEntry, @LineNum, @ItemCode, @Dscription, @AcctCode, " &
-                                           "@LineTotal, @VatGroup, @VatPrcnt, @LineVat, @GTotal, @CostingCode, @CostingCode2)"
+                        ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
+                        Dim sqlL As String = "INSERT INTO jPCH1 (jID, LineNum, ItemCode, Dscription, AcctCode, " &
+                                           "LineTotal, VatGroup, VatPrcnt, LineVat, GTotal, CostingCode, CostingCode2, Currency, Rate) " &
+                                           "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @AcctCode, " &
+                                           "@LineTotal, @VatGroup, @VatPrcnt, @LineVat, @GTotal, @CostingCode, @CostingCode2, @Currency, @Rate)"
 
                         For Each line As ExpenseLine In CurrentLines
                             Using cmd As New SqlCommand(sqlL, conn, trans)
                                 cmd.Parameters.AddWithValue("@jID", jID) ' FK to Header jID
-                                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
                                 cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
                                 cmd.Parameters.AddWithValue("@ItemCode", line.CategoryCode)
                                 cmd.Parameters.AddWithValue("@Dscription", line.Description)
@@ -1760,6 +1995,8 @@ Partial Public Class ExpenseClaimForm
                                 cmd.Parameters.AddWithValue("@GTotal", line.PriceAfterVat)
                                 cmd.Parameters.AddWithValue("@CostingCode", line.CostingCode)
                                 cmd.Parameters.AddWithValue("@CostingCode2", line.CostingCode2)
+                                cmd.Parameters.AddWithValue("@Currency", line.Currency)
+                                cmd.Parameters.AddWithValue("@Rate", line.Rate)
                                 cmd.ExecuteNonQuery()
                             End Using
                         Next
@@ -1767,32 +2004,30 @@ Partial Public Class ExpenseClaimForm
                         ' 3. jMGUIAP & jMGUIAPDetail (MDR)
                         If CurrentMDRLines.Count > 0 Then
                             ' MDR Header (彙總)
+                            ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
                             Dim mdrTotal As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWBAS)
                             Dim mdrVat As Decimal = CurrentMDRLines.Sum(Function(x) x.U_HWSTE)
 
-                            Dim sqlMdrH As String = "INSERT INTO jMGUIAP (jID, DocEntry, DocNum, DocTotal, VatSum, CreateBy, CreateDate) " &
-                                                  "VALUES (@jID, @DocEntry, @DocNum, @DocTotal, @VatSum, @User, GETDATE()); SELECT SCOPE_IDENTITY();"
+                            Dim sqlMdrH As String = "INSERT INTO jMGUIAP (jID, DocTotal, VatSum, CreateBy, CreateDate) " &
+                                                  "VALUES (@jID, @DocTotal, @VatSum, @User, GETDATE())"
 
-                            Dim mdrID As Integer = 0
                             Using cmd As New SqlCommand(sqlMdrH, conn, trans)
                                 cmd.Parameters.AddWithValue("@jID", jID)
-                                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
-                                cmd.Parameters.AddWithValue("@DocNum", currentDocEntry)
                                 cmd.Parameters.AddWithValue("@DocTotal", mdrTotal)
                                 cmd.Parameters.AddWithValue("@VatSum", mdrVat)
                                 cmd.Parameters.AddWithValue("@User", currentUserId)
-                                mdrID = Convert.ToInt32(cmd.ExecuteScalar())
+                                cmd.ExecuteNonQuery()
                             End Using
 
                             ' MDR Lines
-                            Dim sqlMdrL As String = "INSERT INTO jMGUIAPDetail (jID, DocEntry, LineNum, U_LIFNR, U_STCEG, U_XBLNR, U_ZFORM_CODE, " &
+                            ' 注意：jMGUIAPDetail.jID 應該對應 jOPCH.jID，而非 jMGUIAP.ID
+                            Dim sqlMdrL As String = "INSERT INTO jMGUIAPDetail (jID, LineNum, U_LIFNR, U_STCEG, U_XBLNR, U_ZFORM_CODE, " &
                                                   "U_BLDAT, U_VATDATE, U_HWBAS, U_HWSTE, U_TAX_TYPE) " &
-                                                  "VALUES (@jID, @DocEntry, @LineNum, @LIFNR, @STCEG, @XBLNR, @ZFORM, @BLDAT, @VATDATE, @HWBAS, @HWSTE, @TAXTYPE)"
+                                                  "VALUES (@jID, @LineNum, @LIFNR, @STCEG, @XBLNR, @ZFORM, @BLDAT, @VATDATE, @HWBAS, @HWSTE, @TAXTYPE)"
 
                             For Each line As MDRLine In CurrentMDRLines
                                 Using cmd As New SqlCommand(sqlMdrL, conn, trans)
-                                    cmd.Parameters.AddWithValue("@jID", mdrID)
-                                    cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                                    cmd.Parameters.AddWithValue("@jID", jID)  ' 使用 jOPCH.jID 作為關聯鍵
                                     cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
                                     cmd.Parameters.AddWithValue("@LIFNR", line.U_LIFNR)
                                     cmd.Parameters.AddWithValue("@STCEG", line.U_STCEG)
@@ -1829,15 +2064,15 @@ Partial Public Class ExpenseClaimForm
 
                         trans.Commit()
                         ShowSuccess("儲存成功")
-                        lblDocNum.Text = currentDocEntry.ToString()
+                        lblDocNum.Text = currentJID.ToString()
 
                         ' [E] 記錄稽核日誌 (非阻塞)
-                        Dim action As String = If(jID = currentDocEntry, AuditLogger.Actions.Create, AuditLogger.Actions.Update)
-                        AuditLogger.Log("jOPCH", currentDocEntry, action, currentUserId,
+                        Dim action As String = If(isNewDocument, AuditLogger.Actions.Create, AuditLogger.Actions.Update)
+                        AuditLogger.Log("jOPCH", currentJID, action, currentUserId,
                                         changes:=String.Format("Status={0}, Total={1}", status, lblDocTotalWithTax.Text))
 
                         If Not isAutoSave Then
-                            Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
+                            Response.Redirect("ExpenseClaimForm.aspx?jID=" & currentJID)
                         End If
                         Return True
                     Catch ex As Exception
@@ -1852,35 +2087,51 @@ Partial Public Class ExpenseClaimForm
         End Try
     End Function
     Protected Sub btnDelete_Click(sender As Object, e As EventArgs)
-        If currentDocEntry > 0 Then
+        If currentJID > 0 Then
             Try
+                ' 權限檢查：只有草稿(P)的擁有者可以刪除
+                Dim docStatus As String = txtApprovalStatus.Text
+                Dim docOwner As String = txtOwner.Text
+
+                ' 檢查是否為草稿狀態
+                If docStatus <> "P" Then
+                    ShowError("只能刪除草稿狀態的單據")
+                    Return
+                End If
+
+                ' 檢查是否為單據擁有者
+                If docOwner <> currentUserId Then
+                    ShowError("您只能刪除自己建立的單據")
+                    Return
+                End If
+
                 Using conn As New SqlConnection(connStr)
                     conn.Open()
                     Using trans = conn.BeginTransaction()
                         Try
-                            ' Delete Lines
-                            Dim cmd As New SqlCommand("DELETE FROM jPCH1 WHERE DocEntry=@ID", conn, trans)
-                            cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                            ' Delete Lines (使用 jID 作為關聯鍵)
+                            Dim cmd As New SqlCommand("DELETE FROM jPCH1 WHERE jID=@jID", conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", currentJID)
                             cmd.ExecuteNonQuery()
 
-                            ' Delete MDR
-                            cmd.CommandText = "DELETE FROM jMGUIAP WHERE DocEntry=@ID"
+                            ' Delete MDR (使用 jID 作為關聯鍵)
+                            cmd.CommandText = "DELETE FROM jMGUIAP WHERE jID=@jID"
                             cmd.ExecuteNonQuery()
-                            cmd.CommandText = "DELETE FROM jMGUIAPDetail WHERE DocEntry=@ID"
+                            cmd.CommandText = "DELETE FROM jMGUIAPDetail WHERE jID=@jID"
                             cmd.ExecuteNonQuery()
 
-                            ' Delete Header
-                            cmd.CommandText = "DELETE FROM jOPCH WHERE DocEntry=@ID"
+                            ' Delete Header (使用 jID 作為主鍵)
+                            cmd.CommandText = "DELETE FROM jOPCH WHERE jID=@jID"
                             cmd.ExecuteNonQuery()
 
                             ' Delete Attachments
-                            cmd.CommandText = "DELETE FROM jAttach WHERE jID=@ID"
+                            cmd.CommandText = "DELETE FROM jAttach WHERE jID=@jID"
                             cmd.ExecuteNonQuery()
 
                             trans.Commit()
 
                             ' [E] 記錄刪除稽核日誌 (非阻塞)
-                            AuditLogger.Log("jOPCH", currentDocEntry, AuditLogger.Actions.Delete, currentUserId,
+                            AuditLogger.Log("jOPCH", currentJID, AuditLogger.Actions.Delete, currentUserId,
                                             changes:=String.Format("CardCode={0}, Total={1}", txtCardCode.Text, lblDocTotalWithTax.Text))
 
                             Response.Redirect("Index.aspx")
@@ -1914,14 +2165,16 @@ Partial Public Class ExpenseClaimForm
     ''' - 已核准(A)：僅可更新備註欄
     ''' </summary>
     Protected Sub btnUpdate_Click(sender As Object, e As EventArgs)
-        If currentDocEntry = 0 Then
+        If currentJID = 0 Then
             ShowError("無法更新：尚未儲存的單據")
             Return
         End If
 
         Dim status As String = txtApprovalStatus.Text
         Dim isOwner As Boolean = (txtOwner.Text = currentUserId)
-        Dim canEditFull As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        ' [暫時修改] 審核者可全權編輯任何狀態的單據，修正完資料後請改回原本邏輯
+        ' 原本: Dim canEditFull As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        Dim canEditFull As Boolean = isApUser OrElse ((status = "P" OrElse status = "W" OrElse status = "R") AndAlso isOwner)
         Dim isApproved As Boolean = (status = "A")
 
         Try
@@ -1932,19 +2185,19 @@ Partial Public Class ExpenseClaimForm
                     ' 草稿/待審核/駁回：更新完整資料（維持原狀態）
                     If SaveDocument(status) Then
                         ShowSuccess("更新成功")
-                        LoadDocument(currentDocEntry)
+                        LoadDocument(currentJID)
                     End If
                 ElseIf isApproved Then
                     ' 已核准：僅更新備註欄
-                    Dim sql As String = "UPDATE jOPCH SET Comments=@Comments, UpdateBy=@User, UpdateDate=GETDATE() WHERE DocEntry=@ID"
+                    Dim sql As String = "UPDATE jOPCH SET Comments=@Comments, UpdateBy=@User, UpdateDate=GETDATE() WHERE jID=@jID"
                     Using cmd As New SqlCommand(sql, conn)
                         cmd.Parameters.AddWithValue("@Comments", txtRemarks.Text)
                         cmd.Parameters.AddWithValue("@User", currentUserId)
-                        cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                        cmd.Parameters.AddWithValue("@jID", currentJID)
                         cmd.ExecuteNonQuery()
                     End Using
                     ShowSuccess("備註更新成功")
-                    LoadDocument(currentDocEntry)
+                    LoadDocument(currentJID)
                 Else
                     ShowError("您沒有權限更新此單據")
                 End If
@@ -1977,12 +2230,20 @@ Partial Public Class ExpenseClaimForm
     Private Sub SetViewMode()
         Dim status As String = txtApprovalStatus.Text
         Dim isOwner As Boolean = (txtOwner.Text = currentUserId)
-        Dim canEdit As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        ' [暫時修改] 審核者可全權編輯任何狀態的單據，修正完資料後請改回原本邏輯
+        ' 原本: Dim canEdit As Boolean = (status = "P" OrElse status = "W" OrElse status = "R") AndAlso (isOwner OrElse isApUser)
+        Dim canEdit As Boolean = isApUser OrElse ((status = "P" OrElse status = "W" OrElse status = "R") AndAlso isOwner)
         Dim isApproved As Boolean = (status = "A")
 
-        ' 隱藏新增/編輯模式按鈕
-        btnSubmit.Visible = False
-        btnSave.Visible = False
+        ' [暫時修改] 審核者可以看到送審按鈕，修正完資料後請改回原本邏輯
+        ' 原本: btnSubmit.Visible = False / btnSave.Visible = False
+        If canEdit Then
+            btnSubmit.Visible = True  ' 送審按鈕
+            btnSave.Visible = True    ' 儲存草稿按鈕
+        Else
+            btnSubmit.Visible = False
+            btnSave.Visible = False
+        End If
         btnDelete.Visible = False
 
         ' 顯示檢視模式按鈕
@@ -2076,7 +2337,7 @@ Partial Public Class ExpenseClaimForm
         ' 顯示新增/編輯模式按鈕
         btnSubmit.Visible = True
         btnSave.Visible = False ' 暫存按鈕預設隱藏
-        btnDelete.Visible = (currentDocEntry > 0) ' 只有已存檔的單據才能刪除
+        btnDelete.Visible = (currentJID > 0) ' 只有已存檔的單據才能刪除
 
         ' 隱藏檢視模式按鈕
         btnExportPDF.Visible = False
@@ -2151,13 +2412,13 @@ Partial Public Class ExpenseClaimForm
     Private Sub LoadDocument(id As Integer)
         Using conn As New SqlConnection(connStr)
             conn.Open()
-            ' Load Header
-            Dim sql As String = "SELECT * FROM jOPCH WHERE DocEntry=@ID"
+            ' Load Header (使用 jID 作為主鍵)
+            Dim sql As String = "SELECT * FROM jOPCH WHERE jID=@jID"
             Using cmd As New SqlCommand(sql, conn)
-                cmd.Parameters.AddWithValue("@ID", id)
+                cmd.Parameters.AddWithValue("@jID", id)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     If dr.Read() Then
-                        lblDocNum.Text = dr("DocEntry").ToString()
+                        lblDocNum.Text = dr("jID").ToString()  ' 顯示 jID 作為單號
                         txtJID.Text = dr("jID").ToString()
 
                         txtCardCode.Text = dr("CardCode").ToString()
@@ -2230,20 +2491,20 @@ Partial Public Class ExpenseClaimForm
                         ' 顯示審核區塊邏輯:
                         ' 1. 這個區塊要 jtdb 的 User Table 裡的 AP_App 欄位為 1 才可以編輯
                         ' 2. 一般 User 不能編輯也不能按放行/發送意見/退回
-                        ' 3. 但為了查看退回意見等，建議顯示但唯讀
+                        ' 3. 審核區塊保持顯示（讓一般使用者可看到退回意見），但按鈕完全隱藏
 
                         pnlApproval.Visible = True ' 只要是既有單據，預設顯示，內容依權限控制
 
                         txtApprovalComments.ReadOnly = Not isApUser
-                        
-                        ' 按鈕保持顯示，但無權限者停用
-                        btnApprove.Visible = True
+
+                        ' 審核按鈕：對一般使用者完全隱藏，只有 AP_App 權限者才能看到
+                        btnApprove.Visible = isApUser
                         btnApprove.Enabled = isApUser
-                        
-                        btnUpdateComment.Visible = True
+
+                        btnUpdateComment.Visible = isApUser
                         btnUpdateComment.Enabled = isApUser
-                        
-                        btnReject.Visible = True
+
+                        btnReject.Visible = isApUser
                         btnReject.Enabled = isApUser
 
                         ' 按鈕狀態 (編輯模式)
@@ -2274,20 +2535,29 @@ Partial Public Class ExpenseClaimForm
             CurrentAttachments = attachList
             BindAttachmentGrid()
 
-            ' Load Expense Lines
+            ' Load Expense Lines (使用 jID 作為關聯鍵)
             Dim lines As New List(Of ExpenseLine)
-            sql = "SELECT * FROM jPCH1 WHERE DocEntry=@ID ORDER BY LineNum"
+            sql = "SELECT * FROM jPCH1 WHERE jID=@jID ORDER BY LineNum"
             Using cmd As New SqlCommand(sql, conn)
-                cmd.Parameters.AddWithValue("@ID", id)
+                cmd.Parameters.AddWithValue("@jID", id)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     While dr.Read()
+                        ' 轉換 SAP 稅碼回顯示用代碼: J1→1, J0→2, JX→3
+                        Dim vatGroupRaw As String = dr("VatGroup").ToString()
+                        Dim vatGroupDisplay As String = vatGroupRaw
+                        Select Case vatGroupRaw
+                            Case "J1" : vatGroupDisplay = "1"
+                            Case "J0" : vatGroupDisplay = "2"
+                            Case "JX" : vatGroupDisplay = "3"
+                        End Select
+
                         lines.Add(New ExpenseLine With {
                             .LineNum = Convert.ToInt32(dr("LineNum")),
                             .CategoryCode = dr("ItemCode").ToString(),
                             .Description = dr("Dscription").ToString(),
                             .AcctCode = dr("AcctCode").ToString(),
                             .LineTotal = Convert.ToDecimal(dr("LineTotal")),
-                            .VatGroup = dr("VatGroup").ToString(),
+                            .VatGroup = vatGroupDisplay,
                             .VatRate = Convert.ToDecimal(dr("VatPrcnt")),
                             .VatSum = Convert.ToDecimal(dr("LineVat")),
                             .PriceAfterVat = Convert.ToDecimal(dr("GTotal")),
@@ -2300,11 +2570,11 @@ Partial Public Class ExpenseClaimForm
             CurrentLines = lines
             BindGrid()
 
-            ' Load MDR Lines
+            ' Load MDR Lines (使用 jID 作為關聯鍵)
             Dim mdrLines As New List(Of MDRLine)
-            sql = "SELECT * FROM jMGUIAPDetail WHERE DocEntry=@ID ORDER BY LineNum"
+            sql = "SELECT * FROM jMGUIAPDetail WHERE jID=@jID ORDER BY LineNum"
             Using cmd As New SqlCommand(sql, conn)
-                cmd.Parameters.AddWithValue("@ID", id)
+                cmd.Parameters.AddWithValue("@jID", id)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     While dr.Read()
                         Dim mdr As New MDRLine With {
@@ -2356,8 +2626,8 @@ Partial Public Class ExpenseClaimForm
         ' .NET 4.0 相容性修改: 檢查 Request.Files
         If fileUpload.HasFile OrElse Request.Files.Count > 0 Then
             Try
-                ' 若尚未存檔 (currentDocEntry=0)，先自動儲存為草稿以取得 jID
-                If currentDocEntry = 0 Then
+                ' 若尚未存檔 (currentJID=0)，先自動儲存為草稿以取得 jID
+                If currentJID = 0 Then
                     If Not SaveDocument("P", True) Then
                         ShowError("上傳附件前自動儲存草稿失敗，請檢查必填欄位。")
                         Return
@@ -2365,7 +2635,7 @@ Partial Public Class ExpenseClaimForm
                 End If
 
                 ' 建立附件資料夾: AttachFile/User/{UserID}/ExpenseClaimForm/{jID}/
-                Dim folder As String = GetAttachmentFolder(currentDocEntry)
+                Dim folder As String = GetAttachmentFolder(currentJID)
                 If Not Directory.Exists(folder) Then Directory.CreateDirectory(folder)
 
                 Dim list = CurrentAttachments
@@ -2383,7 +2653,7 @@ Partial Public Class ExpenseClaimForm
                         uploadedFile.SaveAs(fullPath)
 
                         ' 儲存相對路徑到資料庫
-                        Dim relativePath As String = GetAttachmentRelativePath(currentDocEntry, savedName)
+                        Dim relativePath As String = GetAttachmentRelativePath(currentJID, savedName)
 
                         ' 寫入資料庫 jAttach
                         Using conn As New SqlConnection(connStr)
@@ -2391,8 +2661,8 @@ Partial Public Class ExpenseClaimForm
                             Dim sql As String = "INSERT INTO jAttach (jID, DocEntry, LineNum, FilePath, FileName, Uploader, UploadTime) " &
                                               "VALUES (@jID, @DocEntry, -1, @FilePath, @FileName, @Uploader, @UploadTime); SELECT SCOPE_IDENTITY();"
                             Using cmd As New SqlCommand(sql, conn)
-                                cmd.Parameters.AddWithValue("@jID", currentDocEntry) ' jOPCH.jID (DocEntry)
-                                cmd.Parameters.AddWithValue("@DocEntry", currentDocEntry)
+                                cmd.Parameters.AddWithValue("@jID", currentJID) ' jOPCH.jID (DocEntry)
+                                cmd.Parameters.AddWithValue("@DocEntry", currentJID)
                                 cmd.Parameters.AddWithValue("@FilePath", relativePath) ' 儲存相對路徑
                                 cmd.Parameters.AddWithValue("@FileName", originName)
                                 cmd.Parameters.AddWithValue("@Uploader", currentUserId)
@@ -2453,7 +2723,7 @@ Partial Public Class ExpenseClaimForm
                     ' 可設定定期清理 Job 來處理 IsDeleted=1 且超過保留期限的檔案
 
                     ' [E] 記錄刪除附件稽核日誌
-                    AuditLogger.Log("jAttach", currentDocEntry, AuditLogger.Actions.Delete, currentUserId,
+                    AuditLogger.Log("jAttach", currentJID, AuditLogger.Actions.Delete, currentUserId,
                                     changes:=String.Format("FileName={0}, FilePath={1}", item.FileName, item.FilePath))
 
                     list.RemoveAt(index)
@@ -2509,11 +2779,11 @@ Partial Public Class ExpenseClaimForm
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "UPDATE jOPCH SET ApprovalComments=@Comm, UpdateBy=@User, UpdateDate=GETDATE() WHERE DocEntry=@ID"
+                Dim sql As String = "UPDATE jOPCH SET ApprovalComments=@Comm, UpdateBy=@User, UpdateDate=GETDATE() WHERE jID=@jID"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@User", currentUserId)
                     cmd.Parameters.AddWithValue("@Comm", txtApprovalComments.Text)
-                    cmd.Parameters.AddWithValue("@ID", currentDocEntry)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
                     cmd.ExecuteNonQuery()
                 End Using
             End Using
@@ -2528,56 +2798,88 @@ Partial Public Class ExpenseClaimForm
     ''' 狀態轉換規則：
     ''' - W (待審) → A (核准) 或 R (駁回)
     ''' - R (駁回) → W (待審)
-    ''' - A (核准) → 無 (終態)
+    ''' - A (核准) + B1PostStatus='Y' → 終態，不可變更
+    ''' - A (核准) + B1PostStatus='E' → 允許重試寫入 SAP
     ''' </summary>
     Private Sub UpdateStatus(newStatus As String)
         Try
-            ' 先取得當前狀態
+            ' 先取得當前狀態和 B1PostStatus (使用 jID 作為主鍵)
             Dim currentStatus As String = ""
+            Dim b1PostStatus As String = ""
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Using cmd As New SqlCommand("SELECT ApprovalStatus FROM jOPCH WHERE DocEntry=@ID", conn)
-                    cmd.Parameters.AddWithValue("@ID", currentDocEntry)
-                    Dim result = cmd.ExecuteScalar()
-                    If result IsNot Nothing Then
-                        currentStatus = result.ToString()
-                    End If
+                Using cmd As New SqlCommand("SELECT ApprovalStatus, ISNULL(B1PostStatus,'N') AS B1PostStatus FROM jOPCH WHERE jID=@jID", conn)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
+                    Using dr = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            currentStatus = dr("ApprovalStatus").ToString()
+                            b1PostStatus = dr("B1PostStatus").ToString()
+                        End If
+                    End Using
                 End Using
             End Using
 
-            ' [B] 狀態轉換驗證
-            If Not IsValidStatusTransition(currentStatus, newStatus) Then
+            ' 檢查是否已成功寫入 SAP（防止重複寫入）
+            If b1PostStatus = "Y" Then
+                ShowError("此單據已成功寫入 SAP，無法再次操作")
+                Return
+            End If
+
+            ' 特殊情況：已核准但寫入失敗，允許重試
+            Dim isRetry As Boolean = (currentStatus = "A" AndAlso b1PostStatus = "E" AndAlso newStatus = "A")
+
+            ' [B] 狀態轉換驗證（重試時跳過）
+            If Not isRetry AndAlso Not IsValidStatusTransition(currentStatus, newStatus) Then
                 ShowError(String.Format("無效的狀態轉換：{0} → {1}", GetStatusText(currentStatus), GetStatusText(newStatus)))
                 Return
             End If
 
+            ' 使用樂觀鎖定更新狀態，防止競爭條件
+            Dim rowsAffected As Integer = 0
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "UPDATE jOPCH SET ApprovalStatus=@Status, ApprovedBy=@User, ApprovalDate=GETDATE(), ApprovalComments=@Comm WHERE DocEntry=@ID"
+                Dim sql As String
+                If isRetry Then
+                    ' 重試：只更新審核相關欄位，確保 B1PostStatus 仍為 'E'
+                    sql = "UPDATE jOPCH SET ApprovedBy=@User, ApprovalDate=GETDATE(), ApprovalComments=@Comm, B1PostStatus='N', B1ErrMsg=NULL " &
+                          "WHERE jID=@jID AND ApprovalStatus='A' AND B1PostStatus='E'"
+                Else
+                    ' 正常流程：使用樂觀鎖定確保狀態沒有被其他人改過
+                    sql = "UPDATE jOPCH SET ApprovalStatus=@Status, ApprovedBy=@User, ApprovalDate=GETDATE(), ApprovalComments=@Comm " &
+                          "WHERE jID=@jID AND ApprovalStatus=@OldStatus AND ISNULL(B1PostStatus,'N') <> 'Y'"
+                End If
+
                 Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
                     cmd.Parameters.AddWithValue("@Status", newStatus)
+                    cmd.Parameters.AddWithValue("@OldStatus", currentStatus)
                     cmd.Parameters.AddWithValue("@User", currentUserId)
                     cmd.Parameters.AddWithValue("@Comm", txtApprovalComments.Text)
-                    cmd.Parameters.AddWithValue("@ID", currentDocEntry)
-                    cmd.ExecuteNonQuery()
+                    rowsAffected = cmd.ExecuteNonQuery()
                 End Using
             End Using
 
+            ' 檢查是否成功更新（樂觀鎖定失敗時 rowsAffected = 0）
+            If rowsAffected = 0 Then
+                ShowError("更新失敗：單據狀態已被其他使用者變更，請重新整理頁面")
+                Return
+            End If
+
             ' [E] 記錄狀態變更稽核日誌 (非阻塞)
             Dim auditAction As String = AuditLogger.Actions.StatusChange
-            If newStatus = "A" Then auditAction = AuditLogger.Actions.Approve
+            If newStatus = "A" Then auditAction = If(isRetry, "RetryApprove", AuditLogger.Actions.Approve)
             If newStatus = "R" Then auditAction = AuditLogger.Actions.Reject
-            AuditLogger.Log("jOPCH", currentDocEntry, auditAction, currentUserId,
+            AuditLogger.Log("jOPCH", currentJID, auditAction, currentUserId,
                             oldValue:=currentStatus, newValue:=newStatus,
                             changes:=String.Format("{0} → {1}, Comment={2}", GetStatusText(currentStatus), GetStatusText(newStatus), txtApprovalComments.Text))
 
-            ' 如果是放行 (A)，這裡應呼叫 SAP B1 API 建立 AP Invoice
+            ' 如果是放行 (A) 或重試，呼叫 SAP B1 API 建立 AP Invoice
             If newStatus = "A" Then
                 ' Call SAP B1 API & MDR Integration
-                CreateAPInvoiceInSAP(currentDocEntry)
+                CreateAPInvoiceInSAP(currentJID)
             End If
 
-            Response.Redirect("ExpenseClaimForm.aspx?DocEntry=" & currentDocEntry)
+            Response.Redirect("ExpenseClaimForm.aspx?jID=" & currentJID)
         Catch ex As Exception
             ShowError("更新狀態失敗: " & ex.Message)
         End Try
@@ -2585,89 +2887,252 @@ Partial Public Class ExpenseClaimForm
 
 #Region "SAP Integration"
     ''' <summary>
+    ''' 初始化 SAP 連線 (參考廠長的做法)
+    ''' </summary>
+    Private Function InitSAPConnection() As Integer
+        Dim destIP As String = ConfigurationManager.AppSettings("SapServer")
+        Dim dbName As String = ConfigurationManager.AppSettings("SapCompanyDB")
+        Dim sapUser As String = ConfigurationManager.AppSettings("SapUserName")
+        Dim sapPwd As String = ConfigurationManager.AppSettings("SapPassword")
+        Dim dbUser As String = ConfigurationManager.AppSettings("SapDbUserName")
+        Dim dbPwd As String = ConfigurationManager.AppSettings("SapDbPassword")
+
+        oCompany.Server = destIP
+        oCompany.CompanyDB = dbName
+        oCompany.UserName = sapUser
+        oCompany.Password = sapPwd
+        oCompany.UseTrusted = False
+        oCompany.DbUserName = If(String.IsNullOrEmpty(dbUser), "sa", dbUser)
+        oCompany.DbPassword = If(String.IsNullOrEmpty(dbPwd), "", dbPwd)
+        oCompany.language = SAPbobsCOM.BoSuppLangs.ln_English
+        oCompany.DbServerType = SAPbobsCOM.BoDataServerTypes.dst_MSSQL2019
+
+        Return oCompany.Connect()
+    End Function
+
+    ''' <summary>
+    ''' 關閉 SAP 連線 (參考廠長的做法)
+    ''' </summary>
+    Private Sub CloseSAPConnection()
+        If oCompany IsNot Nothing AndAlso oCompany.Connected Then
+            oCompany.Disconnect()
+        End If
+    End Sub
+
+    ''' <summary>
     ''' 建立 SAP AP 發票
     ''' </summary>
-    Private Sub CreateAPInvoiceInSAP(docEntry As Integer)
+    ''' <param name="jID">平台單號 (jOPCH.jID)</param>
+    Private Sub CreateAPInvoiceInSAP(jID As Integer)
+        ' 使用 Page 層級的 oCompany 物件 (參考廠長的做法)
         Dim oInvoice As SAPbobsCOM.Documents = Nothing
         Dim sapDocEntry As Integer = 0
         Dim errMsg As String = ""
 
         Try
-            ' 1. 初始化 SAP 連線
-            Dim destIP As String = If(Session("usingserver") IsNot Nothing, Session("usingserver").ToString(), "")
-            Dim dbName As String = If(Session("usingdb") IsNot Nothing, Session("usingdb").ToString(), "")
-            Dim sapUser As String = If(Session("sapid") IsNot Nothing, Session("sapid").ToString(), "")
-            Dim sapPwd As String = If(Session("sappwd") IsNot Nothing, Session("sappwd").ToString(), "")
+            ' 0. 雙重檢查：確保尚未成功寫入 SAP（防止競爭條件）
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Using cmd As New SqlCommand("SELECT B1PostStatus FROM jOPCH WHERE jID=@jID", conn)
+                    cmd.Parameters.AddWithValue("@jID", jID)
+                    Dim status = cmd.ExecuteScalar()
+                    If status IsNot Nothing AndAlso status.ToString() = "Y" Then
+                        ShowWarning("此單據已成功寫入 SAP，跳過重複寫入")
+                        Return
+                    End If
+                End Using
+            End Using
 
-            If String.IsNullOrEmpty(destIP) OrElse String.IsNullOrEmpty(dbName) Then
-                Throw New Exception("遺失 SAP 連線資訊 (Session)，請重新登入")
+            ' 1. 初始化 SAP 連線 (從 Web.config 讀取)
+            If String.IsNullOrEmpty(ConfigurationManager.AppSettings("SapServer")) OrElse
+               String.IsNullOrEmpty(ConfigurationManager.AppSettings("SapCompanyDB")) Then
+                Throw New Exception("Web.config 中缺少 SAP 連線設定 (SapServer/SapCompanyDB)")
             End If
 
-            If CommUtil.InitSAPConnection(destIP, dbName, sapUser, sapPwd) <> 0 Then
-                Throw New Exception("SAP 連線失敗: " & CommUtil.oCompany.GetLastErrorDescription())
+            Dim connResult As Integer = InitSAPConnection()
+            If connResult <> 0 Then
+                Dim connErrCode As Integer
+                Dim connErrMsg As String = ""
+                oCompany.GetLastError(connErrCode, connErrMsg)
+                Throw New Exception($"SAP 連線失敗 [{connErrCode}]: {connErrMsg}")
             End If
 
             ' 2. 準備與主要資料
-            Dim oCompany As SAPbobsCOM.Company = CommUtil.oCompany
             oInvoice = oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseInvoices)
+
+            ' 設定文件類型為服務型發票 (Service Type)
+            oInvoice.DocType = SAPbobsCOM.BoDocumentTypes.dDocument_Service
+
+            ' 記錄文件幣別和匯率 (供明細使用)
+            Dim docCurrency As String = "NTD"
+            Dim docRate As Double = 1.0
 
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                ' Header
-                Dim sqlH As String = "SELECT * FROM jOPCH WHERE DocEntry=@ID"
+                ' Header - jOPCH 主鍵是 jID
+                Dim sqlH As String = "SELECT * FROM jOPCH WHERE jID=@jID"
                 Using cmdH As New SqlCommand(sqlH, conn)
-                    cmdH.Parameters.AddWithValue("@ID", docEntry)
+                    cmdH.Parameters.AddWithValue("@jID", jID)
                     Using drH As SqlDataReader = cmdH.ExecuteReader()
-                        If drH.Read() Then
-                            oInvoice.CardCode = drH("CardCode").ToString()
-                            oInvoice.CardName = drH("CardName").ToString()
-                            If Not IsDBNull(drH("NumAtCard")) Then oInvoice.NumAtCard = drH("NumAtCard").ToString()
-                            oInvoice.DocDate = Convert.ToDateTime(drH("DocDate"))
-                            If Not IsDBNull(drH("DocDueDate")) Then oInvoice.DocDueDate = Convert.ToDateTime(drH("DocDueDate"))
-                            If Not IsDBNull(drH("TaxDate")) Then oInvoice.TaxDate = Convert.ToDateTime(drH("TaxDate"))
-                            
-                            Dim docCur As String = drH("DocCurrency").ToString()
-                            oInvoice.DocCurrency = docCur
-                            
-                            ' 若非本幣，設定匯率
-                            If docCur <> "TWD" AndAlso docCur <> "NTD" Then
-                                If Not IsDBNull(drH("DocRate")) Then
-                                    oInvoice.DocRate = Convert.ToDouble(drH("DocRate"))
-                                End If
-                            End If
+                        If Not drH.Read() Then
+                            Throw New Exception("找不到費用申請單: jID=" & jID)
+                        End If
 
-                            If Not IsDBNull(drH("GroupNum")) Then oInvoice.GroupNumber = Convert.ToInt32(drH("GroupNum"))
-                            If Not IsDBNull(drH("Comments")) Then oInvoice.Comments = drH("Comments").ToString()
-                            If Not IsDBNull(drH("DeliveryAddrID")) Then oInvoice.Address = drH("Address").ToString() ' 簡化: 直接填地址
-                            If Not IsDBNull(drH("SlpCode")) Then oInvoice.SalesPersonCode = Convert.ToInt32(drH("SlpCode"))
+                        ' 供應商代碼 (必填)
+                        oInvoice.CardCode = drH("CardCode").ToString()
+
+                        ' 供應商參考號 (發票號碼)
+                        If Not IsDBNull(drH("NumAtCard")) Then
+                            oInvoice.NumAtCard = drH("NumAtCard").ToString()
+                        End If
+
+                        ' 文件日期
+                        oInvoice.DocDate = Convert.ToDateTime(drH("DocDate"))
+
+                        ' 到期日
+                        If Not IsDBNull(drH("DocDueDate")) Then
+                            oInvoice.DocDueDate = Convert.ToDateTime(drH("DocDueDate"))
+                        End If
+
+                        ' 過帳日期 (Tax Date)
+                        If Not IsDBNull(drH("TaxDate")) Then
+                            oInvoice.TaxDate = Convert.ToDateTime(drH("TaxDate"))
+                        End If
+
+                        ' 幣別
+                        If Not IsDBNull(drH("DocCurrency")) Then
+                            docCurrency = drH("DocCurrency").ToString()
+                            oInvoice.DocCurrency = docCurrency
+                        End If
+
+                        ' 匯率 (若非本幣)
+                        If Not IsDBNull(drH("DocRate")) Then
+                            docRate = Convert.ToDouble(drH("DocRate"))
+                            If docCurrency <> "TWD" AndAlso docCurrency <> "NTD" Then
+                                oInvoice.DocRate = docRate
+                            End If
+                        End If
+
+                        ' 注意: DocTotal 不需手動設定，SAP 會根據明細行自動計算
+
+                        ' 收貨地址
+                        If Not IsDBNull(drH("Address")) Then
+                            oInvoice.Address = drH("Address").ToString()
+                        End If
+
+                        ' 付款條件
+                        If Not IsDBNull(drH("GroupNum")) Then
+                            oInvoice.GroupNumber = Convert.ToInt32(drH("GroupNum"))
+                        End If
+
+                        ' 備註
+                        If Not IsDBNull(drH("Comments")) Then
+                            oInvoice.Comments = drH("Comments").ToString()
+                        End If
+
+                        ' 採購人員 (SlpCode)
+                        If Not IsDBNull(drH("SlpCode")) Then
+                            oInvoice.SalesPersonCode = Convert.ToInt32(drH("SlpCode"))
                         End If
                     End Using
                 End Using
 
-                ' Lines
-                Dim sqlL As String = "SELECT * FROM jPCH1 WHERE DocEntry=@ID ORDER BY LineNum"
+                ' Lines - jPCH1 主鍵是 jID + LineNum
+                Dim sqlL As String = "SELECT * FROM jPCH1 WHERE jID=@jID ORDER BY LineNum"
                 Using cmdL As New SqlCommand(sqlL, conn)
-                    cmdL.Parameters.AddWithValue("@ID", docEntry)
+                    cmdL.Parameters.AddWithValue("@jID", jID)
                     Using drL As SqlDataReader = cmdL.ExecuteReader()
-                        Dim i As Integer = 0
+                        Dim lineIndex As Integer = 0
                         While drL.Read()
-                            If i > 0 Then oInvoice.Lines.Add()
-                            
-                            oInvoice.Lines.AccountCode = drL("AcctCode").ToString()
-                            If Not IsDBNull(drL("Dscription")) Then oInvoice.Lines.ItemDescription = drL("Dscription").ToString()
-                            
-                            Dim lineTotal As Double = Convert.ToDouble(drL("LineTotal"))
-                            If oInvoice.DocCurrency = "TWD" OrElse oInvoice.DocCurrency = "NTD" Then
-                                oInvoice.Lines.LineTotal = lineTotal
-                            Else
-                                oInvoice.Lines.LineTotalForeignCurrency = lineTotal
+                            ' 第一行不需要 Add，後續行要 Add
+                            If lineIndex > 0 Then oInvoice.Lines.Add()
+
+                            ' 會計科目 (費用類) - 必填欄位
+                            Dim acctCode As String = ""
+                            If Not IsDBNull(drL("AcctCode")) Then
+                                acctCode = drL("AcctCode").ToString().Trim()
+                            End If
+                            If String.IsNullOrEmpty(acctCode) Then
+                                Throw New Exception($"明細行 {lineIndex + 1} 缺少會計科目 (AcctCode)")
+                            End If
+                            oInvoice.Lines.AccountCode = acctCode
+
+                            ' 說明 (ItemDescription)
+                            If Not IsDBNull(drL("Dscription")) AndAlso drL("Dscription").ToString().Trim() <> "" Then
+                                oInvoice.Lines.ItemDescription = drL("Dscription").ToString()
                             End If
 
-                            If Not IsDBNull(drL("VatGroup")) Then oInvoice.Lines.VatGroup = drL("VatGroup").ToString()
-                            If Not IsDBNull(drL("CostingCode")) Then oInvoice.Lines.CostingCode = drL("CostingCode").ToString()
-                            If Not IsDBNull(drL("CostingCode2")) Then oInvoice.Lines.CostingCode2 = drL("CostingCode2").ToString()
-                            
-                            i += 1
+                            ' 明細幣別 (Currency) - 依據 VBA 規格設定
+                            Dim lineCurrency As String = docCurrency
+                            If Not IsDBNull(drL("Currency")) AndAlso drL("Currency").ToString() <> "" Then
+                                lineCurrency = drL("Currency").ToString()
+                            End If
+                            oInvoice.Lines.Currency = lineCurrency
+
+                            ' 明細匯率 (Rate)
+                            Dim lineRate As Double = docRate
+                            If Not IsDBNull(drL("Rate")) Then
+                                lineRate = Convert.ToDouble(drL("Rate"))
+                            End If
+                            oInvoice.Lines.Rate = lineRate
+
+                            ' 取得費用項目代碼 (ItemCode)
+                            Dim itemCode As String = ""
+                            If Not IsDBNull(drL("ItemCode")) Then
+                                itemCode = drL("ItemCode").ToString().Trim()
+                            End If
+
+                            ' 金額處理 (本幣 vs 外幣)
+                            Dim lineTotal As Double = 0
+                            If Not IsDBNull(drL("LineTotal")) Then
+                                lineTotal = Convert.ToDouble(drL("LineTotal"))
+                            End If
+
+                            ' 格式28 (進出口報關費 E030) 特殊處理：只過帳稅額，且使用零稅碼
+                            Dim isFormat28 As Boolean = (itemCode = "E030")
+                            If isFormat28 Then
+                                ' 取得稅額 (LineVat) 作為 LineTotal
+                                If Not IsDBNull(drL("LineVat")) Then
+                                    lineTotal = Convert.ToDouble(drL("LineVat"))
+                                Else
+                                    lineTotal = 0
+                                End If
+                            End If
+
+                            If lineCurrency = "TWD" OrElse lineCurrency = "NTD" Then
+                                ' 本幣
+                                oInvoice.Lines.LineTotal = lineTotal
+                            Else
+                                ' 外幣
+                                oInvoice.Lines.LineTotalForeignCurrency = lineTotal
+                                oInvoice.Lines.LineTotal = Math.Round(lineTotal * lineRate, 2, MidpointRounding.AwayFromZero)
+                            End If
+
+                            ' 稅碼 (VatGroup) - 轉換為 SAP 稅碼: 1=J1(應稅), 2=J0(零稅), 3=JX(免稅)
+                            ' 格式28 強制使用 J0 (零稅)，因為稅額本身就是最終金額，不應再課稅
+                            If isFormat28 Then
+                                oInvoice.Lines.VatGroup = "J0"
+                            ElseIf Not IsDBNull(drL("VatGroup")) AndAlso drL("VatGroup").ToString() <> "" Then
+                                Dim vatCode As String = drL("VatGroup").ToString()
+                                Select Case vatCode
+                                    Case "1" : oInvoice.Lines.VatGroup = "J1"  ' 應稅
+                                    Case "2" : oInvoice.Lines.VatGroup = "J0"  ' 零稅
+                                    Case "3" : oInvoice.Lines.VatGroup = "JX"  ' 免稅
+                                    Case Else : oInvoice.Lines.VatGroup = vatCode  ' 若已是 SAP 稅碼則直接使用
+                                End Select
+                            End If
+
+                            ' 成本中心1 (產品: 1030-AOI, 1040-ICT)
+                            If Not IsDBNull(drL("CostingCode")) AndAlso drL("CostingCode").ToString() <> "" Then
+                                oInvoice.Lines.CostingCode = drL("CostingCode").ToString()
+                            End If
+
+                            ' 成本中心2 (部門: 1050~1300)
+                            If Not IsDBNull(drL("CostingCode2")) AndAlso drL("CostingCode2").ToString() <> "" Then
+                                oInvoice.Lines.CostingCode2 = drL("CostingCode2").ToString()
+                            End If
+
+                            lineIndex += 1
                         End While
                     End Using
                 End Using
@@ -2679,67 +3144,118 @@ Partial Public Class ExpenseClaimForm
                 oCompany.GetLastError(errCode, errMsg)
                 Throw New Exception($"SAP Error [{errCode}]: {errMsg}")
             Else
+                ' 取得 SAP DocEntry
                 sapDocEntry = Convert.ToInt32(oCompany.GetNewObjectKey())
-                ShowSuccess($"已核准並產生 SAP AP 發票 (單號: {sapDocEntry})")
-                
-                ' 更新 jOPCH 狀態
-                UpdateSAPPostStatus(docEntry, sapDocEntry, "Y", "")
+
+                ' 用 DocEntry 查詢 SAP OPCH 取得 DocNum
+                Dim sapDocNum As Integer = GetSAPDocNum(sapDocEntry)
+
+                ShowSuccess($"已核准並產生 SAP AP 發票 (DocEntry: {sapDocEntry}, DocNum: {sapDocNum})")
+
+                ' 更新 jOPCH 和 jPCH1 的 DocEntry 與 DocNum
+                UpdateSAPPostStatus(jID, sapDocEntry, sapDocNum, "Y", "")
             End If
 
         Catch ex As Exception
             errMsg = ex.Message
             ShowError(errMsg)
             ' 更新失敗狀態
-            UpdateSAPPostStatus(docEntry, 0, "E", errMsg)
+            UpdateSAPPostStatus(jID, 0, 0, "E", errMsg)
         Finally
-            CommUtil.CloseSAPConnection()
-            If oInvoice IsNot Nothing Then
-                System.Runtime.InteropServices.Marshal.ReleaseComObject(oInvoice)
-            End If
+            ' 釋放 COM 物件 (參考廠長的簡單做法)
+            oInvoice = Nothing
+            CloseSAPConnection()
         End Try
     End Sub
 
-    Private Sub UpdateSAPPostStatus(docEntry As Integer, sapDocEntry As Integer, status As String, errMsg As String)
+    ''' <summary>
+    ''' 從 SAP OPCH 取得 DocNum (依據 DocEntry)
+    ''' </summary>
+    Private Function GetSAPDocNum(sapDocEntry As Integer) As Integer
+        Try
+            Dim sapConnStr As String = System.Configuration.ConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
+            Using connSap As New SqlConnection(sapConnStr)
+                connSap.Open()
+                Dim sql As String = "SELECT DocNum FROM OPCH WHERE DocEntry = @DocEntry"
+                Using cmd As New SqlCommand(sql, connSap)
+                    cmd.Parameters.AddWithValue("@DocEntry", sapDocEntry)
+                    Dim result As Object = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return Convert.ToInt32(result)
+                    End If
+                End Using
+            End Using
+        Catch
+            ' 查詢失敗時回傳 0
+        End Try
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' 更新 SAP 過帳狀態並回寫 DocEntry/DocNum 到 jOPCH 和 jPCH1
+    ''' </summary>
+    ''' <param name="jID">平台單號 (jOPCH.jID)</param>
+    ''' <param name="sapDocEntry">SAP 文件 DocEntry</param>
+    ''' <param name="sapDocNum">SAP 文件 DocNum</param>
+    ''' <param name="status">過帳狀態 (Y=成功, E=失敗)</param>
+    ''' <param name="errMsg">錯誤訊息</param>
+    Private Sub UpdateSAPPostStatus(jID As Integer, sapDocEntry As Integer, sapDocNum As Integer, status As String, errMsg As String)
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                ' 檢查欄位是否存在以免報錯 (若 DB Schema 尚未更新)
-                ' 這裡直接嘗試更新，若失敗則 Catch
-                Dim sql As String = "UPDATE jOPCH SET " & _
-                                   "B1PostStatus = @Status, " & _
-                                   "B1ErrMsg = @ErrMsg "
-                
+
+                ' 1. 更新 jOPCH 表頭
+                Dim sqlHeader As String = "UPDATE jOPCH SET " &
+                                          "B1PostStatus = @Status, " &
+                                          "B1ErrMsg = @ErrMsg, " &
+                                          "B1PostDate = GETDATE()"
+
+                ' 成功時回寫 DocEntry 和 DocNum
                 If sapDocEntry > 0 Then
-                    sql &= ", DocEntry = @SapDocEntry, B1PostDate = GETDATE() " 
-                    ' 注意: 這裡覆蓋了 DocEntry? 
-                    ' 原本 jOPCH.DocEntry 是 jopch.jID，但 SAP_AP_Invoice_Import 邏輯是這麼寫的...
-                    ' 為了安全，暫時不覆蓋 DocEntry，改用 U_SapDocEntry 如果有，或者只更新 B1PostStatus
-                    ' 參考 SAP_AP_Invoice_Import.vb: DocEntry =CASE WHEN @SapDocEntry > 0 THEN @SapDocEntry ELSE DocEntry END
-                    ' 這意味著他想把 SAP DocEntry 寫回主鍵? 這會破壞關聯!
-                    ' 假設 jOPCH.DocEntry 不是主鍵? 
-                    ' jOPCH.jID 是 Identity. DocEntry 可能原本存 jID，但被設計用來存 SAP DocEntry?
-                    ' 讓我們先保留原樣，只更新 Status 以免破壞現有邏輯
+                    sqlHeader &= ", DocEntry = @SapDocEntry"
                 End If
-                
-                ' 我們添加 SapDocEntry 到 B1ErrMsg 前面備註一下，或者如果有 U_SapDocEntry
-                If sapDocEntry > 0 Then
-                     ' 假設有 U_SapDocEntry
-                     ' sql &= ", U_SapDocEntry = @SapDocEntry" 
+                If sapDocNum > 0 Then
+                    sqlHeader &= ", DocNum = @SapDocNum"
                 End If
 
-                sql &= " WHERE DocEntry = @DocEntry"
+                sqlHeader &= " WHERE jID = @jID"
 
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@DocEntry", docEntry)
-                    cmd.Parameters.AddWithValue("@Status", status)
-                    cmd.Parameters.AddWithValue("@ErrMsg", errMsg)
-                    If sapDocEntry > 0 Then cmd.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
-                    
-                    cmd.ExecuteNonQuery()
+                Using cmdHeader As New SqlCommand(sqlHeader, conn)
+                    cmdHeader.Parameters.AddWithValue("@jID", jID)
+                    cmdHeader.Parameters.AddWithValue("@Status", status)
+                    cmdHeader.Parameters.AddWithValue("@ErrMsg", If(String.IsNullOrEmpty(errMsg), DBNull.Value, errMsg))
+                    If sapDocEntry > 0 Then cmdHeader.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
+                    If sapDocNum > 0 Then cmdHeader.Parameters.AddWithValue("@SapDocNum", sapDocNum)
+                    cmdHeader.ExecuteNonQuery()
                 End Using
+
+                ' 2. 更新 jPCH1 明細 (回寫 DocEntry 和 DocNum)
+                If sapDocEntry > 0 OrElse sapDocNum > 0 Then
+                    Dim sqlLines As String = "UPDATE jPCH1 SET "
+                    Dim setClauses As New List(Of String)
+
+                    If sapDocEntry > 0 Then
+                        setClauses.Add("DocEntry = @SapDocEntry")
+                    End If
+                    If sapDocNum > 0 Then
+                        setClauses.Add("DocNum = @SapDocNum")
+                    End If
+
+                    sqlLines &= String.Join(", ", setClauses)
+                    sqlLines &= " WHERE jID = @jID"
+
+                    Using cmdLines As New SqlCommand(sqlLines, conn)
+                        cmdLines.Parameters.AddWithValue("@jID", jID)
+                        If sapDocEntry > 0 Then cmdLines.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
+                        If sapDocNum > 0 Then cmdLines.Parameters.AddWithValue("@SapDocNum", sapDocNum)
+                        cmdLines.ExecuteNonQuery()
+                    End Using
+                End If
+
             End Using
         Catch ex As Exception
-            ' 欄位可能不存在，忽略
+            ' 更新狀態失敗不阻斷流程，但記錄到 Event Log (或忽略)
+            System.Diagnostics.Debug.WriteLine("UpdateSAPPostStatus Error: " & ex.Message)
         End Try
     End Sub
 #End Region

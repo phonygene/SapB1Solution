@@ -562,7 +562,8 @@
                                         <div class="form-group">
                                             <label class="form-label">付款條件:</label>
                                             <div class="form-control">
-                                                <asp:DropDownList ID="ddlGroupNum" runat="server"></asp:DropDownList>
+                                                <asp:DropDownList ID="ddlGroupNum" runat="server" AutoPostBack="true"
+                                                    OnSelectedIndexChanged="ddlGroupNum_SelectedIndexChanged"></asp:DropDownList>
                                             </div>
                                         </div>
                                         <div class="form-group">
@@ -808,7 +809,8 @@
                                                     <asp:TemplateField HeaderText="部門">
                                                         <ItemTemplate>
                                                             <asp:DropDownList ID="ddlCostingCode2" runat="server"
-                                                                Width="100px"></asp:DropDownList>
+                                                                Width="100px" AutoPostBack="true"
+                                                                OnSelectedIndexChanged="ddlCostingCode2_SelectedIndexChanged"></asp:DropDownList>
                                                         </ItemTemplate>
                                                         <ItemStyle Width="110px" />
                                                     </asp:TemplateField>

@@ -358,7 +358,7 @@ Public MustInherit Class B1TransactionBase
     Protected Function CalculateTax(hwbas As Decimal, taxType As String) As Decimal
         Select Case taxType
             Case "1" ' 應稅（5%）
-                Return Math.Round(hwbas * 0.05D, 2)
+                Return Math.Round(hwbas * 0.05D, 2, MidpointRounding.AwayFromZero)
             Case "2", "3" ' 零稅、免稅
                 Return 0D
             Case Else

@@ -81,13 +81,75 @@ Public Class ExpenseClaimReport
 
     ''' <summary>
     ''' 設定 Crystal Report 資料庫登入資訊
+    ''' 根據資料表原本的資料庫名稱，對應到正確的連線字串：
+    ''' - jtdb → jtdbConnectionString
+    ''' - JTSTD/JTSTD1031/jettech → SapSQLConnection
     ''' </summary>
     Private Sub SetDatabaseLogon(report As ReportDocument)
         Try
-            Dim builder As New SqlConnectionStringBuilder(connStr)
-            report.SetDatabaseLogon(builder.UserID, builder.Password, builder.DataSource, builder.InitialCatalog)
+            ' 取得兩個連線字串
+            Dim jtdbConnStr As String = WebConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
+            Dim sapConnStr As String = WebConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
+
+            Dim jtdbBuilder As New SqlConnectionStringBuilder(jtdbConnStr)
+            Dim sapBuilder As New SqlConnectionStringBuilder(sapConnStr)
+
+            ' 設定主報表的每個資料表連線
+            For Each table As CrystalDecisions.CrystalReports.Engine.Table In report.Database.Tables
+                Dim logonInfo As CrystalDecisions.Shared.TableLogOnInfo = table.LogOnInfo
+                Dim originalDbName As String = logonInfo.ConnectionInfo.DatabaseName.ToUpper()
+
+                ' 根據原本的資料庫名稱判斷使用哪個連線
+                If originalDbName.Contains("JTSTD") OrElse originalDbName.Contains("JETTECH") Then
+                    ' SAP 資料庫
+                    logonInfo.ConnectionInfo.ServerName = sapBuilder.DataSource
+                    logonInfo.ConnectionInfo.DatabaseName = sapBuilder.InitialCatalog
+                    logonInfo.ConnectionInfo.UserID = sapBuilder.UserID
+                    logonInfo.ConnectionInfo.Password = sapBuilder.Password
+                Else
+                    ' jtdb 資料庫 (預設)
+                    logonInfo.ConnectionInfo.ServerName = jtdbBuilder.DataSource
+                    logonInfo.ConnectionInfo.DatabaseName = jtdbBuilder.InitialCatalog
+                    logonInfo.ConnectionInfo.UserID = jtdbBuilder.UserID
+                    logonInfo.ConnectionInfo.Password = jtdbBuilder.Password
+                End If
+
+                logonInfo.ConnectionInfo.IntegratedSecurity = False
+                table.ApplyLogOnInfo(logonInfo)
+            Next
+
+            ' 處理子報表（如果有的話）
+            For Each section As CrystalDecisions.CrystalReports.Engine.Section In report.ReportDefinition.Sections
+                For Each reportObject As CrystalDecisions.CrystalReports.Engine.ReportObject In section.ReportObjects
+                    If reportObject.Kind = CrystalDecisions.Shared.ReportObjectKind.SubreportObject Then
+                        Dim subReportObj As CrystalDecisions.CrystalReports.Engine.SubreportObject = CType(reportObject, CrystalDecisions.CrystalReports.Engine.SubreportObject)
+                        Dim subReport As ReportDocument = subReportObj.OpenSubreport(subReportObj.SubreportName)
+
+                        For Each table As CrystalDecisions.CrystalReports.Engine.Table In subReport.Database.Tables
+                            Dim logonInfo As CrystalDecisions.Shared.TableLogOnInfo = table.LogOnInfo
+                            Dim originalDbName As String = logonInfo.ConnectionInfo.DatabaseName.ToUpper()
+
+                            If originalDbName.Contains("JTSTD") OrElse originalDbName.Contains("JETTECH") Then
+                                logonInfo.ConnectionInfo.ServerName = sapBuilder.DataSource
+                                logonInfo.ConnectionInfo.DatabaseName = sapBuilder.InitialCatalog
+                                logonInfo.ConnectionInfo.UserID = sapBuilder.UserID
+                                logonInfo.ConnectionInfo.Password = sapBuilder.Password
+                            Else
+                                logonInfo.ConnectionInfo.ServerName = jtdbBuilder.DataSource
+                                logonInfo.ConnectionInfo.DatabaseName = jtdbBuilder.InitialCatalog
+                                logonInfo.ConnectionInfo.UserID = jtdbBuilder.UserID
+                                logonInfo.ConnectionInfo.Password = jtdbBuilder.Password
+                            End If
+
+                            logonInfo.ConnectionInfo.IntegratedSecurity = False
+                            table.ApplyLogOnInfo(logonInfo)
+                        Next
+                    End If
+                Next
+            Next
+
         Catch ex As Exception
-            System.Diagnostics.Debug.WriteLine("SetDatabaseLogon Error: " & ex.Message)
+            Throw New Exception("資料庫連線設定失敗: " & ex.Message, ex)
         End Try
     End Sub
 

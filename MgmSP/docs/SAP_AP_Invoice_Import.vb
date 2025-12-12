@@ -297,7 +297,7 @@ Public Class SapAPInvoiceImporter
                                 ' - LineTotalFC = 外幣金額 (原始輸入金額)
                                 ' - LineTotal = 外幣金額 * 匯率 (本幣金額)
                                 oInvoice.Lines.LineTotalForeignCurrency = lineTotal
-                                oInvoice.Lines.LineTotal = Math.Round(lineTotal * docRate, 2)
+                                oInvoice.Lines.LineTotal = Math.Round(lineTotal * docRate, 2, MidpointRounding.AwayFromZero)
                             Else
                                 ' 本幣單據：
                                 ' - LineTotal = 本幣金額
