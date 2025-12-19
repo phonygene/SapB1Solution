@@ -970,14 +970,25 @@ Partial Public Class ExpenseClaimForm
                 ddl.ToolTip = GetExpItemDescription(ddl.SelectedValue)
             End If
 
-            ' 進出口報關費 (E030) 特殊警告 - 格式28處理
-            If ddl.SelectedValue = "E030" Then
-                Dim script As String = "alert('注意：進出口報關費 (格式28)\n\n" &
+            ' 進出口報關費用-其他 (E030) - 提示改選 E030A
+            If ddl.SelectedValue = "E030" AndAlso Not E030OtherWarningShown Then
+                Dim script As String = "alert('提示：若要登打海關代徵營業稅\n\n" &
+                                      "請選擇「進出口報關費用-28-海關代徵營業稅」項目 (E030A)。\n\n" &
+                                      "本項目「進出口報關費用-其他」適用於一般進出口報關費。');"
+                ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "expE030Warning", script, True)
+                E030OtherWarningShown = True
+            End If
+
+            ' 進出口報關費用-28-海關代徵營業稅 (E030A) - 格式28 特殊警告
+            ' 同一次進入單據期間，費用頁籤最多警告一次
+            If ddl.SelectedValue = "E030A" AndAlso Not Format28ExpenseWarningShown Then
+                Dim script As String = "alert('注意：海關代徵營業稅 (格式28)\n\n" &
                                       "此項目寫入SAP時只會過帳「稅額」金額。\n\n" &
                                       "請在營業稅區填入：\n" &
                                       "- 未稅金額 = 營業稅基\n" &
                                       "- 稅額 = 實際應繳稅額');"
-                ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "expE030Warning", script, True)
+                ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "expE030AWarning", script, True)
+                Format28ExpenseWarningShown = True
             End If
         Else
             txtAcct.Text = ""
@@ -1235,14 +1246,44 @@ Partial Public Class ExpenseClaimForm
             Dim lines = CurrentLines
             If rowIndex < lines.Count Then
                 Dim line = lines(rowIndex)
-                ' 重新計算稅額與含稅金額
+
+                ' 設定稅率
                 If line.VatGroup = "1" Then ' 1-應稅 (5%)
                     line.VatRate = 5
-                    line.VatSum = Math.Round(line.LineTotal * 0.05D, 0, MidpointRounding.AwayFromZero)
                 Else
                     line.VatRate = 0
-                    line.VatSum = 0
                 End If
+
+                ' 讀取 UI 上當前的稅額（用戶可能已手動修改）
+                Dim txtVatSum As TextBox = CType(row.FindControl("txtVatSum"), TextBox)
+                Dim currentVatSum As Decimal = 0
+                If txtVatSum IsNot Nothing Then
+                    Decimal.TryParse(txtVatSum.Text, currentVatSum)
+                End If
+
+                ' 稅額處理邏輯：
+                ' - 非應稅項目：稅額強制為 0
+                ' - 應稅項目：
+                '   * 如果稅額為 0（新增明細），自動計算
+                '   * 如果稅額不為 0（已有值），保留用戶輸入的稅額
+                '     用戶可能根據實際憑證調整稅額（進位/捨去差異）
+                If line.VatGroup <> "1" Then
+                    ' 非應稅項目，稅額必須為 0
+                    line.VatSum = 0
+                ElseIf currentVatSum = 0 AndAlso line.LineTotal > 0 Then
+                    ' 新增明細或清空稅額，自動計算
+                    ' E030A (海關代徵營業稅) 使用無條件捨去，其他項目使用四捨五入
+                    If line.CategoryCode = "E030A" Then
+                        line.VatSum = Math.Floor(line.LineTotal * 0.05D)
+                    Else
+                        line.VatSum = Math.Round(line.LineTotal * 0.05D, 0, MidpointRounding.AwayFromZero)
+                    End If
+                Else
+                    ' 已有稅額，保留用戶輸入的值
+                    line.VatSum = currentVatSum
+                End If
+
+                ' 重新計算含稅金額
                 line.PriceAfterVat = line.LineTotal + line.VatSum
             End If
             CurrentLines = lines
@@ -1262,6 +1303,28 @@ Partial Public Class ExpenseClaimForm
 
         If rowIndex < lines.Count Then
             Dim line = lines(rowIndex)
+
+            ' 檢查用戶輸入的稅額是否與系統計算值不同
+            If line.VatGroup = "1" AndAlso line.LineTotal > 0 Then
+                ' E030A (海關代徵營業稅) 使用無條件捨去，其他項目使用四捨五入
+                Dim calculatedVat As Decimal
+                If line.CategoryCode = "E030A" Then
+                    calculatedVat = Math.Floor(line.LineTotal * 0.05D)
+                Else
+                    calculatedVat = Math.Round(line.LineTotal * 0.05D, 0, MidpointRounding.AwayFromZero)
+                End If
+
+                If line.VatSum <> calculatedVat Then
+                    ' 顯示警示：稅額與系統計算不同
+                    Dim script As String = String.Format(
+                        "alert('注意：您輸入的稅額 ({0:N0}) 與系統計算值 ({1:N0}) 不同。\n\n" &
+                        "若憑證上的稅額確實為 {0:N0} 元，請忽略此訊息。\n\n" &
+                        "系統將保留您輸入的稅額。');",
+                        line.VatSum, calculatedVat)
+                    ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "vatDiffWarning" & rowIndex, script, True)
+                End If
+            End If
+
             ' 手動修改稅額後，重新計算含稅金額
             line.PriceAfterVat = line.LineTotal + line.VatSum
         End If
@@ -1415,6 +1478,9 @@ Partial Public Class ExpenseClaimForm
 
         ' 依據費用明細產生對應的憑證明細
         For Each exp As ExpenseLine In expenseLines
+            ' E030A (海關代徵營業稅) 預設格式28，其他項目預設格式21
+            Dim defaultZFormCode As String = If(exp.CategoryCode = "E030A", "28", "21")
+
             mdrLines.Add(New MDRLine With {
                 .LineNum = startNum,
                 .U_LIFNR = txtCardCode.Text, ' 從單頭取得供應商
@@ -1425,7 +1491,7 @@ Partial Public Class ExpenseClaimForm
                 .U_HWBAS = exp.LineTotal, ' 帶入未稅金額
                 .U_HWSTE = exp.VatSum, ' 帶入稅額
                 .U_TAX_TYPE = If(exp.VatGroup = "1", "1", "2"), ' 1-應稅, 2-零稅
-                .U_ZFORM_CODE = "21" ' 預設統一發票
+                .U_ZFORM_CODE = defaultZFormCode
             })
             startNum += 1
         Next
@@ -1450,7 +1516,38 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub CalculateMDRTaxManual(sender As Object, e As EventArgs)
+        ' 當稅額被手動修改時
+        Dim txt As TextBox = CType(sender, TextBox)
+        Dim row As GridViewRow = CType(txt.NamingContainer, GridViewRow)
+        Dim rowIndex As Integer = row.DataItemIndex
+
         SyncMDRGridToModel(True) ' 手動修改稅額
+
+        ' 檢查用戶輸入的稅額是否與系統計算值不同
+        Dim lines = CurrentMDRLines
+        If rowIndex < lines.Count Then
+            Dim line = lines(rowIndex)
+            If line.U_TAX_TYPE = "1" AndAlso line.U_HWBAS > 0 Then
+                ' 格式28 (海關代徵營業稅) 使用無條件捨去，其他格式使用四捨五入
+                Dim calculatedVat As Decimal
+                If line.U_ZFORM_CODE = "28" Then
+                    calculatedVat = Math.Floor(line.U_HWBAS * 0.05D)
+                Else
+                    calculatedVat = Math.Round(line.U_HWBAS * 0.05D, 0, MidpointRounding.AwayFromZero)
+                End If
+
+                If line.U_HWSTE <> calculatedVat Then
+                    ' 顯示警示：稅額與系統計算不同
+                    Dim script As String = String.Format(
+                        "alert('注意：您輸入的稅額 ({0:N0}) 與系統計算值 ({1:N0}) 不同。\n\n" &
+                        "若憑證上的稅額確實為 {0:N0} 元，請忽略此訊息。\n\n" &
+                        "系統將保留您輸入的稅額。');",
+                        line.U_HWSTE, calculatedVat)
+                    ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "mdrVatDiffWarning" & rowIndex, script, True)
+                End If
+            End If
+        End If
+
         BindMDRGrid()
     End Sub
 
@@ -1481,20 +1578,33 @@ Partial Public Class ExpenseClaimForm
 
                 If txtHWBAS IsNot Nothing Then Decimal.TryParse(txtHWBAS.Text, line.U_HWBAS)
                 If ddlTAX IsNot Nothing Then line.U_TAX_TYPE = ddlTAX.SelectedValue
-                
-                ' 若手動修改，則讀取 UI 上的值
-                If isManualTax AndAlso txtHWSTE IsNot Nothing Then
-                    Decimal.TryParse(txtHWSTE.Text, line.U_HWSTE)
+
+                ' 讀取 UI 上當前的稅額（用戶可能已手動修改）
+                Dim currentHWSTE As Decimal = 0
+                If txtHWSTE IsNot Nothing Then
+                    Decimal.TryParse(txtHWSTE.Text, currentHWSTE)
                 End If
 
-                ' 自動計算稅額 (僅在非手動模式下)
-                If Not isManualTax Then
-                    ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
-                    If line.U_TAX_TYPE = "1" Then
-                        line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0, MidpointRounding.AwayFromZero)
+                ' 稅額處理邏輯：
+                ' - 非應稅項目（2-零稅、3-免稅）：稅額強制為 0
+                ' - 應稅項目（1-應稅）：
+                '   * 如果稅額為 0（新增明細），自動計算
+                '   * 如果稅額不為 0（已有值），保留用戶輸入的稅額
+                '     用戶可能根據實際憑證調整稅額（進位/捨去差異）
+                If line.U_TAX_TYPE <> "1" Then
+                    ' 非應稅項目，稅額必須為 0
+                    line.U_HWSTE = 0
+                ElseIf currentHWSTE = 0 AndAlso line.U_HWBAS > 0 Then
+                    ' 新增明細或清空稅額，自動計算
+                    ' 格式28 (海關代徵營業稅) 使用無條件捨去，其他格式使用四捨五入
+                    If line.U_ZFORM_CODE = "28" Then
+                        line.U_HWSTE = Math.Floor(line.U_HWBAS * 0.05D)
                     Else
-                        line.U_HWSTE = 0
+                        line.U_HWSTE = Math.Round(line.U_HWBAS * 0.05D, 0, MidpointRounding.AwayFromZero)
                     End If
+                Else
+                    ' 已有稅額，保留用戶輸入的值
+                    line.U_HWSTE = currentHWSTE
                 End If
 
                 ' 供應商從單頭取得 (不再從 GridView 讀取)
@@ -1556,33 +1666,33 @@ Partial Public Class ExpenseClaimForm
 
     ''' <summary>
     ''' 格式28 (海關代徵營業稅/進出口報關費) 特殊處理
-    ''' - 未稅金額欄位變為「營業稅基」
-    ''' - 含稅金額 = 稅額 且禁止更改
-    ''' - 彈窗提示使用者填入營業稅基並核對稅額
-    ''' - 匯入 SAP 時只過帳稅額金額
+    ''' - 設定 placeholder 提示使用者
+    ''' - 不清空已輸入的金額
+    ''' - 同一次進入單據期間，憑證頁籤最多警告一次
     ''' </summary>
     Private Sub HandleFormat28Row(row As GridViewRow)
         Dim txtHWBAS As TextBox = CType(row.FindControl("txtHWBAS"), TextBox)
         Dim txtHWSTE As TextBox = CType(row.FindControl("txtHWSTE"), TextBox)
 
-        If txtHWBAS IsNot Nothing Then
-            ' 清空金額，等待使用者輸入營業稅基
-            txtHWBAS.Text = ""
+        ' 只設定 placeholder 提示，不清空已輸入的金額
+        If txtHWBAS IsNot Nothing AndAlso String.IsNullOrEmpty(txtHWBAS.Text) Then
             txtHWBAS.Attributes("placeholder") = "請輸入營業稅基"
         End If
 
-        If txtHWSTE IsNot Nothing Then
-            txtHWSTE.Text = ""
+        If txtHWSTE IsNot Nothing AndAlso String.IsNullOrEmpty(txtHWSTE.Text) Then
             txtHWSTE.Attributes("placeholder") = "請輸入稅額"
         End If
 
-        ' 彈窗提示
-        Dim script As String = "alert('此為格式28 (海關代徵營業稅)：\n\n" &
-                              "1. 「未稅金額」欄位請填入「營業稅基」\n" &
-                              "2. 「稅額」欄位請填入實際稅額\n" &
-                              "3. 匯入SAP時將只過帳稅額金額\n\n" &
-                              "請核對海關稅單上的營業稅基與稅額。');"
-        ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "format28Warning_" & row.RowIndex, script, True)
+        ' 同一次進入單據期間，憑證頁籤最多警告一次
+        If Not Format28MDRWarningShown Then
+            Dim script As String = "alert('此為格式28 (海關代徵營業稅)：\n\n" &
+                                  "1. 「未稅金額」欄位請填入「營業稅基」\n" &
+                                  "2. 「稅額」欄位請填入實際稅額\n" &
+                                  "3. 匯入SAP時將只過帳稅額金額\n\n" &
+                                  "請核對海關稅單上的營業稅基與稅額。');"
+            ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "format28Warning", script, True)
+            Format28MDRWarningShown = True
+        End If
     End Sub
 
 
@@ -1714,6 +1824,45 @@ Partial Public Class ExpenseClaimForm
     End Property
 
     ''' <summary>
+    ''' E030 (進出口報關費用-其他) 提示警告是否已顯示過
+    ''' </summary>
+    Private Property E030OtherWarningShown As Boolean
+        Get
+            If ViewState("E030OtherWarningShown") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("E030OtherWarningShown"))
+        End Get
+        Set(value As Boolean)
+            ViewState("E030OtherWarningShown") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 格式28 (E030A/海關代徵營業稅) 費用頁籤警告是否已顯示過
+    ''' </summary>
+    Private Property Format28ExpenseWarningShown As Boolean
+        Get
+            If ViewState("Format28ExpenseWarningShown") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("Format28ExpenseWarningShown"))
+        End Get
+        Set(value As Boolean)
+            ViewState("Format28ExpenseWarningShown") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 格式28 (E030A/海關代徵營業稅) 憑證頁籤警告是否已顯示過
+    ''' </summary>
+    Private Property Format28MDRWarningShown As Boolean
+        Get
+            If ViewState("Format28MDRWarningShown") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("Format28MDRWarningShown"))
+        End Get
+        Set(value As Boolean)
+            ViewState("Format28MDRWarningShown") = value
+        End Set
+    End Property
+
+    ''' <summary>
     ''' 驗證單據，收集錯誤與警告，並顯示彈窗
     ''' </summary>
     ''' <returns>True 表示可以儲存，False 表示需要修正或確認</returns>
@@ -1817,6 +1966,20 @@ Partial Public Class ExpenseClaimForm
             warnings.Add("有「其他」類型的憑證，請確認憑證格式是否正確")
         End If
 
+        ' E030A (海關代徵營業稅) 必須有對應的 28 類型憑證
+        Dim hasE030AExpense As Boolean = CurrentLines.Any(Function(x) x.CategoryCode = "E030A")
+        Dim hasFormat28MDR As Boolean = CurrentMDRLines.Any(Function(x) x.U_ZFORM_CODE = "28")
+
+        ' 錯誤檢查：E030A 必須有格式28憑證
+        If hasE030AExpense AndAlso Not hasFormat28MDR Then
+            errors.Add("費用明細「進出口報關費用-28-海關代徵營業稅」項目，必須要有對應的 28 類型憑證明細")
+        End If
+
+        ' 格式28 提醒
+        If hasE030AExpense OrElse hasFormat28MDR Then
+            warnings.Add("【格式28 提醒】此單據含海關代徵營業稅，匯入SAP時將只過帳「稅額」金額，請確認金額正確")
+        End If
+
         ' === 決定是否顯示彈窗 ===
 
         ' 如果已經確認過警告，且沒有新的錯誤，則允許通過
@@ -1871,9 +2034,20 @@ Partial Public Class ExpenseClaimForm
             divValidationHeader.Style("background-color") = "#dc3545"
             btnValidationConfirm.Visible = False
         Else
-            ' 只有警告：橘色標題，顯示「確定仍要新增」按鈕
+            ' 只有警告：橘色標題，顯示確認按鈕
             divValidationHeader.Style("background-color") = "#ffc107"
             btnValidationConfirm.Visible = True
+
+            ' 根據操作類型設定按鈕文字
+            Dim pendingAction As String = If(ViewState("PendingAction"), "save").ToString()
+            Select Case pendingAction
+                Case "submit"
+                    btnValidationConfirm.Text = "確定送審"
+                Case "approve"
+                    btnValidationConfirm.Text = "確定放行"
+                Case Else
+                    btnValidationConfirm.Text = "確定儲存"
+            End Select
         End If
 
         ' 顯示彈窗
@@ -1893,23 +2067,29 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     ''' <summary>
-    ''' 驗證彈窗 - 確定仍要新增按鈕
+    ''' 驗證彈窗 - 確定按鈕（統一處理送審、儲存、放行）
     ''' </summary>
     Protected Sub btnValidationConfirm_Click(sender As Object, e As EventArgs)
         ' 設定警告已確認
         WarningConfirmed = True
+        ApprovalWarningConfirmed = True
 
-        ' 根據之前的操作類型執行儲存
+        ' 根據之前的操作類型執行對應動作
         Dim pendingAction As String = If(ViewState("PendingAction"), "save").ToString()
-        If pendingAction = "submit" Then
-            SaveDocument("W")
-        Else
-            Dim currentStatus As String = txtApprovalStatus.Text
-            If String.IsNullOrEmpty(currentStatus) OrElse currentStatus = "P" Then
-                currentStatus = "W"
-            End If
-            SaveDocument(currentStatus)
-        End If
+        Select Case pendingAction
+            Case "submit"
+                SaveDocument("W")
+            Case "approve"
+                ' 放行操作
+                UpdateStatus("A")
+            Case Else
+                ' 一般儲存
+                Dim currentStatus As String = txtApprovalStatus.Text
+                If String.IsNullOrEmpty(currentStatus) OrElse currentStatus = "P" Then
+                    currentStatus = "W"
+                End If
+                SaveDocument(currentStatus)
+        End Select
     End Sub
 
     Private Function SaveDocument(status As String, Optional isAutoSave As Boolean = False) As Boolean
@@ -2188,15 +2368,35 @@ Partial Public Class ExpenseClaimForm
                         LoadDocument(currentJID)
                     End If
                 ElseIf isApproved Then
-                    ' 已核准：僅更新備註欄
-                    Dim sql As String = "UPDATE jOPCH SET Comments=@Comments, UpdateBy=@User, UpdateDate=GETDATE() WHERE jID=@jID"
+                    ' 已核准：更新備註欄，審核者 (isApUser) 可額外更新 DocEntry
+                    Dim sql As String
+                    If isApUser Then
+                        ' 審核者可更新 DocEntry (AP單號)
+                        sql = "UPDATE jOPCH SET Comments=@Comments, DocEntry=@DocEntry, UpdateBy=@User, UpdateDate=GETDATE() WHERE jID=@jID"
+                    Else
+                        sql = "UPDATE jOPCH SET Comments=@Comments, UpdateBy=@User, UpdateDate=GETDATE() WHERE jID=@jID"
+                    End If
                     Using cmd As New SqlCommand(sql, conn)
                         cmd.Parameters.AddWithValue("@Comments", txtRemarks.Text)
                         cmd.Parameters.AddWithValue("@User", currentUserId)
                         cmd.Parameters.AddWithValue("@jID", currentJID)
+                        If isApUser Then
+                            ' 解析 DocEntry，空白時設為 NULL
+                            Dim docEntryText As String = txtB1DocEntry.Text.Trim()
+                            If String.IsNullOrEmpty(docEntryText) Then
+                                cmd.Parameters.AddWithValue("@DocEntry", DBNull.Value)
+                            Else
+                                Dim docEntryVal As Integer
+                                If Integer.TryParse(docEntryText, docEntryVal) Then
+                                    cmd.Parameters.AddWithValue("@DocEntry", docEntryVal)
+                                Else
+                                    cmd.Parameters.AddWithValue("@DocEntry", DBNull.Value)
+                                End If
+                            End If
+                        End If
                         cmd.ExecuteNonQuery()
                     End Using
-                    ShowSuccess("備註更新成功")
+                    ShowSuccess(If(isApUser, "備註與AP單號更新成功", "備註更新成功"))
                     LoadDocument(currentJID)
                 Else
                     ShowError("您沒有權限更新此單據")
@@ -2248,6 +2448,16 @@ Partial Public Class ExpenseClaimForm
 
         ' 顯示檢視模式按鈕
         btnUpdate.Visible = canEdit OrElse isApproved ' 只要能編輯備註就顯示更新按鈕
+
+        ' 審核者使用不同的按鈕樣式和文字
+        If isApUser Then
+            btnUpdate.Text = "審核者更新"
+            btnUpdate.CssClass = "btn btn-warning"  ' 橘色按鈕
+        Else
+            btnUpdate.Text = "更新 (Update)"
+            btnUpdate.CssClass = "btn btn-primary"  ' 藍色按鈕
+        End If
+
         btnExportPDF.Visible = True
         btnNewDocument.Visible = True
         btnCancel.Text = "返回列表"
@@ -2465,6 +2675,20 @@ Partial Public Class ExpenseClaimForm
                         End Try
 
                         If Not IsDBNull(dr("U_PID")) Then txtUPID.Text = dr("U_PID").ToString()
+
+                        ' [SAP Integration] 顯示 DocEntry (AP單號)
+                        Try
+                            If HasColumn(dr, "DocEntry") AndAlso Not IsDBNull(dr("DocEntry")) Then
+                                txtB1DocEntry.Text = dr("DocEntry").ToString()
+                            Else
+                                txtB1DocEntry.Text = ""
+                            End If
+                            ' AP單號欄位：審核者 (isApUser) 可編輯
+                            txtB1DocEntry.ReadOnly = Not isApUser
+                            txtB1DocEntry.CssClass = If(isApUser, "", "readonly-field")
+                        Catch
+                            ' 忽略 DocEntry 讀取錯誤
+                        End Try
 
                         ' [SAP Integration] 顯示 SAP 過帳狀態
                         Try
@@ -2750,11 +2974,20 @@ Partial Public Class ExpenseClaimForm
             Return
         End If
 
-        ' [A] 放行時檢查金額一致性，顯示警告但不卡死
+        ' [A] 放行時檢查金額一致性，使用統一彈窗顯示警告
         Dim warnings = CheckAmountConsistency()
+
+        ' 加入格式28提醒 (E030A 海關代徵營業稅)
+        Dim hasE030AExpense As Boolean = CurrentLines.Any(Function(x) x.CategoryCode = "E030A")
+        Dim hasFormat28MDR As Boolean = CurrentMDRLines.Any(Function(x) x.U_ZFORM_CODE = "28")
+        If hasE030AExpense OrElse hasFormat28MDR Then
+            warnings.Add("【格式28 提醒】此單據含海關代徵營業稅，匯入SAP時將只過帳「稅額」金額")
+        End If
+
         If warnings.Count > 0 AndAlso Not ApprovalWarningConfirmed Then
-            ShowWarning("警告：" & String.Join("；", warnings) & "。若確定要放行，請再次點擊放行按鈕。")
-            ApprovalWarningConfirmed = True
+            ' 使用統一彈窗
+            ViewState("PendingAction") = "approve"
+            ShowValidationPopup(New List(Of String)(), warnings)
             Return
         End If
 
@@ -3088,8 +3321,9 @@ Partial Public Class ExpenseClaimForm
                                 lineTotal = Convert.ToDouble(drL("LineTotal"))
                             End If
 
-                            ' 格式28 (進出口報關費 E030) 特殊處理：只過帳稅額，且使用零稅碼
-                            Dim isFormat28 As Boolean = (itemCode = "E030")
+                            ' 格式28 (海關代徵營業稅 E030A) 特殊處理：只過帳稅額，且使用零稅碼
+                            ' E030A 在送審時已檢查必須有對應的格式28憑證
+                            Dim isFormat28 As Boolean = (itemCode = "E030A")
                             If isFormat28 Then
                                 ' 取得稅額 (LineVat) 作為 LineTotal
                                 If Not IsDBNull(drL("LineVat")) Then
