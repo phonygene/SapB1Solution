@@ -3333,14 +3333,8 @@ Partial Public Class ExpenseClaimForm
                                 End If
                             End If
 
-                            If lineCurrency = "TWD" OrElse lineCurrency = "NTD" Then
-                                ' 本幣
-                                oInvoice.Lines.LineTotal = lineTotal
-                            Else
-                                ' 外幣
-                                oInvoice.Lines.LineTotalForeignCurrency = lineTotal
-                                oInvoice.Lines.LineTotal = Math.Round(lineTotal * lineRate, 2, MidpointRounding.AwayFromZero)
-                            End If
+                            ' 明細已設定 Currency，直接使用 LineTotal (SAP 會根據幣別自動處理)
+                            oInvoice.Lines.LineTotal = lineTotal
 
                             ' 稅碼 (VatGroup) - 轉換為 SAP 稅碼: 1=J1(應稅), 2=J0(零稅), 3=JX(免稅)
                             ' 格式28 強制使用 J0 (零稅)，因為稅額本身就是最終金額，不應再課稅
