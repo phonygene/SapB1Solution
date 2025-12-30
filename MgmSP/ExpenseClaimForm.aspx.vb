@@ -26,6 +26,7 @@ Partial Public Class ExpenseClaimForm
         Public Property PriceAfterVat As Decimal ' 含稅金額
         Public Property CostingCode As String
         Public Property CostingCode2 As String
+        Public Property UserSelectedAcct As Boolean
         ' 顯示用
         Public Property Currency As String
         Public Property Rate As Decimal
@@ -104,6 +105,33 @@ Partial Public Class ExpenseClaimForm
         End Get
         Set(value As List(Of AttachmentItem))
             ViewState("CurrentAttachments") = value
+        End Set
+    End Property
+
+    Private Property AcctSearchData As DataTable
+        Get
+            Return CType(ViewState("AcctSearchData"), DataTable)
+        End Get
+        Set(value As DataTable)
+            ViewState("AcctSearchData") = value
+        End Set
+    End Property
+
+    Private Property AcctSearchSortExpression As String
+        Get
+            Return If(TryCast(ViewState("AcctSearchSortExpression"), String), "")
+        End Get
+        Set(value As String)
+            ViewState("AcctSearchSortExpression") = value
+        End Set
+    End Property
+
+    Private Property AcctSearchSortDirection As String
+        Get
+            Return If(TryCast(ViewState("AcctSearchSortDirection"), String), "ASC")
+        End Get
+        Set(value As String)
+            ViewState("AcctSearchSortDirection") = value
         End Set
     End Property
 #End Region
@@ -500,6 +528,47 @@ Partial Public Class ExpenseClaimForm
         End Try
     End Sub
 
+    Private Sub LoadExpenseCategoriesFiltered(ddl As DropDownList, allowedCodes As List(Of String))
+        If allowedCodes Is Nothing OrElse allowedCodes.Count = 0 Then
+            LoadExpenseCategories(ddl)
+            Return
+        End If
+
+        ddl.Items.Clear()
+        ddl.Items.Add(New ListItem("-選擇-", ""))
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim paramNames As New List(Of String)()
+                For i As Integer = 0 To allowedCodes.Count - 1
+                    paramNames.Add("@Code" & i.ToString())
+                Next
+                Dim sql As String = "SELECT ExpItemCode, ExpItemName, ExpItemDescription FROM OEPI " &
+                                    "WHERE ExpItemCode IN (" & String.Join(",", paramNames) & ") " &
+                                    "ORDER BY ExpItemCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    For i As Integer = 0 To allowedCodes.Count - 1
+                        cmd.Parameters.AddWithValue(paramNames(i), allowedCodes(i))
+                    Next
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            Dim displayText As String = dr("ExpItemName").ToString()
+                            Dim description As String = If(dr("ExpItemDescription") IsNot DBNull.Value, dr("ExpItemDescription").ToString(), "")
+                            Dim item As New ListItem(displayText, dr("ExpItemCode").ToString())
+                            item.Attributes.Add("data-desc", description)
+                            item.Attributes.Add("title", description)
+                            ddl.Items.Add(item)
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+            LoadExpenseCategories(ddl)
+        End Try
+    End Sub
+
     Private Sub LoadVatGroups(ddl As DropDownList)
         ddl.Items.Clear()
         ' 1-應稅 (5%), 2-零稅 (0), 3-免稅 (0)
@@ -567,6 +636,43 @@ Partial Public Class ExpenseClaimForm
             End Using
         Catch ex As Exception
             ShowError("載入部門失敗")
+        End Try
+    End Sub
+
+    Private Sub LoadDepartmentsFiltered(ddl As DropDownList, allowedCodes As List(Of String))
+        If allowedCodes Is Nothing OrElse allowedCodes.Count = 0 Then
+            LoadDepartments(ddl)
+            Return
+        End If
+
+        ddl.Items.Clear()
+        ddl.Items.Add(New ListItem("", ""))
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim paramNames As New List(Of String)()
+                For i As Integer = 0 To allowedCodes.Count - 1
+                    paramNames.Add("@Code" & i.ToString())
+                Next
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC " &
+                                    "WHERE DimCode = 2 AND PrcCode NOT LIKE 'Centr%' " &
+                                    "AND PrcCode IN (" & String.Join(",", paramNames) & ") " &
+                                    "ORDER BY PrcCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    For i As Integer = 0 To allowedCodes.Count - 1
+                        cmd.Parameters.AddWithValue(paramNames(i), allowedCodes(i))
+                    Next
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            ddl.Items.Add(New ListItem(dr("PrcName").ToString() & " (" & dr("PrcCode").ToString() & ")", dr("PrcCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+            LoadDepartments(ddl)
         End Try
     End Sub
 #End Region
@@ -726,6 +832,230 @@ Partial Public Class ExpenseClaimForm
             ShowError("載入供應商關聯資料失敗: " & ex.Message)
         End Try
     End Sub
+#End Region
+
+#Region "會計科目搜尋 (Search Modal)"
+    Protected Sub gvExpenseDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SearchAcct" Then
+            Dim rowIndex As Integer
+            If Integer.TryParse(e.CommandArgument.ToString(), rowIndex) Then
+                Dim keyword As String = ""
+                Try
+                    Dim row As GridViewRow = gvExpenseDetail.Rows(rowIndex)
+                    Dim txtAcct As TextBox = CType(row.FindControl("txtAcctCode"), TextBox)
+                    If txtAcct IsNot Nothing Then keyword = txtAcct.Text.Trim()
+                Catch ex As Exception
+                    keyword = ""
+                End Try
+                hfActiveTab.Value = "expense"
+                OpenAcctSearch(rowIndex, keyword)
+            End If
+        End If
+    End Sub
+
+    Private Sub OpenAcctSearch(rowIndex As Integer, keyword As String)
+        Try
+            hfAcctSearchRowIndex.Value = rowIndex.ToString()
+            txtAcctSearchKeyword.Text = keyword
+            AcctSearchSortExpression = ""
+            AcctSearchSortDirection = "ASC"
+            BindAcctSearchGrid(keyword)
+            mpeAcct.Show()
+            pnlAcctSearch.Style("display") = "block"
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+    End Sub
+
+    Protected Sub btnDoSearchAcct_Click(sender As Object, e As EventArgs)
+        BindAcctSearchGrid(txtAcctSearchKeyword.Text.Trim())
+        mpeAcct.Show()
+    End Sub
+
+    Protected Sub gvAcctSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvAcctSearch.PageIndex = e.NewPageIndex
+        BindAcctSearchGrid(txtAcctSearchKeyword.Text.Trim())
+        mpeAcct.Show()
+    End Sub
+
+    Protected Sub gvAcctSearch_Sorting(sender As Object, e As GridViewSortEventArgs)
+        Try
+            If AcctSearchSortExpression = e.SortExpression Then
+                AcctSearchSortDirection = If(AcctSearchSortDirection = "ASC", "DESC", "ASC")
+            Else
+                AcctSearchSortExpression = e.SortExpression
+                AcctSearchSortDirection = "ASC"
+            End If
+
+            Dim dt As DataTable = AcctSearchData
+            If dt Is Nothing Then
+                BindAcctSearchGrid(txtAcctSearchKeyword.Text.Trim())
+            Else
+                Dim view As DataView = dt.DefaultView
+                If Not String.IsNullOrEmpty(AcctSearchSortExpression) Then
+                    view.Sort = AcctSearchSortExpression & " " & AcctSearchSortDirection
+                End If
+                gvAcctSearch.DataSource = view
+                gvAcctSearch.DataBind()
+            End If
+            mpeAcct.Show()
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+    End Sub
+
+    Protected Sub gvAcctSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SelectAcct" Then
+            Dim args As String() = e.CommandArgument.ToString().Split("|"c)
+            If args.Length >= 1 Then
+                Dim acctCode As String = args(0)
+                Dim rowIndex As Integer
+                If Integer.TryParse(hfAcctSearchRowIndex.Value, rowIndex) Then
+                    Try
+                        SyncGridDataToModel()
+                        Dim lines = CurrentLines
+                        If rowIndex < lines.Count Then
+                            Dim line = lines(rowIndex)
+                            line.AcctCode = acctCode
+                            line.UserSelectedAcct = True
+
+                            Dim itemCode As String = ""
+                            Dim deptCode As String = ""
+                            If TryGetUedlMapping(currentUserId, acctCode, itemCode, deptCode) Then
+                                line.CategoryCode = itemCode
+                                line.CostingCode2 = deptCode
+                            Else
+                                ApplyReverseMapToLine(line, acctCode)
+                            End If
+
+                            lines(rowIndex) = line
+                            CurrentLines = lines
+                            hfAcctPendingRowIndex.Value = rowIndex.ToString()
+                            BindGrid()
+                        End If
+                    Catch ex As Exception
+                        ' UI/UX 輔助失敗時靜默
+                    End Try
+                End If
+            End If
+
+            mpeAcct.Hide()
+            pnlAcctSearch.Style("display") = "none"
+        End If
+    End Sub
+
+    Protected Sub btnAcctRowLeave_Click(sender As Object, e As EventArgs)
+        Try
+            Dim rowIndex As Integer
+            If Not Integer.TryParse(hfAcctPendingRowIndex.Value, rowIndex) Then
+                Return
+            End If
+
+            SyncGridDataToModel()
+            Dim lines = CurrentLines
+            If rowIndex >= 0 AndAlso rowIndex < lines.Count Then
+                TryUpsertUedlLog(lines(rowIndex))
+            End If
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        Finally
+            hfAcctPendingRowIndex.Value = ""
+        End Try
+    End Sub
+
+    Private Sub BindAcctSearchGrid(keyword As String)
+        Try
+            Dim dt As DataTable = GetAcctSearchData(keyword)
+            AcctSearchData = dt
+
+            Dim view As DataView = dt.DefaultView
+            If Not String.IsNullOrEmpty(AcctSearchSortExpression) Then
+                view.Sort = AcctSearchSortExpression & " " & AcctSearchSortDirection
+            End If
+
+            gvAcctSearch.DataSource = view
+            gvAcctSearch.DataBind()
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+    End Sub
+
+    Private Function GetAcctSearchData(keyword As String) As DataTable
+        Dim dt As New DataTable()
+        dt.Columns.Add("AcctCode")
+        dt.Columns.Add("AcctName")
+
+        Try
+            Dim allowedCodes = GetEpi1AcctCodes()
+            If allowedCodes Is Nothing OrElse allowedCodes.Count = 0 Then Return dt
+
+            Dim searchMode As String = If(rblAcctSearchMode.SelectedValue, "Fuzzy")
+            Dim hasKeyword As Boolean = Not String.IsNullOrEmpty(keyword)
+            Dim kw As String = keyword.Replace("*", "").Replace("%", "")
+
+            If hasKeyword Then
+                If searchMode = "Exact" Then
+                    kw = kw & "%"
+                Else
+                    kw = "%" & kw & "%"
+                End If
+            End If
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT TOP 500 AcctCode, AcctName FROM OACT WHERE Postable='Y'"
+                If hasKeyword Then
+                    sql &= " AND (AcctCode LIKE @Kw OR AcctName LIKE @Kw)"
+                End If
+                sql &= " ORDER BY AcctCode"
+
+                Using cmd As New SqlCommand(sql, conn)
+                    If hasKeyword Then
+                        cmd.Parameters.AddWithValue("@Kw", kw)
+                    End If
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            Dim code As String = dr("AcctCode").ToString().Trim()
+                            If allowedCodes.Contains(code) Then
+                                Dim name As String = dr("AcctName").ToString()
+                                dt.Rows.Add(code, name)
+                            End If
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+
+        Return dt
+    End Function
+
+    Private Function GetEpi1AcctCodes() As HashSet(Of String)
+        Try
+            Dim cache = TryCast(Session("EPI1_ACCT_CODES"), HashSet(Of String))
+            If cache IsNot Nothing AndAlso cache.Count > 0 Then Return cache
+
+            Dim codes As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT DISTINCT AcctCode FROM EPI1 WHERE AcctCode IS NOT NULL AND AcctCode <> ''"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            Dim code As String = dr("AcctCode").ToString().Trim()
+                            If code <> "" Then codes.Add(code)
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            Session("EPI1_ACCT_CODES") = codes
+            Return codes
+        Catch ex As Exception
+            Return New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        End Try
+    End Function
 #End Region
 
 #Region "表頭欄位連動"
@@ -888,10 +1218,20 @@ Partial Public Class ExpenseClaimForm
     Protected Sub gvExpenseDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
         If e.Row.RowType = DataControlRowType.DataRow Then
             Dim line As ExpenseLine = CType(e.Row.DataItem, ExpenseLine)
+            e.Row.Attributes("data-rowindex") = e.Row.DataItemIndex.ToString()
+
+            Dim acctFilter As AcctReverseMap = Nothing
+            If line.UserSelectedAcct AndAlso Not String.IsNullOrEmpty(line.AcctCode) Then
+                acctFilter = GetReverseMapByAcctCode(line.AcctCode)
+            End If
 
             ' Expense Category
             Dim ddlCat As DropDownList = CType(e.Row.FindControl("ddlExpCategory"), DropDownList)
-            LoadExpenseCategories(ddlCat)
+            If acctFilter IsNot Nothing AndAlso acctFilter.ExpItemCodes.Count > 0 Then
+                LoadExpenseCategoriesFiltered(ddlCat, acctFilter.ExpItemCodes)
+            Else
+                LoadExpenseCategories(ddlCat)
+            End If
             If ddlCat.Items.FindByValue(line.CategoryCode) IsNot Nothing Then
                 ddlCat.SelectedValue = line.CategoryCode
                 ' 設定下拉選單 ToolTip 為目前選中項目的描述
@@ -913,23 +1253,33 @@ Partial Public Class ExpenseClaimForm
 
             ' Departments (CostingCode2)
             Dim ddlCost2 As DropDownList = CType(e.Row.FindControl("ddlCostingCode2"), DropDownList)
-            LoadDepartments(ddlCost2)
+            If acctFilter IsNot Nothing AndAlso line.UserSelectedAcct Then
+                If acctFilter.AllowAllDepartments Then
+                    LoadDepartments(ddlCost2)
+                ElseIf acctFilter.DeptCodes.Count > 0 Then
+                    LoadDepartmentsFiltered(ddlCost2, acctFilter.DeptCodes)
+                Else
+                    LoadDepartments(ddlCost2)
+                End If
+            Else
+                LoadDepartments(ddlCost2)
+            End If
             If ddlCost2.Items.FindByValue(line.CostingCode2) IsNot Nothing Then ddlCost2.SelectedValue = line.CostingCode2
 
             ' Values
             CType(e.Row.FindControl("txtDescription"), TextBox).Text = line.Description
 
-            ' 會計科目：AP_App 權限可編輯
+            ' 會計科目：使用搜尋彈窗選擇
             Dim txtAcct As TextBox = CType(e.Row.FindControl("txtAcctCode"), TextBox)
             txtAcct.Text = line.AcctCode
             ' 設定 ToolTip 顯示會計科目名稱
-            If Not String.IsNullOrEmpty(line.AcctCode) AndAlso Not String.IsNullOrEmpty(line.CategoryCode) Then
-                Dim acctInfo = GetAcctCodeByExpItem(line.CategoryCode)
-                txtAcct.ToolTip = acctInfo.AcctName
+            If Not String.IsNullOrEmpty(line.AcctCode) Then
+                Dim acctName As String = GetAcctNameByCode(line.AcctCode)
+                txtAcct.ToolTip = acctName
             End If
-            If isApUser Then
-                txtAcct.ReadOnly = False
-                txtAcct.CssClass = ""
+            Dim btnSearchAcct As Button = CType(e.Row.FindControl("btnSearchAcct"), Button)
+            If btnSearchAcct IsNot Nothing Then
+                btnSearchAcct.Enabled = isApUser
             End If
 
             CType(e.Row.FindControl("txtLineTotal"), TextBox).Text = line.LineTotal.ToString("0.##")
@@ -938,10 +1288,6 @@ Partial Public Class ExpenseClaimForm
 
             ' Currency & Rate - 已移至單頭，不再於明細列顯示
         End If
-    End Sub
-
-    Protected Sub gvExpenseDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs)
-        ' 保留未來擴充
     End Sub
 
     Protected Sub ddlExpCategory_SelectedIndexChanged(sender As Object, e As EventArgs)
@@ -1033,6 +1379,37 @@ Partial Public Class ExpenseClaimForm
         Public AcctCode As String
         Public AcctName As String
     End Structure
+
+    Private Class AcctReverseMap
+        Public Property ExpItemCodes As List(Of String)
+        Public Property ExpClasses As List(Of String)
+        Public Property DeptCodes As List(Of String)
+        Public Property AllowAllDepartments As Boolean
+    End Class
+
+    Private Function GetAcctNameByCode(acctCode As String) As String
+        If String.IsNullOrEmpty(acctCode) Then Return ""
+        Try
+            Dim cache = TryCast(Session("AcctNameCache"), Dictionary(Of String, String))
+            If cache Is Nothing Then cache = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+            If cache.ContainsKey(acctCode) Then Return cache(acctCode)
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT AcctName FROM OACT WHERE AcctCode = @AcctCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@AcctCode", acctCode)
+                    Dim result = cmd.ExecuteScalar()
+                    Dim acctName As String = If(result IsNot Nothing AndAlso Not IsDBNull(result), result.ToString(), "")
+                    cache(acctCode) = acctName
+                    Session("AcctNameCache") = cache
+                    Return acctName
+                End Using
+            End Using
+        Catch ex As Exception
+            Return ""
+        End Try
+    End Function
 
     ''' <summary>
     ''' 根據費用項目代碼和使用者費用部門，從 EPI1 查詢對應的會計科目
@@ -1203,6 +1580,161 @@ Partial Public Class ExpenseClaimForm
 
         Return result
     End Function
+
+    Private Function GetReverseMapByAcctCode(acctCode As String) As AcctReverseMap
+        If String.IsNullOrEmpty(acctCode) Then Return Nothing
+        Try
+            Dim cache = TryCast(Session("AcctReverseMapCache"), Dictionary(Of String, AcctReverseMap))
+            If cache Is Nothing Then cache = New Dictionary(Of String, AcctReverseMap)(StringComparer.OrdinalIgnoreCase)
+            If cache.ContainsKey(acctCode) Then Return cache(acctCode)
+
+            Dim map As New AcctReverseMap() With {
+                .ExpItemCodes = New List(Of String)(),
+                .ExpClasses = New List(Of String)(),
+                .DeptCodes = New List(Of String)(),
+                .AllowAllDepartments = False
+            }
+
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT ExpItemCode, ExpClass FROM EPI1 WHERE AcctCode = @AcctCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@AcctCode", acctCode)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            Dim expItemCode As String = dr("ExpItemCode").ToString().Trim()
+                            Dim expClass As String = dr("ExpClass").ToString().Trim()
+                            If expItemCode <> "" AndAlso Not map.ExpItemCodes.Contains(expItemCode) Then map.ExpItemCodes.Add(expItemCode)
+                            If expClass <> "" AndAlso Not map.ExpClasses.Contains(expClass) Then map.ExpClasses.Add(expClass)
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            If map.ExpClasses.Contains("公") Then
+                map.AllowAllDepartments = True
+            ElseIf map.ExpClasses.Count > 0 Then
+                Using conn As New SqlConnection(sapConnStr)
+                    conn.Open()
+                    Dim paramNames As New List(Of String)()
+                    For i As Integer = 0 To map.ExpClasses.Count - 1
+                        paramNames.Add("@Class" & i.ToString())
+                    Next
+                    Dim sql As String = "SELECT PrcCode FROM OPRC WHERE DimCode = 2 AND PrcCode NOT LIKE 'Centr%' " &
+                                        "AND CCTypeCode IN (" & String.Join(",", paramNames) & ")"
+                    Using cmd As New SqlCommand(sql, conn)
+                        For i As Integer = 0 To map.ExpClasses.Count - 1
+                            cmd.Parameters.AddWithValue(paramNames(i), map.ExpClasses(i))
+                        Next
+                        Using dr As SqlDataReader = cmd.ExecuteReader()
+                            While dr.Read()
+                                Dim deptCode As String = dr("PrcCode").ToString().Trim()
+                                If deptCode <> "" AndAlso Not map.DeptCodes.Contains(deptCode) Then map.DeptCodes.Add(deptCode)
+                            End While
+                        End Using
+                    End Using
+                End Using
+            End If
+
+            cache(acctCode) = map
+            Session("AcctReverseMapCache") = cache
+            Return map
+        Catch ex As Exception
+            Return Nothing
+        End Try
+    End Function
+
+    Private Sub ApplyReverseMapToLine(ByRef line As ExpenseLine, acctCode As String)
+        Try
+            Dim map = GetReverseMapByAcctCode(acctCode)
+            If map Is Nothing Then Return
+
+            If map.ExpItemCodes.Count = 1 Then
+                line.CategoryCode = map.ExpItemCodes(0)
+            ElseIf map.ExpItemCodes.Count > 1 Then
+                If Not map.ExpItemCodes.Contains(line.CategoryCode) Then
+                    line.CategoryCode = ""
+                End If
+            End If
+
+            If map.AllowAllDepartments Then
+                ' 允許全部部門，保留原選擇
+            ElseIf map.DeptCodes.Count = 1 Then
+                line.CostingCode2 = map.DeptCodes(0)
+            ElseIf map.DeptCodes.Count > 1 Then
+                If Not map.DeptCodes.Contains(line.CostingCode2) Then
+                    line.CostingCode2 = ""
+                End If
+            End If
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+    End Sub
+
+    Private Function TryGetUedlMapping(userId As String, acctCode As String, ByRef itemCode As String, ByRef deptCode As String) As Boolean
+        itemCode = ""
+        deptCode = ""
+
+        If String.IsNullOrEmpty(userId) OrElse String.IsNullOrEmpty(acctCode) Then Return False
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT TOP 1 ItemCode, CostingCode2 FROM UEDL " &
+                                    "WHERE UserId = @UserId AND AcctCode = @AcctCode " &
+                                    "ORDER BY expDate DESC"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", userId)
+                    cmd.Parameters.AddWithValue("@AcctCode", acctCode)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            itemCode = If(IsDBNull(dr("ItemCode")), "", dr("ItemCode").ToString())
+                            deptCode = If(IsDBNull(dr("CostingCode2")), "", dr("CostingCode2").ToString())
+                            Return True
+                        End If
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            Return False
+        End Try
+
+        Return False
+    End Function
+
+    Private Sub TryUpsertUedlLog(line As ExpenseLine)
+        If line Is Nothing Then Return
+        If Not line.UserSelectedAcct Then Return
+        If String.IsNullOrEmpty(line.AcctCode) Then Return
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String =
+                    "IF EXISTS (SELECT 1 FROM UEDL WHERE UserId = @UserId AND AcctCode = @AcctCode) " &
+                    "BEGIN " &
+                    "UPDATE UEDL SET ItemCode = @ItemCode, CostingCode2 = @CostingCode2, jID = @jID, LineNum = @LineNum, expDate = GETDATE() " &
+                    "WHERE UserId = @UserId AND AcctCode = @AcctCode " &
+                    "END " &
+                    "ELSE " &
+                    "BEGIN " &
+                    "INSERT INTO UEDL (UserId, AcctCode, ItemCode, CostingCode2, jID, LineNum, expDate) " &
+                    "VALUES (@UserId, @AcctCode, @ItemCode, @CostingCode2, @jID, @LineNum, GETDATE()) " &
+                    "END"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                    cmd.Parameters.AddWithValue("@AcctCode", line.AcctCode)
+                    cmd.Parameters.AddWithValue("@ItemCode", line.CategoryCode)
+                    cmd.Parameters.AddWithValue("@CostingCode2", line.CostingCode2)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
+                    cmd.Parameters.AddWithValue("@LineNum", line.LineNum)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch ex As Exception
+            ' UI/UX 輔助失敗時靜默
+        End Try
+    End Sub
 
     ''' <summary>
     ''' 根據費用項目代碼取得描述 (ExpItemDescription)

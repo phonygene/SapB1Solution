@@ -753,8 +753,14 @@
 
                                                     <asp:TemplateField HeaderText="會計科目">
                                                         <ItemTemplate>
-                                                            <asp:TextBox ID="txtAcctCode" runat="server" Width="80px"
-                                                                ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                                <asp:TextBox ID="txtAcctCode" runat="server" Width="80px"
+                                                                    ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                                                <asp:Button ID="btnSearchAcct" runat="server" Text="🔍"
+                                                                    CssClass="btn btn-secondary btn-icon"
+                                                                    CommandName="SearchAcct"
+                                                                    CommandArgument='<%# Container.DataItemIndex %>' />
+                                                            </div>
                                                         </ItemTemplate>
                                                         <ItemStyle Width="90px" />
                                                     </asp:TemplateField>
@@ -1089,6 +1095,120 @@
                                     </asp:GridView>
                                 </div>
                             </asp:Panel>
+
+                            <!-- Account Search Modal -->
+                            <asp:Button ID="btnAcctDummy" runat="server" style="display:none" />
+                            <ajaxToolkit:ModalPopupExtender ID="mpeAcct" runat="server"
+                                TargetControlID="btnAcctDummy"
+                                PopupControlID="pnlAcctSearch" BackgroundCssClass="modalBackground"
+                                CancelControlID="btnCloseAcct" />
+                            <asp:Panel ID="pnlAcctSearch" runat="server" CssClass="modalPopup" style="display:none;">
+                                <div class="modalHeader">
+                                    <span>會計科目搜尋</span>
+                                    <asp:LinkButton ID="btnCloseAcct" runat="server" ForeColor="White"
+                                        Font-Bold="true" style="text-decoration:none;">X</asp:LinkButton>
+                                </div>
+                                <div class="modalBody">
+                                    <div style="margin-bottom:10px;">
+                                        <div style="display:flex; align-items:center;">
+                                            <asp:TextBox ID="txtAcctSearchKeyword" runat="server"
+                                                placeholder="輸入會計科目代碼或名稱...">
+                                            </asp:TextBox>
+                                            <asp:Button ID="btnDoSearchAcct" runat="server" Text="搜尋"
+                                                OnClick="btnDoSearchAcct_Click" CssClass="btn btn-primary"
+                                                style="margin-left:5px;" />
+                                            <asp:HiddenField ID="hfAcctSearchRowIndex" runat="server" />
+                                        </div>
+                                        <div style="margin-top:5px;">
+                                            <asp:RadioButtonList ID="rblAcctSearchMode" runat="server"
+                                                RepeatDirection="Horizontal">
+                                                <asp:ListItem Value="Fuzzy" Selected="True">模糊搜尋</asp:ListItem>
+                                                <asp:ListItem Value="Exact">開頭比對</asp:ListItem>
+                                            </asp:RadioButtonList>
+                                        </div>
+                                    </div>
+                                    <asp:GridView ID="gvAcctSearch" runat="server" AutoGenerateColumns="False"
+                                        Width="100%" CssClass="gridview" OnRowCommand="gvAcctSearch_RowCommand"
+                                        AllowPaging="True" PageSize="10"
+                                        AllowSorting="True"
+                                        OnSorting="gvAcctSearch_Sorting"
+                                        OnPageIndexChanging="gvAcctSearch_PageIndexChanging">
+                                        <Columns>
+                                            <asp:TemplateField HeaderText="動作">
+                                                <ItemTemplate>
+                                                    <asp:LinkButton ID="lbtnSelectAcct" runat="server"
+                                                        CommandName="SelectAcct"
+                                                        CommandArgument='<%# Eval("AcctCode") + "|" + Eval("AcctName") %>'
+                                                        CssClass="btn btn-success btn-icon">選取</asp:LinkButton>
+                                                </ItemTemplate>
+                                                <ItemStyle HorizontalAlign="Center" Width="70px" />
+                                            </asp:TemplateField>
+                                            <asp:BoundField DataField="AcctCode" HeaderText="代碼" SortExpression="AcctCode" />
+                                            <asp:BoundField DataField="AcctName" HeaderText="名稱" SortExpression="AcctName" />
+                                        </Columns>
+                                        <PagerStyle HorizontalAlign="Center" CssClass="gridview" />
+                                    </asp:GridView>
+                                </div>
+                            </asp:Panel>
+
+                            <asp:HiddenField ID="hfAcctPendingRowIndex" runat="server" />
+                            <asp:Button ID="btnAcctRowLeave" runat="server" style="display:none"
+                                OnClick="btnAcctRowLeave_Click" />
+
+                            <script type="text/javascript">
+                                (function () {
+                                    var acctLeavePosting = false;
+
+                                    function isChildOf(parent, node) {
+                                        while (node) {
+                                            if (node === parent) {
+                                                return true;
+                                            }
+                                            node = node.parentNode;
+                                        }
+                                        return false;
+                                    }
+
+                                    function wireAcctRowLeave() {
+                                        var grid = document.getElementById('<%= gvExpenseDetail.ClientID %>');
+                                        if (!grid) {
+                                            return;
+                                        }
+                                        var rows = grid.getElementsByTagName('tr');
+                                        for (var i = 0; i < rows.length; i++) {
+                                            var row = rows[i];
+                                            if (!row.getAttribute('data-rowindex')) {
+                                                continue;
+                                            }
+                                            row.addEventListener('focusout', function (e) {
+                                                if (acctLeavePosting) {
+                                                    return;
+                                                }
+                                                var pending = document.getElementById('<%= hfAcctPendingRowIndex.ClientID %>');
+                                                if (!pending || pending.value === '') {
+                                                    return;
+                                                }
+                                                var rowIndex = this.getAttribute('data-rowindex');
+                                                if (rowIndex !== pending.value) {
+                                                    return;
+                                                }
+                                                var related = e.relatedTarget;
+                                                if (related && isChildOf(this, related)) {
+                                                    return;
+                                                }
+                                                acctLeavePosting = true;
+                                                __doPostBack('<%= btnAcctRowLeave.UniqueID %>', '');
+                                            }, true);
+                                        }
+                                    }
+
+                                    if (window.Sys && Sys.Application) {
+                                        Sys.Application.add_load(wireAcctRowLeave);
+                                    } else {
+                                        window.addEventListener('load', wireAcctRowLeave);
+                                    }
+                                })();
+                            </script>
 
                             <!-- 驗證結果彈窗 -->
                             <asp:Button ID="btnValidationDummy" runat="server" Style="display:none" />

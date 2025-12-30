@@ -707,6 +707,105 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents gvVendorSearch As Global.System.Web.UI.WebControls.GridView
 
     '''<summary>
+    '''btnAcctDummy 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnAcctDummy As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''mpeAcct 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents mpeAcct As Global.AjaxControlToolkit.ModalPopupExtender
+
+    '''<summary>
+    '''pnlAcctSearch 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents pnlAcctSearch As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''btnCloseAcct 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnCloseAcct As Global.System.Web.UI.WebControls.LinkButton
+
+    '''<summary>
+    '''txtAcctSearchKeyword 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents txtAcctSearchKeyword As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''btnDoSearchAcct 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnDoSearchAcct As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''hfAcctSearchRowIndex 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfAcctSearchRowIndex As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''rblAcctSearchMode 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents rblAcctSearchMode As Global.System.Web.UI.WebControls.RadioButtonList
+
+    '''<summary>
+    '''gvAcctSearch 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents gvAcctSearch As Global.System.Web.UI.WebControls.GridView
+
+    '''<summary>
+    '''hfAcctPendingRowIndex 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfAcctPendingRowIndex As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''btnAcctRowLeave 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnAcctRowLeave As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''btnValidationDummy 控制項。
     '''</summary>
     Protected WithEvents btnValidationDummy As Global.System.Web.UI.WebControls.Button
