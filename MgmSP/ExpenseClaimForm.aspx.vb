@@ -986,10 +986,7 @@ Partial Public Class ExpenseClaimForm
         dt.Columns.Add("AcctName")
 
         Try
-            Dim allowedCodes = GetEpi1AcctCodes()
-            If allowedCodes Is Nothing OrElse allowedCodes.Count = 0 Then Return dt
-
-            Dim searchMode As String = If(rblAcctSearchMode.SelectedValue, "Fuzzy")
+            Dim searchMode As String = If(rblAcctSearchMode.SelectedValue, "Exact")
             Dim hasKeyword As Boolean = Not String.IsNullOrEmpty(keyword)
             Dim kw As String = keyword.Replace("*", "").Replace("%", "")
 
@@ -1016,10 +1013,8 @@ Partial Public Class ExpenseClaimForm
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
                             Dim code As String = dr("AcctCode").ToString().Trim()
-                            If allowedCodes.Contains(code) Then
-                                Dim name As String = dr("AcctName").ToString()
-                                dt.Rows.Add(code, name)
-                            End If
+                            Dim name As String = dr("AcctName").ToString()
+                            dt.Rows.Add(code, name)
                         End While
                     End Using
                 End Using
@@ -1031,31 +1026,6 @@ Partial Public Class ExpenseClaimForm
         Return dt
     End Function
 
-    Private Function GetEpi1AcctCodes() As HashSet(Of String)
-        Try
-            Dim cache = TryCast(Session("EPI1_ACCT_CODES"), HashSet(Of String))
-            If cache IsNot Nothing AndAlso cache.Count > 0 Then Return cache
-
-            Dim codes As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
-            Using conn As New SqlConnection(connStr)
-                conn.Open()
-                Dim sql As String = "SELECT DISTINCT AcctCode FROM EPI1 WHERE AcctCode IS NOT NULL AND AcctCode <> ''"
-                Using cmd As New SqlCommand(sql, conn)
-                    Using dr As SqlDataReader = cmd.ExecuteReader()
-                        While dr.Read()
-                            Dim code As String = dr("AcctCode").ToString().Trim()
-                            If code <> "" Then codes.Add(code)
-                        End While
-                    End Using
-                End Using
-            End Using
-
-            Session("EPI1_ACCT_CODES") = codes
-            Return codes
-        Catch ex As Exception
-            Return New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
-        End Try
-    End Function
 #End Region
 
 #Region "表頭欄位連動"
@@ -1269,7 +1239,7 @@ Partial Public Class ExpenseClaimForm
             ' Values
             CType(e.Row.FindControl("txtDescription"), TextBox).Text = line.Description
 
-            ' 會計科目：使用搜尋彈窗選擇
+            ' 會計科目：可搜尋或手動輸入
             Dim txtAcct As TextBox = CType(e.Row.FindControl("txtAcctCode"), TextBox)
             txtAcct.Text = line.AcctCode
             ' 設定 ToolTip 顯示會計科目名稱
@@ -1280,6 +1250,10 @@ Partial Public Class ExpenseClaimForm
             Dim btnSearchAcct As Button = CType(e.Row.FindControl("btnSearchAcct"), Button)
             If btnSearchAcct IsNot Nothing Then
                 btnSearchAcct.Enabled = isApUser
+            End If
+            If isApUser Then
+                txtAcct.ReadOnly = False
+                txtAcct.CssClass = ""
             End If
 
             CType(e.Row.FindControl("txtLineTotal"), TextBox).Text = line.LineTotal.ToString("0.##")

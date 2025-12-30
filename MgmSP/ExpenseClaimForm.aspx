@@ -1120,11 +1120,11 @@
                                             <asp:HiddenField ID="hfAcctSearchRowIndex" runat="server" />
                                         </div>
                                         <div style="margin-top:5px;">
-                                            <asp:RadioButtonList ID="rblAcctSearchMode" runat="server"
-                                                RepeatDirection="Horizontal">
-                                                <asp:ListItem Value="Fuzzy" Selected="True">模糊搜尋</asp:ListItem>
-                                                <asp:ListItem Value="Exact">開頭比對</asp:ListItem>
-                                            </asp:RadioButtonList>
+                                                <asp:RadioButtonList ID="rblAcctSearchMode" runat="server"
+                                                    RepeatDirection="Horizontal">
+                                                    <asp:ListItem Value="Fuzzy">模糊搜尋</asp:ListItem>
+                                                    <asp:ListItem Value="Exact" Selected="True">開頭比對</asp:ListItem>
+                                                </asp:RadioButtonList>
                                         </div>
                                     </div>
                                     <asp:GridView ID="gvAcctSearch" runat="server" AutoGenerateColumns="False"
