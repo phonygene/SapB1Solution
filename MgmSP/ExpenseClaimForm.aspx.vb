@@ -154,6 +154,16 @@ Partial Public Class ExpenseClaimForm
             ViewState("CopyAttachments") = value
         End Set
     End Property
+
+    Private Property CopyMDR As Boolean
+        Get
+            If ViewState("CopyMDR") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("CopyMDR"))
+        End Get
+        Set(value As Boolean)
+            ViewState("CopyMDR") = value
+        End Set
+    End Property
 #End Region
 
 #Region "頁面載入"
@@ -214,7 +224,8 @@ Partial Public Class ExpenseClaimForm
                 If copyFromId > 0 Then
                     LoadDocument(copyFromId)
                     Dim copyAttach As Boolean = (Request.QueryString("CopyAttach") = "1")
-                    ApplyCopyOverrides(copyFromId, copyAttach)
+                    Dim copyMdr As Boolean = (Request.QueryString("CopyMDR") = "1")
+                    ApplyCopyOverrides(copyFromId, copyAttach, copyMdr)
                 ElseIf currentJID > 0 Then
                     LoadDocument(currentJID)
                 Else
@@ -2878,6 +2889,23 @@ Partial Public Class ExpenseClaimForm
         Response.Redirect("ExpenseClaimForm.aspx")
     End Sub
 
+    Protected Sub btnCopyDocument_Click(sender As Object, e As EventArgs)
+        If currentJID = 0 Then
+            ShowError("無法複製：尚未儲存的單據")
+            Return
+        End If
+
+        Dim isOwner As Boolean = (txtOwner.Text = currentUserId)
+        If Not isApUser AndAlso Not isOwner Then
+            ShowError("您沒有權限複製此單據")
+            Return
+        End If
+
+        Dim copyAttach As String = If(hfCopyAttachment.Value = "1", "1", "0")
+        Dim copyMdr As String = If(hfCopyMDR.Value = "1", "1", "0")
+        Response.Redirect("ExpenseClaimForm.aspx?CopyFrom=" & currentJID.ToString() & "&CopyAttach=" & copyAttach & "&CopyMDR=" & copyMdr)
+    End Sub
+
     ''' <summary>
     ''' 更新按鈕 - 在檢視模式下更新單據資料（PID、明細、備註等）
     ''' 權限控制：
@@ -3000,6 +3028,7 @@ Partial Public Class ExpenseClaimForm
 
         btnExportPDF.Visible = True
         btnNewDocument.Visible = True
+        btnCopyDocument.Visible = canEdit OrElse isApUser OrElse isOwner
         btnCancel.Text = "返回列表"
 
         ' ===== 備註欄：任何狀態都可編輯 =====
@@ -3092,6 +3121,7 @@ Partial Public Class ExpenseClaimForm
         ' 隱藏檢視模式按鈕
         btnExportPDF.Visible = False
         btnNewDocument.Visible = False
+        btnCopyDocument.Visible = (currentJID > 0 AndAlso (isApUser OrElse txtOwner.Text = currentUserId))
         btnCancel.Text = "取消 (Cancel)"
 
         ' 啟用所有輸入欄位
@@ -3368,10 +3398,11 @@ Partial Public Class ExpenseClaimForm
 #End Region
 
 #Region "複製單據"
-    Private Sub ApplyCopyOverrides(sourceJID As Integer, copyAttach As Boolean)
+    Private Sub ApplyCopyOverrides(sourceJID As Integer, copyAttach As Boolean, copyMdr As Boolean)
         Try
             CopyFromJID = sourceJID
             CopyAttachments = copyAttach
+            CopyMDR = copyMdr
 
             currentJID = 0
             lblDocNum.Text = "[新單據]"
@@ -3393,9 +3424,12 @@ Partial Public Class ExpenseClaimForm
             txtTaxDate.Text = today
             CalculateDueDate()
 
-            If Not copyAttach Then
-                CurrentAttachments = New List(Of AttachmentItem)()
-                BindAttachmentGrid()
+            CurrentAttachments = New List(Of AttachmentItem)()
+            BindAttachmentGrid()
+
+            If Not copyMdr Then
+                CurrentMDRLines = New List(Of MDRLine)()
+                BindMDRGrid()
             End If
 
             btnApprove.Visible = True
@@ -3407,7 +3441,15 @@ Partial Public Class ExpenseClaimForm
             txtApprovalComments.ReadOnly = True
 
             SetEditMode()
-            ShowInfo("已根據原文件資訊複製新單據，新增前請檢查更新憑證資訊。")
+            If copyAttach AndAlso copyMdr Then
+                ShowInfo("已根據原文件資訊複製新單據，附件與憑證明細將於儲存時複製，新增前請檢查更新憑證資訊。")
+            ElseIf copyAttach Then
+                ShowInfo("已根據原文件資訊複製新單據，附件將於儲存時複製，新增前請檢查更新憑證資訊。")
+            ElseIf copyMdr Then
+                ShowInfo("已根據原文件資訊複製新單據，憑證明細將於儲存時複製，新增前請檢查更新憑證資訊。")
+            Else
+                ShowInfo("已根據原文件資訊複製新單據，新增前請檢查更新憑證資訊。")
+            End If
         Catch ex As Exception
             ' 複製失敗時靜默
         End Try

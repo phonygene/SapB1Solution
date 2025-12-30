@@ -132,15 +132,73 @@
             </div>
 
             <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
+            <asp:HiddenField ID="hfCopyMDR" runat="server" Value="0" />
+            <asp:HiddenField ID="hfCopyRowIndex" runat="server" Value="" />
+            <asp:Button ID="btnCopyConfirm" runat="server" style="display:none" OnClick="btnCopyConfirm_Click" />
+
+            <div id="divCopyModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4);">
+                <div style="background:white; width:420px; margin:12% auto; padding:20px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                    <div style="font-weight:bold; margin-bottom:10px;">複製選項</div>
+                    <div id="divCopyQuestion" style="margin-bottom:15px;">是否複製附件？</div>
+                    <div style="text-align:right;">
+                        <button type="button" class="btn btn-success" onclick="copyDialogAnswer('yes');">是</button>
+                        <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('no');">否</button>
+                        <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('cancel');">取消</button>
+                    </div>
+                </div>
+            </div>
 
             <script type="text/javascript">
-                function setCopyAttachmentFlag() {
-                    var copy = confirm('是否複製附件？');
-                    var hf = document.getElementById('<%= hfCopyAttachment.ClientID %>');
-                    if (hf) {
-                        hf.value = copy ? '1' : '0';
+                var copyStage = '';
+                function showCopyDialogForList(rowIndex) {
+                    var hfRow = document.getElementById('<%= hfCopyRowIndex.ClientID %>');
+                    if (hfRow) {
+                        hfRow.value = rowIndex;
                     }
-                    return true;
+                    copyStage = 'attach';
+                    var question = document.getElementById('divCopyQuestion');
+                    if (question) {
+                        question.innerText = '是否複製附件？';
+                    }
+                    var modal = document.getElementById('divCopyModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                    }
+                    return false;
+                }
+
+                function copyDialogAnswer(answer) {
+                    if (answer === 'cancel') {
+                        hideCopyDialog();
+                        return;
+                    }
+                    if (copyStage === 'attach') {
+                        var hfAttach = document.getElementById('<%= hfCopyAttachment.ClientID %>');
+                        if (hfAttach) {
+                            hfAttach.value = (answer === 'yes') ? '1' : '0';
+                        }
+                        copyStage = 'mdr';
+                        var question = document.getElementById('divCopyQuestion');
+                        if (question) {
+                            question.innerText = '是否複製憑證明細？';
+                        }
+                        return;
+                    }
+                    if (copyStage === 'mdr') {
+                        var hfMdr = document.getElementById('<%= hfCopyMDR.ClientID %>');
+                        if (hfMdr) {
+                            hfMdr.value = (answer === 'yes') ? '1' : '0';
+                        }
+                        hideCopyDialog();
+                        __doPostBack('<%= btnCopyConfirm.UniqueID %>', '');
+                    }
+                }
+
+                function hideCopyDialog() {
+                    var modal = document.getElementById('divCopyModal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
                 }
             </script>
 
@@ -155,7 +213,7 @@
                                 CssClass="btn btn-secondary"
                                 CommandName="CopyDoc"
                                 CommandArgument='<%# Container.DataItemIndex %>'
-                                OnClientClick="return setCopyAttachmentFlag();">
+                                OnClientClick='<%# "return showCopyDialogForList(" & Container.DataItemIndex & ");" %>'>
                             </asp:LinkButton>
                         </ItemTemplate>
                         <ItemStyle HorizontalAlign="Center" Width="70px" />

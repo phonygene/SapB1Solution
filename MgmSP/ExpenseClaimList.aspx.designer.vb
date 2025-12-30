@@ -140,6 +140,33 @@ Partial Public Class ExpenseClaimList
     Protected WithEvents hfCopyAttachment As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
+    '''hfCopyMDR 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfCopyMDR As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''hfCopyRowIndex 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfCopyRowIndex As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''btnCopyConfirm 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnCopyConfirm As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''gvList 控制項。
     '''</summary>
     '''<remarks>

@@ -572,6 +572,15 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents btnNewDocument As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
+    '''btnCopyDocument 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnCopyDocument As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''lblMessage 控制項。
     '''</summary>
     '''<remarks>
@@ -874,6 +883,16 @@ Partial Public Class ExpenseClaimForm
     '''pnlExpDept 控制項。
     '''</summary>
     Protected WithEvents pnlExpDept As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''hfCopyAttachment 控制項。
+    '''</summary>
+    Protected WithEvents hfCopyAttachment As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''hfCopyMDR 控制項。
+    '''</summary>
+    Protected WithEvents hfCopyMDR As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
     '''ddlExpDeptSelect 控制項。

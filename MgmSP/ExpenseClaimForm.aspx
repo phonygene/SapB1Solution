@@ -454,6 +454,22 @@
                 } else if (window.attachEvent) {
                     window.attachEvent('onload', initPageLogic);
                 }
+
+                function toggleGridCheckboxes(source, gridId, checkboxIdSuffix) {
+                    var grid = document.getElementById(gridId);
+                    if (!grid) {
+                        return;
+                    }
+                    var inputs = grid.getElementsByTagName('input');
+                    for (var i = 0; i < inputs.length; i++) {
+                        var input = inputs[i];
+                        if (input.type === 'checkbox' && input.id && input.id.indexOf(checkboxIdSuffix) >= 0) {
+                            if (input !== source) {
+                                input.checked = source.checked;
+                            }
+                        }
+                    }
+                }
             </script>
         </head>
 
@@ -471,6 +487,11 @@
                                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                                     <h2 style="margin:0; color:#4CAF50;">費用申請單 (Expense Claim)</h2>
                                     <div style="text-align:right;">
+                                        <div style="margin-bottom:6px;">
+                                            <asp:Button ID="btnCopyDocument" runat="server" Text="複製單據"
+                                                OnClick="btnCopyDocument_Click" CssClass="btn btn-secondary" Visible="false"
+                                                OnClientClick="return showCopyDialogForForm();" />
+                                        </div>
                                         <asp:Label ID="lblDocNum" runat="server" Text="[New]" Font-Bold="True"
                                             Font-Size="18px" ForeColor="#007bff"></asp:Label>
                                         <br />
@@ -716,6 +737,10 @@
                                             OnRowCommand="gvExpenseDetail_RowCommand">
                                             <Columns>
                                                 <asp:TemplateField HeaderText="選">
+                                                    <HeaderTemplate>
+                                                        <input type="checkbox"
+                                                            onclick="toggleGridCheckboxes(this, '<%= gvExpenseDetail.ClientID %>', 'chkSelect')" />
+                                                    </HeaderTemplate>
                                                     <ItemTemplate>
                                                         <asp:CheckBox ID="chkSelect" runat="server" />
                                                     </ItemTemplate>
@@ -842,6 +867,10 @@
                                             CssClass="gridview" OnRowDataBound="gvMDRDetail_RowDataBound">
                                             <Columns>
                                                 <asp:TemplateField HeaderText="選">
+                                                    <HeaderTemplate>
+                                                        <input type="checkbox"
+                                                            onclick="toggleGridCheckboxes(this, '<%= gvMDRDetail.ClientID %>', 'chkSelectMDR')" />
+                                                    </HeaderTemplate>
                                                     <ItemTemplate>
                                                         <asp:CheckBox ID="chkSelectMDR" runat="server" />
                                                     </ItemTemplate>
@@ -1277,6 +1306,70 @@
                                 </div>
                             </asp:Panel>
 
+                            <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
+                            <asp:HiddenField ID="hfCopyMDR" runat="server" Value="0" />
+
+                            <div id="divCopyModalForm" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4);">
+                                <div style="background:white; width:420px; margin:12% auto; padding:20px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                                    <div style="font-weight:bold; margin-bottom:10px;">複製選項</div>
+                                    <div id="divCopyQuestionForm" style="margin-bottom:15px;">是否複製附件？</div>
+                                    <div style="text-align:right;">
+                                        <button type="button" class="btn btn-success" onclick="copyFormDialogAnswer('yes');">是</button>
+                                        <button type="button" class="btn btn-secondary" onclick="copyFormDialogAnswer('no');">否</button>
+                                        <button type="button" class="btn btn-secondary" onclick="copyFormDialogAnswer('cancel');">取消</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script type="text/javascript">
+                                var copyFormStage = '';
+                                function showCopyDialogForForm() {
+                                    copyFormStage = 'attach';
+                                    var question = document.getElementById('divCopyQuestionForm');
+                                    if (question) {
+                                        question.innerText = '是否複製附件？';
+                                    }
+                                    var modal = document.getElementById('divCopyModalForm');
+                                    if (modal) {
+                                        modal.style.display = 'block';
+                                    }
+                                    return false;
+                                }
+
+                                function copyFormDialogAnswer(answer) {
+                                    if (answer === 'cancel') {
+                                        hideCopyDialogForForm();
+                                        return;
+                                    }
+                                    if (copyFormStage === 'attach') {
+                                        var hfAttach = document.getElementById('<%= hfCopyAttachment.ClientID %>');
+                                        if (hfAttach) {
+                                            hfAttach.value = (answer === 'yes') ? '1' : '0';
+                                        }
+                                        copyFormStage = 'mdr';
+                                        var question = document.getElementById('divCopyQuestionForm');
+                                        if (question) {
+                                            question.innerText = '是否複製憑證明細？';
+                                        }
+                                        return;
+                                    }
+                                    if (copyFormStage === 'mdr') {
+                                        var hfMdr = document.getElementById('<%= hfCopyMDR.ClientID %>');
+                                        if (hfMdr) {
+                                            hfMdr.value = (answer === 'yes') ? '1' : '0';
+                                        }
+                                        hideCopyDialogForForm();
+                                        __doPostBack('<%= btnCopyDocument.UniqueID %>', '');
+                                    }
+                                }
+
+                                function hideCopyDialogForForm() {
+                                    var modal = document.getElementById('divCopyModalForm');
+                                    if (modal) {
+                                        modal.style.display = 'none';
+                                    }
+                                }
+                            </script>
                     </ContentTemplate>
                     <Triggers>
                         <asp:PostBackTrigger ControlID="btnUpload" />

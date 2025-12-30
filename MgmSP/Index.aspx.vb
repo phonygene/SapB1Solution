@@ -1,21 +1,19 @@
-﻿Imports System.Data.SqlClient
-Partial Public Class WebForm1
+﻿Partial Public Class WebForm1
     Inherits System.Web.UI.Page
     Public CommUtil As New CommUtil
-    Public CommSignOff As New CommSignOff
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
-        '新增網頁步驟
-        '1:在所要加的網頁目錄下按右鍵 , 選加入-->新增項目--> 使用主板頁面網站(球圖示的)
-        '2:更改default的網站名稱至想要之名稱
-        '3:把aspx及aspx.vb中 , 將原名稱改為新名稱
-        'MsgBox(Session.SessionID)
         Dim timeout As Integer
         Dim act As String
-        Dim perm As String
-        Dim str() As String
-        Dim SqlCmd As String
-        Dim connL As New SqlConnection
-        Dim drL As SqlDataReader
+
+        ' 設定用戶顯示資訊
+        If Not IsPostBack Then
+            If Session("s_name") IsNot Nothing AndAlso Session("s_name").ToString() <> "" Then
+                lblUserName.Text = Session("s_name").ToString()
+            ElseIf Session("s_id") IsNot Nothing Then
+                lblUserName.Text = Session("s_id").ToString()
+            End If
+        End If
+
         timeout = Request.QueryString("timeout")
         act = Request.QueryString("act")
         If (timeout = 1) Then
