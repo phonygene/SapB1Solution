@@ -131,9 +131,35 @@
                 </div>
             </div>
 
+            <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
+
+            <script type="text/javascript">
+                function setCopyAttachmentFlag() {
+                    var copy = confirm('是否複製附件？');
+                    var hf = document.getElementById('<%= hfCopyAttachment.ClientID %>');
+                    if (hf) {
+                        hf.value = copy ? '1' : '0';
+                    }
+                    return true;
+                }
+            </script>
+
             <asp:GridView ID="gvList" runat="server" AutoGenerateColumns="False" CssClass="gridview" 
-                          AllowPaging="True" PageSize="20" OnPageIndexChanging="gvList_PageIndexChanging" OnRowDataBound="gvList_RowDataBound">
+                          AllowPaging="True" PageSize="20" DataKeyNames="jID,CreateBy"
+                          OnPageIndexChanging="gvList_PageIndexChanging" OnRowDataBound="gvList_RowDataBound"
+                          OnRowCommand="gvList_RowCommand">
                 <Columns>
+                    <asp:TemplateField HeaderText="動作">
+                        <ItemTemplate>
+                            <asp:LinkButton ID="lbtnCopy" runat="server" Text="複製"
+                                CssClass="btn btn-secondary"
+                                CommandName="CopyDoc"
+                                CommandArgument='<%# Container.DataItemIndex %>'
+                                OnClientClick="return setCopyAttachmentFlag();">
+                            </asp:LinkButton>
+                        </ItemTemplate>
+                        <ItemStyle HorizontalAlign="Center" Width="70px" />
+                    </asp:TemplateField>
                     <asp:TemplateField HeaderText="jID">
                         <ItemTemplate>
                             <asp:HyperLink ID="hlJID" runat="server" CssClass="link-btn"

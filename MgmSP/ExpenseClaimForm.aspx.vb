@@ -134,6 +134,26 @@ Partial Public Class ExpenseClaimForm
             ViewState("AcctSearchSortDirection") = value
         End Set
     End Property
+
+    Private Property CopyFromJID As Integer
+        Get
+            If ViewState("CopyFromJID") Is Nothing Then Return 0
+            Return Convert.ToInt32(ViewState("CopyFromJID"))
+        End Get
+        Set(value As Integer)
+            ViewState("CopyFromJID") = value
+        End Set
+    End Property
+
+    Private Property CopyAttachments As Boolean
+        Get
+            If ViewState("CopyAttachments") Is Nothing Then Return False
+            Return Convert.ToBoolean(ViewState("CopyAttachments"))
+        End Get
+        Set(value As Boolean)
+            ViewState("CopyAttachments") = value
+        End Set
+    End Property
 #End Region
 
 #Region "頁面載入"
@@ -179,6 +199,11 @@ Partial Public Class ExpenseClaimForm
             ElseIf Request.QueryString("DocEntry") IsNot Nothing Then
                 Integer.TryParse(Request.QueryString("DocEntry"), currentJID)
             End If
+            Dim copyFromId As Integer = 0
+            If Request.QueryString("CopyFrom") IsNot Nothing Then
+                Integer.TryParse(Request.QueryString("CopyFrom"), copyFromId)
+                currentJID = 0
+            End If
 
             If Not IsPostBack Then
                 InitializeDropDowns()
@@ -186,7 +211,11 @@ Partial Public Class ExpenseClaimForm
                 ' 檢查使用者費用部門是否已設定
                 CheckUserExpDept()
 
-                If currentJID > 0 Then
+                If copyFromId > 0 Then
+                    LoadDocument(copyFromId)
+                    Dim copyAttach As Boolean = (Request.QueryString("CopyAttach") = "1")
+                    ApplyCopyOverrides(copyFromId, copyAttach)
+                ElseIf currentJID > 0 Then
                     LoadDocument(currentJID)
                 Else
                     SetDefaultValues()
@@ -2660,7 +2689,12 @@ Partial Public Class ExpenseClaimForm
                             End Using
                         End If
 
-                        ' 2. jPCH1 (Expense Lines)
+                        ' 2. 複製附件 (Copy Mode)
+                        If isNewDocument AndAlso CopyFromJID > 0 AndAlso CopyAttachments Then
+                            CopyAttachmentsFromSource(CopyFromJID, jID, conn, trans)
+                        End If
+
+                        ' 3. jPCH1 (Expense Lines)
                         ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
                         Dim sqlL As String = "INSERT INTO jPCH1 (jID, LineNum, ItemCode, Dscription, AcctCode, " &
                                            "LineTotal, VatGroup, VatPrcnt, LineVat, GTotal, CostingCode, CostingCode2, Currency, Rate) " &
@@ -2687,7 +2721,7 @@ Partial Public Class ExpenseClaimForm
                             End Using
                         Next
 
-                        ' 3. jMGUIAP & jMGUIAPDetail (MDR)
+                        ' 4. jMGUIAP & jMGUIAPDetail (MDR)
                         If CurrentMDRLines.Count > 0 Then
                             ' MDR Header (彙總)
                             ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
@@ -3333,6 +3367,53 @@ Partial Public Class ExpenseClaimForm
     End Sub
 #End Region
 
+#Region "複製單據"
+    Private Sub ApplyCopyOverrides(sourceJID As Integer, copyAttach As Boolean)
+        Try
+            CopyFromJID = sourceJID
+            CopyAttachments = copyAttach
+
+            currentJID = 0
+            lblDocNum.Text = "[新單據]"
+            txtJID.Text = ""
+            txtB1DocEntry.Text = ""
+            txtB1DocEntry.ReadOnly = Not isApUser
+            txtB1DocEntry.CssClass = If(isApUser, "", "readonly-field")
+            txtUPID.Text = ""
+            txtApprovalComments.Text = ""
+            txtApprovedBy.Text = ""
+            txtApprovalStatus.Text = ""
+            txtStatusDisplay.Text = "新增中"
+            lblDocStatus.Text = "新增中"
+            lblDocStatus.CssClass = "badge status-W"
+            txtOwner.Text = currentUserId
+
+            Dim today As String = DateTime.Now.ToString("yyyy-MM-dd")
+            txtDocDate.Text = today
+            txtTaxDate.Text = today
+            CalculateDueDate()
+
+            If Not copyAttach Then
+                CurrentAttachments = New List(Of AttachmentItem)()
+                BindAttachmentGrid()
+            End If
+
+            btnApprove.Visible = True
+            btnApprove.Enabled = False
+            btnUpdateComment.Visible = True
+            btnUpdateComment.Enabled = False
+            btnReject.Visible = True
+            btnReject.Enabled = False
+            txtApprovalComments.ReadOnly = True
+
+            SetEditMode()
+            ShowInfo("已根據原文件資訊複製新單據，新增前請檢查更新憑證資訊。")
+        Catch ex As Exception
+            ' 複製失敗時靜默
+        End Try
+    End Sub
+#End Region
+
 #Region "附件處理"
     Private Const FORM_NAME As String = "ExpenseClaimForm"
 
@@ -3351,6 +3432,69 @@ Partial Public Class ExpenseClaimForm
     Private Function GetAttachmentRelativePath(jID As Integer, fileName As String) As String
         Return String.Format("AttachFile/User/{0}/{1}/{2}/{3}", currentUserId, FORM_NAME, jID, fileName)
     End Function
+
+    Private Function GetAttachmentAbsolutePath(relativePath As String) As String
+        If String.IsNullOrEmpty(relativePath) Then Return ""
+        Return Server.MapPath("~/" & relativePath.TrimStart("/"c))
+    End Function
+
+    Private Sub CopyAttachmentsFromSource(sourceJID As Integer, newJID As Integer, conn As SqlConnection, trans As SqlTransaction)
+        If sourceJID <= 0 OrElse newJID <= 0 Then Return
+
+        Try
+            Dim attachList As New List(Of AttachmentItem)()
+            Dim sql As String = "SELECT FilePath, FileName FROM jAttach WHERE jID=@ID AND (IsDeleted=0 OR IsDeleted IS NULL)"
+            Using cmd As New SqlCommand(sql, conn, trans)
+                cmd.Parameters.AddWithValue("@ID", sourceJID)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    While dr.Read()
+                        attachList.Add(New AttachmentItem With {
+                            .FilePath = dr("FilePath").ToString(),
+                            .FileName = dr("FileName").ToString()
+                        })
+                    End While
+                End Using
+            End Using
+
+            If attachList.Count = 0 Then Return
+
+            Dim targetFolder As String = GetAttachmentFolder(newJID)
+            If Not Directory.Exists(targetFolder) Then
+                Directory.CreateDirectory(targetFolder)
+            End If
+
+            For Each att In attachList
+                Try
+                    Dim originName As String = If(String.IsNullOrEmpty(att.FileName), Path.GetFileName(att.FilePath), att.FileName)
+                    If String.IsNullOrEmpty(originName) Then Continue For
+
+                    Dim sourcePath As String = GetAttachmentAbsolutePath(att.FilePath)
+                    If String.IsNullOrEmpty(sourcePath) OrElse Not File.Exists(sourcePath) Then Continue For
+
+                    Dim savedName As String = DateTime.Now.ToString("yyyyMMddHHmmss") & "_" & originName
+                    Dim targetPath As String = Path.Combine(targetFolder, savedName)
+                    File.Copy(sourcePath, targetPath, True)
+
+                    Dim relativePath As String = GetAttachmentRelativePath(newJID, savedName)
+                    Dim sqlIns As String = "INSERT INTO jAttach (jID, DocEntry, LineNum, FilePath, FileName, Uploader, UploadTime) " &
+                                           "VALUES (@jID, @DocEntry, -1, @FilePath, @FileName, @Uploader, @UploadTime)"
+                    Using cmdIns As New SqlCommand(sqlIns, conn, trans)
+                        cmdIns.Parameters.AddWithValue("@jID", newJID)
+                        cmdIns.Parameters.AddWithValue("@DocEntry", newJID)
+                        cmdIns.Parameters.AddWithValue("@FilePath", relativePath)
+                        cmdIns.Parameters.AddWithValue("@FileName", originName)
+                        cmdIns.Parameters.AddWithValue("@Uploader", currentUserId)
+                        cmdIns.Parameters.AddWithValue("@UploadTime", DateTime.Now.ToString("HH:mm:ss"))
+                        cmdIns.ExecuteNonQuery()
+                    End Using
+                Catch ex As Exception
+                    ' 複製失敗時靜默
+                End Try
+            Next
+        Catch ex As Exception
+            ' 複製失敗時靜默
+        End Try
+    End Sub
 
     Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
         ' .NET 4.0 相容性修改: 檢查 Request.Files

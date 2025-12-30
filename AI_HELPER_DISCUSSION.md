@@ -193,6 +193,7 @@
 |------|------|
 | `SQL/AI_Helper_Schema.sql` | 資料表結構（CREATE TABLE） |
 | `SQL/AI_Helper_DefaultData.sql` | 預設資料（INSERT） |
+| `SQL/AI_Helper_FieldHelp_ExpenseClaim.sql` | 費用申請單欄位說明 |
 
 ---
 
@@ -214,12 +215,17 @@
 
 | 參數 | 預設值 |
 |------|--------|
-| 單次訊息最大字數 | 500 |
+| AI 模型 | `gemini-2.0-flash` |
+| 單次訊息最大字數（輸入） | 500 |
+| AI 回應最大字數（輸出） | 1000 |
 | 單次 Issue 最大對話次數 | 15 |
 | 每小時最大對話次數 | 60 |
 | 違規禁用門檻 | 3 次/5 分鐘 |
 | 違規判定信心度門檻 | 0.7 |
 | 每 Issue 最大 Tag 數 | 15 |
+
+### 特殊處理
+- 若 1000 字內無法完整回答，提示使用者聯絡系統管理員
 
 ---
 
@@ -232,5 +238,7 @@
 - [x] 產出 CREATE TABLE SQL
 - [x] 產出預設資料 INSERT SQL
 - [x] 設計 AI 預設 Prompt
-- [ ] 確認 AI 模型選擇
+- [x] 確認 AI 模型選擇 (`gemini-2.0-flash`)
+- [x] 確認回應字數限制 (1000 字)
+- [ ] 匯入現有欄位說明
 - [ ] 開始 Phase 1 開發

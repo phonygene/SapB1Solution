@@ -10,12 +10,16 @@ Partial Public Class ExpenseClaimList
     Inherits System.Web.UI.Page
 
     Private ReadOnly connStr As String = WebConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
+    Private currentUserId As String = ""
+    Private isApUser As Boolean = False
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         If Session("s_id") Is Nothing Then
             Response.Redirect("~/usermgm/login.aspx")
             Return
         End If
+        currentUserId = Session("s_id").ToString()
+        CheckApprovalPermission()
 
         If Not IsPostBack Then
             ' 預設查詢本月單據
@@ -45,6 +49,20 @@ Partial Public Class ExpenseClaimList
     Protected Sub gvList_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
         gvList.PageIndex = e.NewPageIndex
         BindGrid()
+    End Sub
+
+    Private Sub CheckApprovalPermission()
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Dim sql As String = "SELECT AP_App FROM [User] WHERE id = @UserId"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                Dim result = cmd.ExecuteScalar()
+                If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                    isApUser = (Convert.ToInt32(result) = 1)
+                End If
+            End Using
+        End Using
     End Sub
 
     Private Sub BindGrid()
@@ -128,6 +146,30 @@ Partial Public Class ExpenseClaimList
             
             lblStatus.Text = GetStatusText(status)
             lblStatus.CssClass = "badge status-" & status
+
+            Dim createBy As String = DataBinder.Eval(e.Row.DataItem, "CreateBy").ToString()
+            Dim lbtnCopy As LinkButton = CType(e.Row.FindControl("lbtnCopy"), LinkButton)
+            If lbtnCopy IsNot Nothing Then
+                lbtnCopy.Visible = isApUser OrElse String.Equals(createBy, currentUserId, StringComparison.OrdinalIgnoreCase)
+            End If
+        End If
+    End Sub
+
+    Protected Sub gvList_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "CopyDoc" Then
+            Dim rowIndex As Integer
+            If Not Integer.TryParse(e.CommandArgument.ToString(), rowIndex) Then Return
+
+            Dim jID As Integer = Convert.ToInt32(gvList.DataKeys(rowIndex)("jID"))
+            Dim createBy As String = gvList.DataKeys(rowIndex)("CreateBy").ToString()
+
+            If Not isApUser AndAlso Not String.Equals(createBy, currentUserId, StringComparison.OrdinalIgnoreCase) Then
+                Response.Write("<script>alert('您沒有權限複製此單據');</script>")
+                Return
+            End If
+
+            Dim copyAttach As String = If(hfCopyAttachment.Value = "1", "1", "0")
+            Response.Redirect("ExpenseClaimForm.aspx?CopyFrom=" & jID.ToString() & "&CopyAttach=" & copyAttach)
         End If
     End Sub
 
