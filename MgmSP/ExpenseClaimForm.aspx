@@ -1,4 +1,4 @@
-﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm"
+<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm"
     MaintainScrollPositionOnPostback="true" %>
     <%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ajaxToolkit" %>
 
@@ -9,32 +9,70 @@
             <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
             <title>費用申請單</title>
             <style type="text/css">
+                /* ========================================
+                   JET Enterprise Platform - Elegant Theme
+                   ======================================== */
+                
+                :root {
+                    /* 主色系 */
+                    --bg-primary: #F8F9FC;
+                    --bg-secondary: #EEF1F6;
+                    --bg-white: #FFFFFF;
+                    
+                    /* 文字色 */
+                    --text-primary: #2D3748;
+                    --text-secondary: #64748B;
+                    --text-muted: #94A3B8;
+                    
+                    /* 強調色 */
+                    --accent-primary: #3B4A6B;
+                    --accent-hover: #4A5D82;
+                    --accent-light: #7C8DB0;
+                    
+                    /* 功能色 */
+                    --border-color: #E2E8F0;
+                    --border-light: #EEF1F6;
+                    --gold-accent: #B8A88A;
+                    --success: #6B9080;
+                    --warning: #C9A227;
+                    --danger: #A65D57;
+                    --info: #5B7B9A;
+                    
+                    /* 陰影 */
+                    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+                    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 20px rgba(0, 0, 0, 0.04);
+                }
+
                 body {
-                    font-family: "Microsoft JhengHei", Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
                     font-size: 14px;
-                    background-color: #f5f5f5;
+                    background-color: var(--bg-primary);
+                    color: var(--text-primary);
+                    line-height: 1.6;
                 }
 
                 .form-container {
                     max-width: 1400px;
                     margin: 20px auto;
-                    padding: 20px;
-                    background-color: white;
-                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                    border-radius: 5px;
+                    padding: 24px;
+                    background-color: var(--bg-white);
+                    box-shadow: var(--shadow-sm);
+                    border-radius: 12px;
+                    border: 1px solid var(--border-color);
                 }
 
                 .section-header {
-                    background-color: #4CAF50;
-                    color: white;
-                    padding: 10px 15px;
-                    margin: 20px 0 15px 0;
-                    font-weight: bold;
-                    border-radius: 4px;
-                    font-size: 16px;
+                    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
+                    color: #FFFFFF;
+                    padding: 12px 18px;
+                    margin: 24px 0 18px 0;
+                    font-weight: 500;
+                    border-radius: 8px;
+                    font-size: 15px;
+                    letter-spacing: 0.03em;
                 }
 
-                /* Layout Grid */
+                /* Layout Grid - 保持原有配置 */
                 .row {
                     display: flex;
                     flex-wrap: wrap;
@@ -51,17 +89,17 @@
                 }
 
                 .form-group {
-                    margin-bottom: 12px;
+                    margin-bottom: 14px;
                     display: flex;
                     align-items: center;
                 }
 
                 .form-label {
                     width: 140px;
-                    font-weight: bold;
+                    font-weight: 500;
                     padding-right: 10px;
                     text-align: right;
-                    color: #333;
+                    color: var(--text-primary);
                 }
 
                 .form-control {
@@ -74,13 +112,30 @@
                 input[type="date"],
                 select,
                 textarea {
-                    padding: 6px 10px;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
+                    padding: 8px 12px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
                     font-family: inherit;
                     font-size: 14px;
                     width: 100%;
                     box-sizing: border-box;
+                    color: var(--text-primary);
+                    background-color: var(--bg-white);
+                    transition: all 0.2s ease;
+                }
+
+                input[type="text"]:focus,
+                input[type="date"]:focus,
+                select:focus,
+                textarea:focus {
+                    outline: none;
+                    border-color: var(--accent-light);
+                    box-shadow: 0 0 0 3px rgba(124, 141, 176, 0.12);
+                }
+
+                input[type="text"]::placeholder,
+                textarea::placeholder {
+                    color: var(--text-muted);
                 }
 
                 textarea {
@@ -88,106 +143,151 @@
                 }
 
                 .readonly-field {
-                    background-color: #e9ecef;
+                    background-color: var(--bg-secondary);
+                    color: var(--text-secondary);
                     cursor: not-allowed;
+                    border-color: var(--border-light);
                 }
 
+                /* 按鈕系統 */
                 .btn {
                     padding: 8px 20px;
-                    border-radius: 4px;
+                    border-radius: 8px;
                     border: none;
                     cursor: pointer;
                     font-size: 14px;
-                    font-weight: bold;
+                    font-weight: 500;
                     margin-right: 5px;
+                    transition: all 0.2s ease;
+                    letter-spacing: 0.02em;
                 }
 
                 .btn-primary {
-                    background-color: #007bff;
+                    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
                     color: white;
+                }
+
+                .btn-primary:hover {
+                    background: linear-gradient(135deg, var(--accent-hover) 0%, #5A6D92 100%);
+                    box-shadow: 0 4px 12px rgba(59, 74, 107, 0.25);
                 }
 
                 .btn-success {
-                    background-color: #28a745;
+                    background: linear-gradient(135deg, var(--success) 0%, #7BA393 100%);
                     color: white;
+                }
+
+                .btn-success:hover {
+                    box-shadow: 0 4px 12px rgba(107, 144, 128, 0.3);
                 }
 
                 .btn-danger {
-                    background-color: #dc3545;
+                    background: linear-gradient(135deg, var(--danger) 0%, #B86E68 100%);
                     color: white;
+                }
+
+                .btn-danger:hover {
+                    box-shadow: 0 4px 12px rgba(166, 93, 87, 0.3);
                 }
 
                 .btn-secondary {
-                    background-color: #6c757d;
-                    color: white;
+                    background: var(--bg-secondary);
+                    color: var(--text-secondary);
+                }
+
+                .btn-secondary:hover {
+                    background: var(--border-color);
+                    color: var(--text-primary);
                 }
 
                 .btn-warning {
-                    background-color: #ffc107;
-                    color: black;
+                    background: linear-gradient(135deg, var(--warning) 0%, #D4AF37 100%);
+                    color: white;
+                }
+
+                .btn-warning:hover {
+                    box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+                }
+
+                .btn-info {
+                    background: linear-gradient(135deg, var(--info) 0%, #6B8BA9 100%);
+                    color: white;
+                }
+
+                .btn-info:hover {
+                    box-shadow: 0 4px 12px rgba(91, 123, 154, 0.3);
                 }
 
                 .btn:hover {
-                    opacity: 0.9;
+                    opacity: 1;
+                    transform: translateY(-1px);
                 }
 
                 .btn-icon {
-                    padding: 4px 10px;
+                    padding: 6px 12px;
                     font-size: 12px;
                     margin-left: 5px;
                 }
 
                 .required {
-                    color: red;
+                    color: var(--gold-accent);
                     margin-right: 3px;
+                    font-weight: 600;
                 }
 
                 .error-text {
-                    color: #dc3545;
+                    color: var(--danger);
                     font-size: 12px;
                     margin-left: 5px;
                     display: block;
                 }
 
-                /* Tabs */
+                /* Tabs - 保持原有配置，更新視覺 */
                 .tab-container {
                     display: flex;
-                    border-bottom: 2px solid #4CAF50;
-                    margin-top: 20px;
+                    border-bottom: 2px solid var(--accent-primary);
+                    margin-top: 24px;
                 }
 
                 .tab-button {
                     padding: 10px 25px;
-                    background-color: #f8f9fa;
-                    border: 1px solid #dee2e6;
+                    background-color: var(--bg-secondary);
+                    border: 1px solid var(--border-color);
                     border-bottom: none;
                     cursor: pointer;
                     margin-right: 2px;
-                    border-radius: 4px 4px 0 0;
-                    font-weight: bold;
-                    color: #495057;
+                    border-radius: 8px 8px 0 0;
+                    font-weight: 500;
+                    color: var(--text-secondary);
+                    transition: all 0.2s ease;
+                }
+
+                .tab-button:hover {
+                    background-color: var(--border-color);
+                    color: var(--text-primary);
                 }
 
                 .tab-button.active {
-                    background-color: #4CAF50;
+                    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
                     color: white;
-                    border-color: #4CAF50;
+                    border-color: var(--accent-primary);
                 }
 
                 .tab-content {
                     display: none;
                     padding: 20px;
-                    border: 1px solid #dee2e6;
+                    border: 1px solid var(--border-color);
                     border-top: none;
-                    background-color: white;
+                    background-color: var(--bg-white);
                     min-height: 200px;
+                    border-radius: 0 0 8px 8px;
                 }
 
                 .tab-content.active {
                     display: block;
                 }
 
-                /* GridView */
+                /* GridView - 保持原有配置，更新視覺 */
                 .gridview {
                     border-collapse: collapse;
                     width: 100%;
@@ -196,91 +296,107 @@
                 }
 
                 .gridview th {
-                    background-color: #f1f1f1;
-                    color: #333;
-                    padding: 10px;
-                    border: 1px solid #ddd;
+                    background: linear-gradient(180deg, var(--bg-secondary) 0%, #E5E9F0 100%);
+                    color: var(--text-primary);
+                    padding: 12px 10px;
+                    border: 1px solid var(--border-color);
                     text-align: center;
                     white-space: nowrap;
+                    font-weight: 600;
+                    letter-spacing: 0.02em;
                 }
 
                 .gridview td {
-                    padding: 5px;
-                    border: 1px solid #ddd;
+                    padding: 8px;
+                    border: 1px solid var(--border-color);
                     vertical-align: middle;
+                    background-color: var(--bg-white);
+                }
+
+                .gridview tr:nth-child(even) td {
+                    background-color: var(--bg-primary);
+                }
+
+                .gridview tr:hover td {
+                    background-color: var(--bg-secondary);
                 }
 
                 .gridview input[type="text"],
                 .gridview select {
                     width: 95%;
-                    padding: 4px;
+                    padding: 6px 8px;
                 }
 
-                /* Status Badges */
+                /* Status Badges - 更新為優雅配色 */
                 .badge {
-                    padding: 5px 10px;
-                    border-radius: 10px;
+                    padding: 5px 12px;
+                    border-radius: 20px;
                     color: white;
                     font-size: 12px;
-                    font-weight: bold;
+                    font-weight: 500;
+                    letter-spacing: 0.03em;
                 }
 
                 .status-P {
-                    background-color: #6c757d;
+                    background: linear-gradient(135deg, var(--text-secondary) 0%, #7A8A9B 100%);
                 }
 
                 /* Draft */
                 .status-W {
-                    background-color: #ffc107;
-                    color: black;
+                    background: linear-gradient(135deg, var(--warning) 0%, #D4AF37 100%);
+                    color: white;
                 }
 
                 /* Pending */
                 .status-A {
-                    background-color: #28a745;
+                    background: linear-gradient(135deg, var(--success) 0%, #7BA393 100%);
                 }
 
                 /* Approved */
                 .status-R {
-                    background-color: #dc3545;
+                    background: linear-gradient(135deg, var(--danger) 0%, #B86E68 100%);
                 }
 
                 /* Rejected */
 
-                /* Modal */
+                /* Modal - 保持原有配置，更新視覺 */
                 .modalBackground {
-                    background-color: rgba(0, 0, 0, 0.5);
+                    background-color: rgba(26, 31, 46, 0.6);
                 }
 
                 .modalPopup {
-                    background-color: white;
-                    border-radius: 5px;
+                    background-color: var(--bg-white);
+                    border-radius: 12px;
                     padding: 0;
                     width: 700px;
-                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                    box-shadow: var(--shadow-md), 0 25px 50px rgba(0, 0, 0, 0.15);
+                    border: 1px solid var(--border-color);
                 }
 
                 .modalHeader {
-                    background-color: #4CAF50;
+                    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
                     color: white;
-                    padding: 10px 15px;
-                    border-radius: 5px 5px 0 0;
-                    font-weight: bold;
+                    padding: 14px 18px;
+                    border-radius: 12px 12px 0 0;
+                    font-weight: 500;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    letter-spacing: 0.03em;
                 }
 
                 .modalBody {
-                    padding: 15px;
+                    padding: 20px;
                     max-height: 500px;
                     overflow-y: auto;
                 }
 
                 .modalFooter {
-                    padding: 10px 15px;
-                    border-top: 1px solid #eee;
+                    padding: 14px 18px;
+                    border-top: 1px solid var(--border-light);
                     text-align: right;
+                    background: var(--bg-primary);
+                    border-radius: 0 0 12px 12px;
                 }
 
                 /* 驗證結果彈窗 */
@@ -293,22 +409,22 @@
                 }
 
                 .validation-section-title {
-                    font-weight: bold;
-                    padding: 8px 12px;
-                    border-radius: 4px;
-                    margin-bottom: 8px;
+                    font-weight: 500;
+                    padding: 10px 14px;
+                    border-radius: 6px;
+                    margin-bottom: 10px;
                 }
 
                 .validation-section-title.error {
-                    background-color: #f8d7da;
-                    color: #721c24;
-                    border-left: 4px solid #dc3545;
+                    background: linear-gradient(135deg, #FDF2F2 0%, #FEE8E8 100%);
+                    color: var(--danger);
+                    border-left: 4px solid var(--danger);
                 }
 
                 .validation-section-title.warning {
-                    background-color: #fff3cd;
-                    color: #856404;
-                    border-left: 4px solid #ffc107;
+                    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3CD 100%);
+                    color: #92700C;
+                    border-left: 4px solid var(--warning);
                 }
 
                 .validation-list {
@@ -318,8 +434,9 @@
                 }
 
                 .validation-list li {
-                    padding: 5px 0;
-                    border-bottom: 1px dashed #eee;
+                    padding: 6px 0;
+                    border-bottom: 1px dashed var(--border-light);
+                    color: var(--text-secondary);
                 }
 
                 .validation-list li:last-child {
@@ -332,11 +449,318 @@
                 }
 
                 .validation-list.error li:before {
-                    color: #dc3545;
+                    color: var(--danger);
                 }
 
                 .validation-list.warning li:before {
-                    color: #ffc107;
+                    color: var(--warning);
+                }
+
+                /* ========================================
+                   Header & Breadcrumb
+                   ======================================== */
+                .site-header {
+                    background: linear-gradient(135deg, #1a1f2e 0%, #2a3142 100%);
+                    padding: 1.25rem 2rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .site-logo {
+                    font-size: 1.5rem;
+                    font-weight: 300;
+                    color: #ffffff;
+                    letter-spacing: 0.3em;
+                    font-style: italic;
+                }
+
+                .site-logo span {
+                    font-weight: 500;
+                }
+
+                .user-info {
+                    color: var(--text-muted);
+                    font-size: 0.875rem;
+                }
+
+                .user-info strong {
+                    color: #E2E8F0;
+                }
+
+                .user-info a {
+                    color: var(--text-muted);
+                    text-decoration: none;
+                    margin-left: 0.5rem;
+                }
+
+                .user-info a:hover {
+                    color: #E2E8F0;
+                }
+
+                .breadcrumb {
+                    padding: 1rem 2rem;
+                    background: var(--bg-white);
+                    border-bottom: 1px solid var(--border-color);
+                    font-size: 0.875rem;
+                    color: var(--text-secondary);
+                }
+
+                .breadcrumb a {
+                    color: var(--accent-primary);
+                    text-decoration: none;
+                }
+
+                .breadcrumb a:hover {
+                    color: var(--accent-hover);
+                }
+
+                .breadcrumb span {
+                    margin: 0 0.5rem;
+                    color: var(--text-muted);
+                }
+
+                /* 頁面標題區 */
+                .page-header-title {
+                    margin: 0;
+                    color: var(--accent-primary);
+                    font-weight: 500;
+                    letter-spacing: 0.02em;
+                }
+
+                /* 審核區塊 */
+                .approval-panel {
+                    margin-top: 24px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #FFFBEB 0%, #FEF8E8 100%);
+                    border: 1px solid var(--gold-accent);
+                    border-radius: 10px;
+                    border-left: 4px solid var(--gold-accent);
+                }
+
+                .approval-panel h3 {
+                    margin-top: 0;
+                    color: var(--accent-primary);
+                    font-weight: 500;
+                }
+
+                /* Footer 分隔線 */
+                .footer-section {
+                    margin-top: 24px;
+                    border-top: 1px solid var(--border-color);
+                    padding-top: 16px;
+                }
+
+                /* 總額顯示 */
+                .total-amount {
+                    font-weight: 600;
+                    font-size: 22px;
+                    color: var(--accent-primary);
+                }
+
+                .total-detail {
+                    color: var(--text-muted);
+                    font-size: 12px;
+                }
+
+                /* 附件上傳區 */
+                .file-upload-area {
+                    display: flex;
+                    align-items: center;
+                }
+
+                /* 連結樣式 */
+                a {
+                    color: var(--accent-primary);
+                    text-decoration: none;
+                    transition: color 0.2s ease;
+                }
+
+                a:hover {
+                    color: var(--accent-hover);
+                }
+
+                /* 搜尋按鈕組合 */
+                .search-combo {
+                    display: flex;
+                    width: 100%;
+                }
+
+                .search-combo input {
+                    border-top-right-radius: 0;
+                    border-bottom-right-radius: 0;
+                }
+
+                .search-combo .btn {
+                    border-top-left-radius: 0;
+                    border-bottom-left-radius: 0;
+                    margin: 0;
+                }
+
+                /* 供應商資訊提示 */
+                .vendor-info {
+                    margin-top: 6px;
+                    font-size: 12px;
+                    color: var(--accent-light);
+                }
+
+                /* 複製彈窗 */
+                .copy-modal-overlay {
+                    display: none;
+                    position: fixed;
+                    z-index: 1000;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(26, 31, 46, 0.5);
+                }
+
+                .copy-modal-content {
+                    background: var(--bg-white);
+                    width: 420px;
+                    margin: 12% auto;
+                    padding: 24px;
+                    border-radius: 12px;
+                    box-shadow: var(--shadow-md);
+                    border: 1px solid var(--border-color);
+                }
+
+                .copy-modal-title {
+                    font-weight: 500;
+                    margin-bottom: 12px;
+                    color: var(--text-primary);
+                }
+
+                .copy-modal-question {
+                    margin-bottom: 18px;
+                    color: var(--text-secondary);
+                }
+
+                /* Empty data 提示 */
+                .empty-data-hint {
+                    text-align: center;
+                    padding: 24px;
+                    color: var(--text-muted);
+                }
+
+                /* Radio Button List */
+                input[type="radio"] {
+                    accent-color: var(--accent-primary);
+                }
+
+                /* Checkbox */
+                input[type="checkbox"] {
+                    accent-color: var(--accent-primary);
+                    width: 16px;
+                    height: 16px;
+                }
+
+                /* 訊息標籤 */
+                .message-label {
+                    font-weight: 500;
+                }
+
+                /* Pager */
+                .gridview a {
+                    padding: 6px 12px;
+                    margin: 0 2px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                    color: var(--accent-primary);
+                    background: var(--bg-white);
+                    display: inline-block;
+                }
+
+                .gridview a:hover {
+                    background: var(--bg-secondary);
+                }
+
+                .gridview span {
+                    padding: 6px 12px;
+                    margin: 0 2px;
+                    background: var(--accent-primary);
+                    color: white;
+                    border-radius: 6px;
+                    display: inline-block;
+                }
+
+                /* ========================================
+                   Site Header & Breadcrumb
+                   ======================================== */
+                .site-header {
+                    background: linear-gradient(135deg, #1a1f2e 0%, #2a3142 100%);
+                    padding: 1rem 2rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .site-logo {
+                    font-size: 1.5rem;
+                    font-weight: 300;
+                    color: #ffffff;
+                    letter-spacing: 0.3em;
+                    font-style: italic;
+                    text-decoration: none;
+                }
+
+                .site-logo:hover {
+                    color: #ffffff;
+                }
+
+                .site-user-info {
+                    color: var(--text-muted);
+                    font-size: 0.875rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                .site-user-info .user-name {
+                    color: #E2E8F0;
+                    font-weight: 500;
+                }
+
+                .site-user-info .separator {
+                    color: var(--text-muted);
+                }
+
+                .site-user-info a {
+                    color: var(--text-muted);
+                    text-decoration: none;
+                    transition: color 0.2s ease;
+                }
+
+                .site-user-info a:hover {
+                    color: #E2E8F0;
+                }
+
+                .breadcrumb {
+                    padding: 0.875rem 2rem;
+                    background: var(--bg-white);
+                    border-bottom: 1px solid var(--border-color);
+                    font-size: 0.875rem;
+                    color: var(--text-secondary);
+                }
+
+                .breadcrumb a {
+                    color: var(--accent-primary);
+                    text-decoration: none;
+                    transition: color 0.2s ease;
+                }
+
+                .breadcrumb a:hover {
+                    color: var(--accent-hover);
+                }
+
+                .breadcrumb .separator {
+                    margin: 0 0.5rem;
+                    color: var(--text-muted);
+                }
+
+                .breadcrumb .current {
+                    color: var(--text-secondary);
                 }
             </style>
             <script type="text/javascript">
@@ -475,8 +899,26 @@
 
         <body>
             <form id="form1" runat="server">
-                <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
+                <!-- Site Header -->
+                <header class="site-header">
+                    <a href="Home.aspx?smid=index&smode=0" class="site-logo">J E T</a>
+                    <div class="site-user-info">
+                        <asp:Label ID="lblCurrentUser" runat="server" CssClass="user-name" Text=""></asp:Label>
+                        <span class="separator">｜</span>
+                        <asp:LinkButton ID="lnkLogout" runat="server" OnClick="lnkLogout_Click">登出</asp:LinkButton>
+                    </div>
+                </header>
 
+                <!-- Breadcrumb Navigation -->
+                <nav class="breadcrumb">
+                    <asp:HyperLink ID="lnkHome" runat="server" NavigateUrl="~/Home.aspx?smid=index&smode=0">首頁</asp:HyperLink>
+                    <span class="separator">></span>
+                    <asp:HyperLink ID="lnkExpenseModule" runat="server" NavigateUrl="~/ExpenseClaimList.aspx?smid=ec&smode=1">費用管理</asp:HyperLink>
+                    <span class="separator">></span>
+                    <span class="current">費用申請</span>
+                </nav>
+
+                <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
                 <asp:UpdatePanel ID="UpdatePanel1" runat="server">
                     <ContentTemplate>
                         <asp:HiddenField ID="hfActiveTab" runat="server" Value="expense" />
@@ -485,7 +927,7 @@
                             <div class="form-container">
                                 <div
                                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                                    <h2 style="margin:0; color:#4CAF50;">費用申請單 (Expense Claim)</h2>
+                                    <h2 class="page-header-title">費用申請單 (Expense Claim)</h2>
                                     <div style="text-align:right;">
                                         <div style="margin-bottom:6px;">
                                             <asp:Button ID="btnCopyDocument" runat="server" Text="複製單據"
@@ -493,7 +935,7 @@
                                                 OnClientClick="return showCopyDialogForForm();" />
                                         </div>
                                         <asp:Label ID="lblDocNum" runat="server" Text="[New]" Font-Bold="True"
-                                            Font-Size="18px" ForeColor="#007bff"></asp:Label>
+                                            Font-Size="18px" ForeColor="#3B4A6B"></asp:Label>
                                         <br />
                                         <asp:Label ID="lblDocStatus" runat="server" CssClass="badge status-P" Text="草稿">
                                         </asp:Label>
@@ -510,18 +952,16 @@
                                             <label class="form-label"><span class="required">*</span>供應商代碼:</label>
                                             <div class="form-control">
                                                 <!-- Search Button Combo -->
-                                                <div style="display:flex; width:100%;">
+                                                <div class="search-combo">
                                                     <asp:TextBox ID="txtCardCode" runat="server" placeholder="請點選搜尋"
-                                                        ReadOnly="false"
-                                                        style="border-top-right-radius:0; border-bottom-right-radius:0;">
+                                                        ReadOnly="false">
                                                     </asp:TextBox>
                                                     <asp:Button ID="btnSearchCardCode" runat="server" Text="🔍"
                                                         CssClass="btn btn-secondary"
-                                                        style="border-top-left-radius:0; border-bottom-left-radius:0; margin:0;"
                                                         OnClick="btnSearchCardCode_Click" />
                                                 </div>
-                                                <div style="margin-top:5px; font-size:12px;">
-                                                    <asp:Label ID="lblVendorInfo" runat="server" ForeColor="Blue">
+                                                <div class="vendor-info">
+                                                    <asp:Label ID="lblVendorInfo" runat="server">
                                                     </asp:Label>
                                                 </div>
                                                 <asp:Label ID="lblErrCardCode" runat="server" CssClass="error-text"
@@ -531,14 +971,12 @@
                                         <div class="form-group">
                                             <label class="form-label">供應商名稱:</label>
                                             <div class="form-control">
-                                                <div style="display:flex; width:100%;">
+                                                <div class="search-combo">
                                                     <asp:TextBox ID="txtCardName" runat="server" placeholder="請點選搜尋"
-                                                        ReadOnly="false"
-                                                        style="border-top-right-radius:0; border-bottom-right-radius:0;">
+                                                        ReadOnly="false">
                                                     </asp:TextBox>
                                                     <asp:Button ID="btnSearchCardName" runat="server" Text="🔍"
                                                         CssClass="btn btn-secondary"
-                                                        style="border-top-left-radius:0; border-bottom-left-radius:0; margin:0;"
                                                         OnClick="btnSearchCardName_Click" />
                                                 </div>
                                                 <asp:Label ID="lblErrCardName" runat="server" CssClass="error-text"
@@ -692,7 +1130,7 @@
                                                 OnClick="btnGenerateMDR_Click" CssClass="btn btn-warning"
                                                 ToolTip="依據費用明細自動產生憑證明細" />
                                         </div>
-                                        <div style="display:flex; align-items:center;">
+                                        <div class="file-upload-area">
                                             <asp:FileUpload ID="fileUpload" runat="server"
                                                 style="display:inline-block; width:200px;" AllowMultiple="true" />
                                             <asp:Button ID="btnUpload" runat="server" Text="上傳附件"
@@ -714,7 +1152,7 @@
                                                         <asp:LinkButton ID="lbtnDelete" runat="server"
                                                             CommandName="DeleteFile"
                                                             CommandArgument='<%# Container.DataItemIndex %>' Text="刪除"
-                                                            ForeColor="Red" OnClientClick="return confirm('確定刪除此附件？');">
+                                                            ForeColor="#A65D57" OnClientClick="return confirm('確定刪除此附件？');">
                                                         </asp:LinkButton>
                                                         <%-- [C] 使用 Handler 安全下載附件，避免路徑洩漏 --%>
                                                             <asp:HyperLink ID="hlDownload" runat="server"
@@ -726,7 +1164,7 @@
                                                 </asp:TemplateField>
                                             </Columns>
                                             <EmptyDataTemplate>
-                                                <div style="color:gray; padding:5px;">無附件</div>
+                                                <div class="empty-data-hint">無附件</div>
                                             </EmptyDataTemplate>
                                         </asp:GridView>
                                     </div>
@@ -847,7 +1285,7 @@
                                                     </asp:TemplateField>
                                             </Columns>
                                             <EmptyDataTemplate>
-                                                <div style="text-align:center; padding:20px; color:gray;">請新增費用明細</div>
+                                                <div class="empty-data-hint">請新增費用明細</div>
                                             </EmptyDataTemplate>
                                         </asp:GridView>
                                     </div>
@@ -972,7 +1410,7 @@
                                                     </asp:TemplateField>
                                             </Columns>
                                             <EmptyDataTemplate>
-                                                <div style="text-align:center; padding:20px; color:gray;">
+                                                <div class="empty-data-hint">
                                                     請新增憑證明細，或點擊「產生憑證明細」按鈕自動產生</div>
                                             </EmptyDataTemplate>
                                         </asp:GridView>
@@ -980,7 +1418,7 @@
                                 </div>
 
                                 <!-- Footer Section -->
-                                <div style="margin-top:20px; border-top: 1px solid #ccc; padding-top:10px;">
+                                <div class="footer-section">
                                     <div class="row">
                                         <div class="col-half">
                                             <div class="form-group">
@@ -1010,10 +1448,10 @@
                                                 <label class="form-label" style="width:auto;">單據總額 (含稅):</label>
                                                 <div style="width: 150px; margin-left:10px;">
                                                     <asp:Label ID="lblDocTotalWithTax" runat="server" Text="0.00"
-                                                        Font-Bold="True" Font-Size="20px" ForeColor="Blue"></asp:Label>
+                                                        CssClass="total-amount"></asp:Label>
                                                 </div>
                                             </div>
-                                            <div style="color:gray; font-size:12px;">
+                                            <div class="total-detail">
                                                 未稅: <asp:Label ID="lblDocTotal" runat="server" Text="0.00"></asp:Label>
                                                 |
                                                 稅額: <asp:Label ID="lblVatSum" runat="server" Text="0.00"></asp:Label>
@@ -1023,9 +1461,8 @@
                                 </div>
 
                                 <!-- Approval Section -->
-                                <asp:Panel ID="pnlApproval" runat="server"
-                                    style="margin-top:20px; padding:15px; background-color:#fff3cd; border:1px solid #ffc107; border-radius:5px;">
-                                    <h3 style="margin-top:0;">審核作業</h3>
+                                <asp:Panel ID="pnlApproval" runat="server" CssClass="approval-panel">
+                                    <h3>審核作業</h3>
                                     <div class="form-group">
                                         <label class="form-label" style="width:100px;">審核意見:</label>
                                         <div class="form-control">
@@ -1068,7 +1505,7 @@
                                         OnClick="btnNewDocument_Click" CssClass="btn btn-primary" Visible="false" />
 
                                     <div style="margin-top:10px;">
-                                        <asp:Label ID="lblMessage" runat="server" Font-Bold="True"></asp:Label>
+                                        <asp:Label ID="lblMessage" runat="server" CssClass="message-label"></asp:Label>
                                     </div>
                                 </div>
                             </div>
@@ -1082,7 +1519,7 @@
                                 <div class="modalHeader">
                                     <span>供應商搜尋</span>
                                     <asp:LinkButton ID="btnCloseVendor" runat="server" ForeColor="White"
-                                        Font-Bold="true" style="text-decoration:none;">X</asp:LinkButton>
+                                        Font-Bold="true" style="text-decoration:none;">✕</asp:LinkButton>
                                 </div>
                                 <div class="modalBody">
                                     <div style="margin-bottom:10px;">
@@ -1095,7 +1532,7 @@
                                                 style="margin-left:5px;" />
                                             <asp:HiddenField ID="hfSearchSource" runat="server" />
                                         </div>
-                                        <div style="margin-top:5px;">
+                                        <div style="margin-top:8px;">
                                             <asp:RadioButtonList ID="rblSearchMode" runat="server"
                                                 RepeatDirection="Horizontal">
                                                 <asp:ListItem Value="Fuzzy" Selected="True">模糊搜尋</asp:ListItem>
@@ -1135,7 +1572,7 @@
                                 <div class="modalHeader">
                                     <span>會計科目搜尋</span>
                                     <asp:LinkButton ID="btnCloseAcct" runat="server" ForeColor="White"
-                                        Font-Bold="true" style="text-decoration:none;">X</asp:LinkButton>
+                                        Font-Bold="true" style="text-decoration:none;">✕</asp:LinkButton>
                                 </div>
                                 <div class="modalBody">
                                     <div style="margin-bottom:10px;">
@@ -1148,7 +1585,7 @@
                                                 style="margin-left:5px;" />
                                             <asp:HiddenField ID="hfAcctSearchRowIndex" runat="server" />
                                         </div>
-                                        <div style="margin-top:5px;">
+                                        <div style="margin-top:8px;">
                                                 <asp:RadioButtonList ID="rblAcctSearchMode" runat="server"
                                                     RepeatDirection="Horizontal">
                                                     <asp:ListItem Value="Fuzzy">模糊搜尋</asp:ListItem>
@@ -1247,12 +1684,12 @@
                                 DropShadow="false" />
                             <asp:Panel ID="pnlValidation" runat="server" CssClass="modalPopup validation-modal"
                                 Style="display:none;">
-                                <div class="modalHeader" style="background-color:#dc3545;" id="divValidationHeader"
+                                <div class="modalHeader" style="background: linear-gradient(135deg, #A65D57 0%, #B86E68 100%);" id="divValidationHeader"
                                     runat="server">
                                     <span>單據檢核結果</span>
                                     <asp:LinkButton ID="btnValidationClose" runat="server" ForeColor="White"
                                         Font-Bold="true" Style="text-decoration:none;"
-                                        OnClick="btnValidationBack_Click">X</asp:LinkButton>
+                                        OnClick="btnValidationBack_Click">✕</asp:LinkButton>
                                 </div>
                                 <div class="modalBody">
                                     <!-- 錯誤區塊 -->
@@ -1287,11 +1724,11 @@
                                 PopupControlID="pnlExpDept" BackgroundCssClass="modalBackground"
                                 DropShadow="false" />
                             <asp:Panel ID="pnlExpDept" runat="server" CssClass="modalPopup" Style="display:none; width:400px;">
-                                <div class="modalHeader" style="background-color:#17a2b8;">
+                                <div class="modalHeader" style="background: linear-gradient(135deg, #5B7B9A 0%, #6B8BA9 100%);">
                                     <span>選擇費用部門</span>
                                 </div>
                                 <div class="modalBody">
-                                    <p style="margin-bottom:15px; color:#666;">您尚未設定費用部門，請選擇您所屬的費用部門：</p>
+                                    <p style="margin-bottom:15px; color: var(--text-secondary);">您尚未設定費用部門，請選擇您所屬的費用部門：</p>
                                     <div class="form-group">
                                         <label class="form-label" style="width:100px;">費用部門:</label>
                                         <div class="form-control">
@@ -1309,10 +1746,10 @@
                             <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
                             <asp:HiddenField ID="hfCopyMDR" runat="server" Value="0" />
 
-                            <div id="divCopyModalForm" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4);">
-                                <div style="background:white; width:420px; margin:12% auto; padding:20px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-                                    <div style="font-weight:bold; margin-bottom:10px;">複製選項</div>
-                                    <div id="divCopyQuestionForm" style="margin-bottom:15px;">是否複製附件？</div>
+                            <div id="divCopyModalForm" class="copy-modal-overlay">
+                                <div class="copy-modal-content">
+                                    <div class="copy-modal-title">複製選項</div>
+                                    <div id="divCopyQuestionForm" class="copy-modal-question">是否複製附件？</div>
                                     <div style="text-align:right;">
                                         <button type="button" class="btn btn-success" onclick="copyFormDialogAnswer('yes');">是</button>
                                         <button type="button" class="btn btn-secondary" onclick="copyFormDialogAnswer('no');">否</button>
@@ -1379,3 +1816,4 @@
         </body>
 
         </html>
+

@@ -200,6 +200,10 @@ Partial Public Class ExpenseClaimForm
                 Return
             End If
             currentUserId = Session("s_id").ToString()
+            Dim headerUser As Label = TryCast(FindControlRecursive(Me, "lblCurrentUser"), Label)
+            If headerUser IsNot Nothing Then
+                headerUser.Text = currentUserId
+            End If
 
             CheckApprovalPermission()
 
@@ -237,6 +241,10 @@ Partial Public Class ExpenseClaimForm
         Catch ex As Exception
             ShowError("頁面載入錯誤: " & ex.Message)
         End Try
+    End Sub
+
+    Protected Sub lnkLogout_Click(sender As Object, e As EventArgs)
+        Response.Redirect("~/usermgm/logout.aspx")
     End Sub
 
     Private Sub CheckApprovalPermission()
@@ -4291,6 +4299,23 @@ Partial Public Class ExpenseClaimForm
             End If
         Next
         Return False
+    End Function
+
+    Private Function FindControlRecursive(root As Control, controlId As String) As Control
+        If root Is Nothing OrElse String.IsNullOrEmpty(controlId) Then
+            Return Nothing
+        End If
+        Dim ctrl As Control = root.FindControl(controlId)
+        If ctrl IsNot Nothing Then
+            Return ctrl
+        End If
+        For Each child As Control In root.Controls
+            Dim found As Control = FindControlRecursive(child, controlId)
+            If found IsNot Nothing Then
+                Return found
+            End If
+        Next
+        Return Nothing
     End Function
 
     ''' <summary>
