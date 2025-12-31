@@ -169,13 +169,15 @@ printf '\xEF\xBB\xBF' > file.tmp && cat original_file >> file.tmp && mv file.tmp
 
 ## 版號管理與自動 Commit
 
-### 版號格式：語意版號 (Semantic Versioning)
+### 版號格式：X.Y.Z
 ```
-MAJOR.MINOR.PATCH
+X.Y.Z
 ```
-- **MAJOR**: 重大變更、架構調整、不相容的 API 變更
-- **MINOR**: 新功能、向下相容的功能新增
-- **PATCH**: 錯誤修正、小幅調整、向下相容的修補
+- **X**: 重大改版（架構調整、不相容變更）
+- **Y**: 新功能
+- **Z**: 次要更新、日常維護、錯誤修正（**預設**）
+
+**進位規則**：超過 9 直接進位，如 1.0.9 → 1.0.10
 
 ### 版號檔案
 版號存放於專案根目錄的 `VERSION` 檔案中。

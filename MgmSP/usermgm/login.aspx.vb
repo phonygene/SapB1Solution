@@ -98,7 +98,7 @@ Partial Public Class login
                     Session("branch") = dr("branch")
                     Session("usingserver") = "127.0.0.1"
                     dr.Close()
-                    Response.Redirect("~/index.aspx?smid=index")
+                    Response.Redirect("~/Home.aspx?smid=index")
                 End If
             End If
         Else

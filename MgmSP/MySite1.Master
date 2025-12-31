@@ -1,76 +1,192 @@
-﻿<%@ Master Language="VB" AutoEventWireup="false" CodeBehind="MySite1.master.vb" Inherits="MgmSP.MySite1" %>
+<%@ Master Language="VB" AutoEventWireup="false" CodeBehind="MySite1.master.vb" Inherits="MgmSP.MySite1" %>
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml" >
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
-    <title>Jet工廠資訊系統V2.4.8 debugHost</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JET Enterprise Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
     <asp:ContentPlaceHolder ID="head" runat="server">
     </asp:ContentPlaceHolder>
     <style type="text/css">
-        .style1
-        {
-            width: 100%;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .style2
-        {
+        html, body {
+            min-height: 100vh;
+        }
+        body {
+            background: linear-gradient(160deg, #171c30 0%, #1e2440 30%, #252d48 50%, #1e2440 70%, #171c30 100%);
+            font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: rgba(235, 240, 250, 0.9);
+        }
+        #form1 {
+            min-height: 100vh;
+        }
+        .master-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
             width: 180px;
+            min-width: 180px;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
         }
-        .style3
-        {
+        .logo-area {
+            padding: 0 20px 24px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 16px;
         }
+        .logo-area img {
+            max-width: 100%;
+            height: auto;
+            filter: brightness(1.1);
+        }
+        .main-menu-area {
+            flex: 1;
+            padding: 0 12px;
+        }
+        .main-content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .submenu-area {
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 24px;
+            min-height: 48px;
+        }
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        /* Main Menu Styles */
+        .main-menu-area table {
+            width: 100% !important;
+            border-collapse: separate;
+            border-spacing: 0 4px;
+        }
+        .main-menu-area td {
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: none !important;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .main-menu-area td:hover {
+            background: rgba(255, 255, 255, 0.12) !important;
+        }
+        .main-menu-area a {
+            display: block;
+            padding: 12px 16px;
+            color: rgba(235, 240, 250, 0.85);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: color 0.2s ease;
+        }
+        .main-menu-area a:hover {
+            color: #ffffff;
+        }
+        /* Sub Menu Styles */
+        .submenu-area table {
+            border-collapse: separate;
+            border-spacing: 8px 0;
+        }
+        .submenu-area td {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border: none !important;
+            border-radius: 4px;
+            padding: 0 !important;
+            transition: all 0.2s ease;
+        }
+        .submenu-area td:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+        }
+        .submenu-area a {
+            display: block;
+            padding: 8px 16px;
+            color: rgba(235, 240, 250, 0.8);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+        .submenu-area a:hover {
+            color: #ffffff;
+        }
+        .submenu-area .submenu-active {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: #ffffff;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        /* Dropdown Styles */
+        select {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            color: rgba(235, 240, 250, 0.9);
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        select:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        select option {
+            background: #1e2440;
+            color: rgba(235, 240, 250, 0.9);
+        }
+        /* Content Area Styles */
+        .content-area input[type="text"],
+        .content-area input[type="password"],
+        .content-area textarea,
+        .content-area select {
+            font-family: inherit;
+        }
+        /* Legacy table styles for content */
         .auto-style1 {
-            width: 98%;
-        }
-        .auto-style2 {
             width: 100%;
-            margin-bottom: 140px;
-        }
-        .auto-style3 {
-            width: 138px;
         }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
-    <div>
-    </div>
-        <table style="text-align:center" class="auto-style2">
-            <tr>
-                <td rowspan="2" class="auto-style3">
-                    <asp:Image ID="Image1" runat="server" ImageUrl="~/image/jetlog.jpg" 
-                        Width="140px" Height="47px" />
-                </td>
-                <td class="style3" valign="bottom">
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;
-                    &nbsp;&nbsp;</td>
-            </tr>
-            <tr>
-                <td class="style3" valign="bottom">
+        <div class="master-container">
+            <div class="sidebar">
+                <div class="logo-area">
+                    <asp:Image ID="Image1" runat="server" ImageUrl="~/usermgm/images/logo.svg" />
+                </div>
+                <div class="main-menu-area">
+                    <asp:Table ID="TMainMenu" runat="server" HorizontalAlign="Center">
+                    </asp:Table>
+                </div>
+            </div>
+            <div class="main-content-wrapper">
+                <div class="submenu-area">
                     <asp:Table ID="TSubMenu" runat="server" HorizontalAlign="Left">
                     </asp:Table>
-                </td>
-            </tr>
-            <tr>
-                <td valign = "top" class="auto-style3">
-                    <asp:Table ID="TMainMenu" runat="server" HorizontalAlign="Center" Width="130px">
-                    </asp:Table>
-                </td>
-                <td valign = "top" class="style3">
-    <div> 
-        <table style="text-align:left" class="auto-style1"> 
-            <tr>
-                <td style="vertical-align: top">
-        <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
-        
-        </asp:ContentPlaceHolder>
-                </td>
-            </tr>
-        </table> 
-    </div> 
-                </td>
-            </tr>
-        </table>
+                </div>
+                <div class="content-area">
+                    <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
+                    </asp:ContentPlaceHolder>
+                </div>
+            </div>
+        </div>
     </form>
 </body>
 </html>

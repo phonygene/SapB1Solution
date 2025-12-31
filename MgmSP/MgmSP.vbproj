@@ -154,6 +154,7 @@
     <Content Include="ExpenseClaimReport.ashx" />
     <Content Include="fd\freport.aspx" />
     <Content Include="Global.asax" />
+    <Content Include="Home.aspx" />
     <Content Include="hr\leave.aspx" />
     <Content Include="hr\workevent.aspx" />
     <Content Include="image\jetlog.jpg" />
@@ -273,6 +274,13 @@
     </Compile>
     <Compile Include="Global.asax.vb">
       <DependentUpon>Global.asax</DependentUpon>
+    </Compile>
+    <Compile Include="Home.aspx.designer.vb">
+      <DependentUpon>Home.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Home.aspx.vb">
+      <DependentUpon>Home.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="hr\leave.aspx.designer.vb">
       <DependentUpon>leave.aspx</DependentUpon>

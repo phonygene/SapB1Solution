@@ -16,13 +16,7 @@ Partial Public Class MySite1
         Dim tRow As TableRow
         Dim Hyper As HyperLink
         tRow = New TableRow()
-        tRow.BorderWidth = 1
         tCell = New TableCell()
-        If (row Mod 2) Then
-            tCell.BackColor = Drawing.Color.Aqua
-        Else
-            tCell.BackColor = Drawing.Color.LightPink
-        End If
         Hyper = New HyperLink()
         Hyper.ID = objid
         Hyper.Text = text
@@ -31,8 +25,6 @@ Partial Public Class MySite1
         End If
         Hyper.NavigateUrl = url
         Hyper.Font.Underline = False
-        tCell.Attributes.Add("onmouseover", "c=this.style.backgroundColor;this.style.backgroundColor='Gainsboro'")
-        tCell.Attributes.Add("onmouseout", "this.style.backgroundColor=c")
         tCell.Controls.Add(Hyper)
         If (perms <> "nouse") Then
             CommUtil.DisableObjectByPermission(Hyper, perms, keyp)
@@ -72,7 +64,6 @@ Partial Public Class MySite1
         Dim tCell As TableCell
         Dim Hyper As HyperLink
         tCell = New TableCell()
-        tCell.BackColor = Drawing.Color.LightBlue
         If (Request.QueryString("smode") <> col) Then
             Hyper = New HyperLink()
             Hyper.ID = objid
@@ -82,8 +73,6 @@ Partial Public Class MySite1
             End If
             Hyper.NavigateUrl = url
             Hyper.Font.Underline = False
-            tCell.Attributes.Add("onmouseover", "c=this.style.backgroundColor;this.style.backgroundColor='Gainsboro'")
-            tCell.Attributes.Add("onmouseout", "this.style.backgroundColor=c")
             tCell.Controls.Add(Hyper)
             If (perms <> "nouse") Then
                 CommUtil.DisableObjectByPermission(Hyper, perms, keyp)
@@ -93,7 +82,7 @@ Partial Public Class MySite1
             If (width <> 0) Then
                 tCell.Width = width
             End If
-            tCell.BackColor = Drawing.Color.Gainsboro
+            tCell.CssClass = "submenu-active"
         End If
         tRow.Cells.Add(tCell)
     End Sub
@@ -119,8 +108,6 @@ Partial Public Class MySite1
         DDLDBS.Width = 100
         AddHandler DDLDBS.SelectedIndexChanged, AddressOf DDLDBS_SelectedIndexChanged
         DDLDBS.AutoPostBack = True
-        DDLDBS.Attributes.Add("onmouseover", "c=this.style.backgroundColor;this.style.backgroundColor='Gainsboro'")
-        DDLDBS.Attributes.Add("onmouseout", "this.style.backgroundColor=c")
         'If (Session("s_id") = "ron" Or Session("s_id") = "su") Then
         'DDLDBS.Enabled = True
         'Else
@@ -217,7 +204,7 @@ Partial Public Class MySite1
 
             If (Session("actmode") <> "signoff" And Session("actmode") <> "single_signoff" And Session("actmode") <> "todoitem" And Session("actmode") <> "informtraceperson") Then
                 i = i + 1
-                HyperMainMenuGen(i, "index", "首頁", "index.aspx?smid=index&smode=0", mmenusize, "nouse", "")
+                HyperMainMenuGen(i, "index", "首頁", "Home.aspx?smid=index&smode=0", mmenusize, "nouse", "")
                 If (Request.QueryString("smid") = "index") Then
                     HyperSubMenuGen(tRow, 1, "pwdchange", "修改密碼", "~/usermgm/pwdchange.aspx?smid=index&smode=1", smenusize, "nouse", "")
                     ' [修改] SAP帳密設定只給管理員 (ron) 使用

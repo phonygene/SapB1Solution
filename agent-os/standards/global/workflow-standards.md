@@ -10,28 +10,36 @@
 
 ### 1. 檔案輸出規範
 
-**所有程式碼產出必須先輸出到 `shopfloor/Claude_TMP/`**
+#### Shopfloor 流程適用範圍（僅限 SQL）
 
-#### 目錄結構
+**只有 SQL 資料庫操作**需要先輸出到 `shopfloor/Claude_TMP/`：
+- CREATE TABLE / ALTER TABLE / DROP TABLE
+- 資料遷移腳本
+- 批次 INSERT / UPDATE / DELETE
+- 複雜查詢腳本
+
 ```
 shopfloor/Claude_TMP/
-├── SqlQuery/       - SQL 腳本（建表、查詢、修改）
-├── dNet/           - VB.NET 完整檔案（.vb, .aspx, .aspx.vb）
-└── etc/            - 其他檔案（JSON, TXT 說明文件）
+└── SqlQuery/       - SQL 腳本（建表、查詢、修改）
 ```
 
-#### 檔案命名規範
-1. **SQL 腳本**：`[編號]_[用途]_[物件名稱].sql`
-   - 範例：`01_CreateTable_user_vendor_taxid.sql`
+#### SQL 檔案命名規範
+- 格式：`[編號]_[用途]_[物件名稱].sql`
+- 範例：`01_CreateTable_user_vendor_taxid.sql`
 
-2. **VB.NET 完整檔案**：直接使用類別名稱或頁面名稱
-   - 範例：`UserVendorTaxId.vb`, `ExpenseClaimForm.aspx`
+#### 程式碼改動（不使用 Shopfloor）
 
-3. **部分代碼 TXT**：`[目標檔案]_[用途].txt`
-   - 範例：`CommUtil_AddMethods.txt`
+**所有程式碼改動改用 Git 版本控制**，不再輸出到 shopfloor：
 
-4. **JSON 配置檔**：`[物件名稱]Config.json`
-   - 範例：`ExpenseClaimTransactionConfig.json`
+1. **改動前**：確認目前 git 狀態乾淨，或先 commit 現有變更
+2. **改動中**：直接修改專案檔案
+3. **改動後**：立即 commit，方便追蹤和回復
+
+#### Git 流程優點
+- 可隨時 `git diff` 查看改動內容
+- 可隨時 `git restore` 回復錯誤修改
+- 完整的變更歷史記錄
+- 比 shopfloor 流程更高效
 
 ---
 
@@ -122,64 +130,57 @@ shopfloor/Claude_TMP/
 
 ---
 
-## 例外情況
+## 程式碼改動流程
 
-以下情況**可以直接使用 Write/Edit 工具修改專案檔案**：
+### Git 版本控制流程
 
-### ✅ 允許直接修改的情況
+**所有程式碼改動**（包括新功能、Bug 修正、重構）都使用 Git：
 
-1. **緊急 Bug 修正**
-   - 編譯錯誤修正（少於 10 行）
-   - 語法錯誤修正
-   - 明顯的 Typo 修正
+```
+1. 改動前：git status 確認狀態
+   ↓
+2. 如有未提交變更：先 commit 或 stash
+   ↓
+3. 直接修改專案檔案
+   ↓
+4. 改動後：git diff 確認變更內容
+   ↓
+5. 詢問用戶是否 commit
+```
 
-2. **配置檔修改**
-   - Web.config 設定調整
-   - 連線字串修改
-   - App.config 設定
+### 回復錯誤修改
 
-3. **小幅度調整**
-   - 單一變數名稱修改
-   - 單一函式參數調整
-   - CSS 樣式微調（少於 5 行）
+如果改動有誤，可使用：
+- `git restore <file>` - 回復單一檔案
+- `git restore .` - 回復所有未提交變更
+- `git revert <commit>` - 回復已提交的 commit
 
-4. **使用者明確要求直接修改**
-   - 使用者說「請直接改」
-   - 使用者說「不用產生檔案，直接修正」
+### SQL 資料庫操作（仍使用 Shopfloor）
 
-### ❌ 禁止直接修改的情況
-
-1. **新功能開發**
-   - 新增類別、函式、頁面
-   - 新增資料表、欄位
-   - 新增 UI 元件
-
-2. **大幅度重構**
-   - 架構調整
-   - 介面重新設計
-   - 業務邏輯重寫
-
-3. **不確定的修改**
-   - 需要使用者確認的變更
-   - 有多種實作方式的情況
-   - 可能影響其他模組的修改
+**只有 SQL 操作**需要先輸出到 `shopfloor/Claude_TMP/SqlQuery/`：
+- 因為資料庫變更難以回復
+- 需要用戶在 SSMS 手動執行確認
 
 ---
 
-## 違反規範的處理
+## 改動前檢查清單
 
-### 自我檢查清單
+### 程式碼改動檢查
 
-在執行工具前，先問自己：
+在修改程式碼前，先確認：
 
-- [ ] 這個修改是否超過 20 行？
-- [ ] 這個修改是否是新功能或大幅重構？
-- [ ] 使用者是否需要先確認這個修改？
+- [ ] git status 是否乾淨？（如有未提交變更，先處理）
+- [ ] 是否了解用戶的需求？（不確定就先問）
+- [ ] 新增檔案是否需要 UTF-8 BOM？
+- [ ] 新增 .aspx 是否需要更新 .vbproj？
 
-如果**任何一項回答「是」**，就應該：
-1. 先產生檔案到 `shopfloor/Claude_TMP/`
-2. 在對話中簡要說明
-3. 等待使用者確認
+### SQL 操作檢查
+
+在執行 SQL 前，先確認：
+
+- [ ] 是否已輸出到 `shopfloor/Claude_TMP/SqlQuery/`？
+- [ ] 是否已向用戶說明 SQL 內容？
+- [ ] 用戶是否已確認執行？
 
 ---
 
