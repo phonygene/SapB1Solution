@@ -6,12 +6,16 @@
         Dim timeout As Integer
         Dim act As String
 
-        ' 設定用戶顯示資訊
+        ' 設定用戶顯示資訊 - 顯示用戶ID（首字母大寫）
         If Not IsPostBack Then
-            If Session("s_name") IsNot Nothing AndAlso Session("s_name").ToString() <> "" Then
-                lblUserName.Text = Session("s_name").ToString()
-            ElseIf Session("s_id") IsNot Nothing Then
-                lblUserName.Text = Session("s_id").ToString()
+            If Session("s_id") IsNot Nothing AndAlso Session("s_id").ToString() <> "" Then
+                Dim userId As String = Session("s_id").ToString()
+                ' 首字母大寫
+                If userId.Length > 0 Then
+                    lblUserName.Text = userId.Substring(0, 1).ToUpper() & userId.Substring(1).ToLower()
+                Else
+                    lblUserName.Text = userId
+                End If
             End If
         End If
 
