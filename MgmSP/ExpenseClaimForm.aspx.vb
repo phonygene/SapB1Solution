@@ -4042,6 +4042,17 @@ Partial Public Class ExpenseClaimForm
                                 End Select
                             End If
 
+                            ' 稅額 (TaxTotal) - 寫入用戶輸入的稅額，避免被 SAP 重算
+                            ' 格式28 不寫入稅額（因為 LineTotal 已經是稅額本身）
+                            If Not isFormat28 Then
+                                If Not IsDBNull(drL("LineVat")) Then
+                                    Dim lineVat As Double = Convert.ToDouble(drL("LineVat"))
+                                    If lineVat > 0 Then
+                                        oInvoice.Lines.TaxTotal = lineVat
+                                    End If
+                                End If
+                            End If
+
                             ' 成本中心1 (產品: 1030-AOI, 1040-ICT)
                             If Not IsDBNull(drL("CostingCode")) AndAlso drL("CostingCode").ToString() <> "" Then
                                 oInvoice.Lines.CostingCode = drL("CostingCode").ToString()
