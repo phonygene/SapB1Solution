@@ -7,3 +7,14 @@ obj/
 *.cache
 *.log
 .aider*
+
+# shopfloor/Claude_TMP 暫存開發檔（只保留 SqlQuery）
+shopfloor/Claude_TMP/dNet/
+shopfloor/Claude_TMP/etc/
+shopfloor/Claude_TMP/*.aspx
+shopfloor/Claude_TMP/*.aspx.vb
+shopfloor/Claude_TMP/*.snippet
+shopfloor/Claude_TMP/*.md
+shopfloor/Claude_TMP/*.py
+shopfloor/Claude_TMP/*.example
+shopfloor/Claude_TMP/*.txt

@@ -43,6 +43,10 @@ Partial Public Class DocumentSearch
     Protected WithEvents btnClear As Global.System.Web.UI.WebControls.Button
     Protected WithEvents lblMessage As Global.System.Web.UI.WebControls.Label
     Protected WithEvents lblResultCount As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents hfCopyAttachment As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents hfCopyMDR As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents hfCopyRowIndex As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents btnCopyConfirm As Global.System.Web.UI.WebControls.Button
     Protected WithEvents gvResults As Global.System.Web.UI.WebControls.GridView
     Protected WithEvents btnDummyRemarks As Global.System.Web.UI.WebControls.Button
     Protected WithEvents mpeRemarks As Global.AjaxControlToolkit.ModalPopupExtender

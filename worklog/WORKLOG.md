@@ -4,7 +4,22 @@
 
 ---
 
+## 2024-12-31
+
+### 10:30 - DI API 稅額寫入修正
+- 要求：寫入用戶輸入的稅額到 SAP，避免被 SAP 重算
+- 結果：新增 Lines.TaxTotal 寫入邏輯
+- 檔案：ExpenseClaimForm.aspx.vb
+- Commit：v1.0.8
+
+---
+
 ## 2024-12-30
+
+### 18:00 - Commit v1.0.7
+- 要求：commit 網站美化與工作流程規範
+- 結果：已 commit，版號 1.0.6 → 1.0.7
+- 檔案：15 files changed
 
 ### 17:30 - 建立 worklog 記錄結構
 - 要求：建立即時記錄機制取代 sess 管理

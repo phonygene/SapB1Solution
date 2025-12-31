@@ -86,6 +86,13 @@
             color: white;
         }
 
+        .btn-grid {
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: normal;
+            margin-right: 0;
+        }
+
         .btn:hover {
             opacity: 0.9;
         }
@@ -377,10 +384,94 @@
                 <div class="section-header" style="margin-top:25px;">查詢結果</div>
                 <asp:Label ID="lblResultCount" runat="server" style="color:#666; font-size:13px;"></asp:Label>
 
+                <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
+                <asp:HiddenField ID="hfCopyMDR" runat="server" Value="0" />
+                <asp:HiddenField ID="hfCopyRowIndex" runat="server" Value="" />
+                <asp:Button ID="btnCopyConfirm" runat="server" style="display:none" OnClick="btnCopyConfirm_Click" />
+
+                <div id="divCopyModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4);">
+                    <div style="background:white; width:420px; margin:12% auto; padding:20px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                        <div style="font-weight:bold; margin-bottom:10px;">複製選項</div>
+                        <div id="divCopyQuestion" style="margin-bottom:15px;">是否複製附件？</div>
+                        <div style="text-align:right;">
+                            <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('yes');">是</button>
+                            <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('no');">否</button>
+                            <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('cancel');">取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <script type="text/javascript">
+                    var copyStage = '';
+                    function showCopyDialog(rowIndex) {
+                        var hfRow = document.getElementById('<%= hfCopyRowIndex.ClientID %>');
+                        if (hfRow) {
+                            hfRow.value = rowIndex;
+                        }
+                        copyStage = 'attach';
+                        var question = document.getElementById('divCopyQuestion');
+                        if (question) {
+                            question.innerText = '是否複製附件？';
+                        }
+                        var modal = document.getElementById('divCopyModal');
+                        if (modal) {
+                            modal.style.display = 'block';
+                        }
+                        return false;
+                    }
+
+                    function copyDialogAnswer(answer) {
+                        if (answer === 'cancel') {
+                            hideCopyDialog();
+                            return;
+                        }
+                        if (copyStage === 'attach') {
+                            var hfAttach = document.getElementById('<%= hfCopyAttachment.ClientID %>');
+                            if (hfAttach) {
+                                hfAttach.value = (answer === 'yes') ? '1' : '0';
+                            }
+                            copyStage = 'mdr';
+                            var question = document.getElementById('divCopyQuestion');
+                            if (question) {
+                                question.innerText = '是否複製憑證明細？';
+                            }
+                            return;
+                        }
+                        if (copyStage === 'mdr') {
+                            var hfMdr = document.getElementById('<%= hfCopyMDR.ClientID %>');
+                            if (hfMdr) {
+                                hfMdr.value = (answer === 'yes') ? '1' : '0';
+                            }
+                            hideCopyDialog();
+                            __doPostBack('<%= btnCopyConfirm.UniqueID %>', '');
+                        }
+                    }
+
+                    function hideCopyDialog() {
+                        var modal = document.getElementById('divCopyModal');
+                        if (modal) {
+                            modal.style.display = 'none';
+                        }
+                    }
+                </script>
+
                 <asp:GridView ID="gvResults" runat="server" AutoGenerateColumns="False" CssClass="gridview"
-                    AllowPaging="True" OnPageIndexChanging="gvResults_PageIndexChanging"
-                    OnRowDataBound="gvResults_RowDataBound">
+                    AllowPaging="True" DataKeyNames="jID,CreateBy"
+                    OnPageIndexChanging="gvResults_PageIndexChanging"
+                    OnRowDataBound="gvResults_RowDataBound"
+                    OnRowCommand="gvResults_RowCommand">
                     <Columns>
+                        <asp:TemplateField HeaderText="動作">
+                            <ItemTemplate>
+                                <asp:LinkButton ID="lbtnCopy" runat="server" Text="複製"
+                                    CssClass="btn btn-secondary btn-grid"
+                                    CommandName="CopyDoc"
+                                    CommandArgument='<%# Container.DataItemIndex %>'
+                                    OnClientClick='<%# "return showCopyDialog(" & Container.DataItemIndex & ");" %>'>
+                                </asp:LinkButton>
+                            </ItemTemplate>
+                            <ItemStyle HorizontalAlign="Center" Width="70px" />
+                        </asp:TemplateField>
                         <asp:TemplateField HeaderText="jID">
                             <ItemTemplate>
                                 <asp:HyperLink ID="hlJID" runat="server" CssClass="link-jid"

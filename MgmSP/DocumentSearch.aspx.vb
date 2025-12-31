@@ -381,7 +381,44 @@ Partial Public Class DocumentSearch
     End Sub
 
     Protected Sub gvResults_RowDataBound(sender As Object, e As GridViewRowEventArgs)
-        ' 可在此處理特殊格式
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            Dim createBy As String = DataBinder.Eval(e.Row.DataItem, "CreateBy").ToString()
+            Dim lbtnCopy As LinkButton = CType(e.Row.FindControl("lbtnCopy"), LinkButton)
+            If lbtnCopy IsNot Nothing Then
+                Dim ownerId As String = If(createBy, "").Trim()
+                Dim canCopy As Boolean = isApUser OrElse String.Equals(ownerId, currentUserId, StringComparison.OrdinalIgnoreCase)
+                lbtnCopy.Visible = True
+                lbtnCopy.Enabled = canCopy
+                lbtnCopy.ToolTip = If(canCopy, "", "僅可複製自己的單據")
+            End If
+        End If
+    End Sub
+
+    Protected Sub gvResults_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        ' 目前複製改由 btnCopyConfirm_Click 處理
+    End Sub
+
+    Protected Sub btnCopyConfirm_Click(sender As Object, e As EventArgs)
+        Dim rowIndex As Integer
+        If Not Integer.TryParse(hfCopyRowIndex.Value, rowIndex) Then Return
+
+        If rowIndex >= gvResults.Rows.Count Then
+            rowIndex -= gvResults.PageIndex * gvResults.PageSize
+        End If
+
+        If rowIndex < 0 OrElse rowIndex >= gvResults.Rows.Count Then Return
+
+        Dim jID As Integer = Convert.ToInt32(gvResults.DataKeys(rowIndex)("jID"))
+        Dim createBy As String = gvResults.DataKeys(rowIndex)("CreateBy").ToString()
+
+        If Not isApUser AndAlso Not String.Equals(createBy, currentUserId, StringComparison.OrdinalIgnoreCase) Then
+            Response.Write("<script>alert('您沒有權限複製此單據');</script>")
+            Return
+        End If
+
+        Dim copyAttach As String = If(hfCopyAttachment.Value = "1", "1", "0")
+        Dim copyMdr As String = If(hfCopyMDR.Value = "1", "1", "0")
+        Response.Redirect("ExpenseClaimForm.aspx?CopyFrom=" & jID.ToString() & "&CopyAttach=" & copyAttach & "&CopyMDR=" & copyMdr)
     End Sub
 #End Region
 
