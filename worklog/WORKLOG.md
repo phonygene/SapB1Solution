@@ -6,6 +6,11 @@
 
 ## 2024-12-31
 
+### 11:30 - 修正內容區域字體對比問題
+- 要求：單據查詢字體顏色太淺看不清，更新工作規範
+- 結果：MySite1.Master 新增 .content-area 深色字體樣式，CLAUDE.md 新增 UI 設計規範
+- 檔案：MySite1.Master, CLAUDE.md
+
 ### 10:30 - DI API 稅額寫入修正
 - 要求：寫入用戶輸入的稅額到 SAP，避免被 SAP 重算
 - 結果：新增 Lines.TaxTotal 寫入邏輯

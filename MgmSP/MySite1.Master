@@ -152,11 +152,47 @@
             color: rgba(235, 240, 250, 0.9);
         }
         /* Content Area Styles */
+        .content-area {
+            background-color: #f5f7fa;
+            color: #2c3e50;
+        }
         .content-area input[type="text"],
         .content-area input[type="password"],
-        .content-area textarea,
+        .content-area textarea {
+            font-family: inherit;
+            color: #2c3e50;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+        }
         .content-area select {
             font-family: inherit;
+            color: #2c3e50;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+        }
+        .content-area label,
+        .content-area span,
+        .content-area p,
+        .content-area td,
+        .content-area th,
+        .content-area div {
+            color: #2c3e50;
+        }
+        .content-area a {
+            color: #3b82f6;
+        }
+        .content-area a:hover {
+            color: #1d4ed8;
+        }
+        .content-area h1, .content-area h2, .content-area h3,
+        .content-area h4, .content-area h5, .content-area h6 {
+            color: #1e293b;
+        }
+        /* 保留特定樣式的顏色 (如 badge, section-header 等由子頁面定義) */
+        .content-area [style*="color"],
+        .content-area .badge,
+        .content-area .section-header {
+            color: inherit;
         }
         /* Legacy table styles for content */
         .auto-style1 {
