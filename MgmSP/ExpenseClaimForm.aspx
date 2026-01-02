@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm"
+﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="ExpenseClaimForm.aspx.vb" Inherits="MgmSP.ExpenseClaimForm"
     MaintainScrollPositionOnPostback="true" %>
     <%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ajaxToolkit" %>
 
@@ -912,8 +912,6 @@
                 <!-- Breadcrumb Navigation -->
                 <nav class="breadcrumb">
                     <asp:HyperLink ID="lnkHome" runat="server" NavigateUrl="~/Home.aspx?smid=index&smode=0">首頁</asp:HyperLink>
-                    <span class="separator">></span>
-                    <asp:HyperLink ID="lnkExpenseModule" runat="server" NavigateUrl="~/ExpenseClaimList.aspx?smid=ec&smode=1">費用管理</asp:HyperLink>
                     <span class="separator">></span>
                     <span class="current">費用申請</span>
                 </nav>
