@@ -1,7 +1,7 @@
 # JET Enterprise Platform - AI 協作規範
 
 > 此檔案為所有 Agent 共用的核心原則。
-> 專業領域規範請見 `.claude/agents/` 目錄。
+> 詳細規範請見相關目錄。
 
 ## 專案概述
 
@@ -45,32 +45,69 @@
 
 ---
 
-## 多 Agent 協作規範
+## 多 Agent 協作架構（2+1 變體）
 
 ### Agent 角色
 
-| Agent | 職責 | 分支前綴 |
-|-------|------|----------|
-| Backend | 功能開發、API、資料庫 | `feature/` |
-| UI-UX | 介面設計、樣式、響應式 | `ui/` |
-| QA | 代碼審查、測試、品質檢查 | `test/` |
-| Manager | 任務協調、衝突檢測、排程 | - |
+| Agent | 職責 | 分支 |
+|-------|------|------|
+| **Manager** | 任務協調、衝突檢測、代碼審查、日誌維護 | main |
+| **Backend** | VB.NET 邏輯、SAP 整合、資料庫 | agent/backend |
+| **UI-UX** | 介面設計、CSS 樣式、響應式 | agent/ui-ux |
+
+### 檔案結構
+
+```
+.claude/
+├── shared/              # 全局狀態（所有 Agent 可讀）
+│   ├── project-status.md
+│   └── active-tasks.json
+├── handoff/             # 任務交接
+│   └── {task-id}/
+│       ├── spec.md
+│       └── output.md
+├── workspace/           # 私有工作區
+│   ├── backend/
+│   └── ui-ux/
+├── agents/              # Agent 配置
+│   ├── MANAGER.md
+│   ├── BACKEND.md
+│   └── UI-UX.md
+└── commands/            # Session Skills
+    ├── sess-on.md
+    ├── sess-wrap.md
+    ├── sess-off.md
+    └── sess-check.md
+
+skills/                  # 動態累積的經驗
+├── general-checklist.md
+├── backend-checklist.md
+├── ui-checklist.md
+├── sap-checklist.md
+└── ui-design-system.md
+
+work-logs/               # 工作紀錄
+├── daily/
+├── monthly/
+├── yearly/
+└── insights/
+```
+
+### Session Skills
+
+| Skill | 用途 |
+|-------|------|
+| `/sess-on` | 開始工作，載入狀態 |
+| `/sess-wrap` | 階段存檔，繼續工作 |
+| `/sess-off` | 完整存檔，結束工作 |
+| `/sess-check` | 查看進度（唯讀） |
 
 ### 任務執行流程
 
-1. 執行前讀取 `.claude/task-status.json` 確認無衝突
-2. 更新狀態為 `in_progress`
-3. 執行任務
-4. 完成後更新狀態並記錄到 `work-logs/`
-
-### 工作日誌規範
-
-每個任務必須記錄到 `work-logs/daily/YYYY-MM/YYYY-MM-DD.md`：
-- 新任務開始時建立記錄
-- 遭遇問題時更新記錄
-- 任務完成時填寫結果
-
-詳細格式見 `.claude/agents/MANAGER.md`。
+1. Manager 分析任務，建立 `handoff/{task-id}/spec.md`
+2. Agent 讀取 spec，執行任務
+3. Agent 完成後寫入 `handoff/{task-id}/output.md`
+4. Manager 審查，記錄到 `work-logs/`
 
 ---
 
@@ -82,17 +119,18 @@
 
 ## 版號管理
 
-- 格式：`X.Y.Z`（超過 9 直接進位）
+- 格式：`X.Y.Z`（語意版號）
 - 位置：`VERSION` 檔案
 - 每次 Commit 前更新版號並產生 tag
 
 ---
 
-## 專業領域規範
+## 相關文件
 
-| 領域 | 檔案 |
+| 類別 | 位置 |
 |------|------|
-| 後端/資料庫 | `.claude/agents/BACKEND.md` |
-| UI/UX 設計 | `.claude/agents/UI-UX.md` |
-| 品質保證 | `.claude/agents/QA.md` |
-| 任務協調 | `.claude/agents/MANAGER.md` |
+| Agent 配置 | `.claude/agents/` |
+| Session Skills | `.claude/commands/` |
+| 經驗累積 | `skills/` |
+| 工作紀錄 | `work-logs/` |
+| 架構規格 | `.claude/MULTI_AGENT_ARCHITECTURE_SPEC.md` |

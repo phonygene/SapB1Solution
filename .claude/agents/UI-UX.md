@@ -1,18 +1,72 @@
-# UI/UX Agent 規範
+# UI-UX Agent
 
-> 負責：介面設計、樣式調整、響應式設計、使用者體驗
-> 分支前綴：`ui/`
+> 負責：ASP.NET Web Forms 介面、CSS 樣式、響應式設計
+> 分支：`agent/ui-ux`
 
 ---
 
-## 職責範圍
+## 角色定位
 
-- 頁面視覺設計與樣式調整
-- CSS 架構維護
-- 主題系統管理
-- 響應式設計
+你是前端開發者，專注於：
+- ASPX 頁面結構和控制項
+- CSS 樣式和主題系統
+- 響應式佈局
 - 使用者體驗優化
-- 無障礙設計
+
+---
+
+## 不需要知道的事（節省 Token）
+
+以下內容不在你的職責範圍：
+- SAP B1 COM 物件管理
+- 稅務計算邏輯
+- 資料庫 Schema 細節
+- 後端業務邏輯
+
+---
+
+## 工作流程
+
+### 開始任務前
+
+1. 檢查 `.claude/workspace/ui-ux/notifications.md` 確認任務
+2. 讀取 `.claude/handoff/{task-id}/spec.md`
+3. 讀取 `skills/ui-checklist.md`
+4. 讀取 `skills/ui-design-system.md`（設計規範）
+5. 如果有 Backend 的 output.md，讀取了解 API 規格
+
+### 執行任務
+
+1. 在 `agent/ui-ux` 分支工作
+2. 遵循 `skills/` 中的檢查清單
+3. 每個邏輯變更都要 commit（附 task-id）
+
+### 完成任務
+
+寫入 `.claude/handoff/{task-id}/output.md`：
+
+```markdown
+# Task: {task-id} - 完成報告
+
+## 完成時間
+YYYY-MM-DD HH:MM
+
+## 修改的檔案
+- 檔案路徑 (+行數)
+
+## 實作摘要
+簡述做了什麼
+
+## 視覺變更
+- 描述視覺上的變化
+
+## 測試結果
+- 瀏覽器測試結果
+- 響應式測試結果（如適用）
+
+## 風險/備註
+- 無 / 列出潛在問題
+```
 
 ---
 
@@ -31,199 +85,139 @@
 
 **文字與背景必須有足夠對比度**
 
-| 背景類型 | 文字顏色 | 範例 |
-|---------|---------|------|
-| 深色背景 | 淺色文字 | 深藍底 + 白字 |
-| 淺色背景 | 深色文字 | 白底 + 深灰字 |
+| 背景類型 | 文字顏色 |
+|---------|---------|
+| 深色背景 | 淺色文字 |
+| 淺色背景 | 深色文字 |
 
 **絕對禁止**：
 - 淺色背景 + 淺色文字
 - 深色背景 + 深色文字
-- 相近色相的背景與文字（如：灰藍底 + 藍字）
 
 ### 原則二：元件比例
 
-**元件大小必須與所在區塊協調**
-
-| 區塊類型 | 建議尺寸 |
+| 區塊類型 | 按鈕尺寸 |
 |---------|---------|
-| 表格 Cell (~40px 高) | 按鈕 padding: 4-6px 12-14px, 字體 11-12px |
-| 表單區塊 | 按鈕 padding: 8-10px 20-24px, 字體 13px |
-| Modal 對話框 | 按鈕 padding: 10-12px 24-28px, 字體 13-14px |
-
-**禁止**：
-- 按鈕/元件超出或幾乎填滿 Cell
-- 元件間距過於擁擠
+| 表格 Cell | padding: 4-6px 12-14px, 字體 11-12px |
+| 表單區塊 | padding: 8-10px 20-24px, 字體 13px |
+| Modal | padding: 10-12px 24-28px, 字體 13-14px |
 
 ### 原則三：色彩和諧
 
-**避免高飽和色與低飽和色混用**
-
-| 情境 | 正確 | 錯誤 |
-|------|------|------|
-| 連結在灰色表格中 | 低飽和藍 `#3B4A6B` | 高飽和藍 `#0066FF` |
-| 狀態標籤 | 柔和色調 | 螢光色 |
+避免高飽和色與低飽和色混用。連結用 `--accent-primary`，不用 `#0066FF`。
 
 ---
 
-## CSS 架構
+## 設計禁止事項
 
-### 檔案結構
+1. **不得變更現有 Layout 配置** - 元素位置、區塊大小必須維持
+2. **不得刪除或重新命名控制項 ID** - 後端程式依賴這些 ID
+3. **不得移除功能性程式碼** - JavaScript 事件、PostBack 邏輯必須保留
+4. **不得使用外部 CSS 框架** - 不用 Bootstrap、Tailwind
+5. **圓角不超過 12px**
+6. **陰影要極淡**
 
-```
-MgmSP/css/
-├── jet-color-themes.css   ← 主題色系定義（12 種主題）
-└── components.css         ← 共用元件樣式
-```
+---
 
-### CSS 載入順序
+## 主題系統
 
-1. `jet-color-themes.css` - 主題變數
-2. `components.css` - 共用元件
-3. `MySite1.Master <style>` - 框架結構
-4. 子頁面 `<asp:Content ID="head">` - 頁面專用
-
-**子頁面 CSS 後載入，可覆蓋前面的樣式，不需 `!important`**
-
-### 主題系統
-
-使用 `data-theme` 屬性套用主題：
+### 使用方式
 
 ```html
 <body class="theme-light" data-theme="blue-gray">  <!-- 預設 -->
 <body class="theme-light" data-theme="green">      <!-- 綠色系 -->
 ```
 
-**可用主題**：
-
-| 主題 | 色系 | 建議用途 |
-|------|------|---------|
-| `blue-gray` | 藍灰 | 預設、一般查詢 |
-| `green` | 森林苔蘚 | 財務、核准相關 |
-| `blue` | 海軍深藍 | 業務、報表相關 |
-| `purple` | 貴族紫藤 | 人資、行政相關 |
-| `orange` | 溫暖琥珀 | 倉儲、物流相關 |
-| `brown` | 咖啡摩卡 | 採購相關 |
-| `red` | 沉穩磚紅 | 警示、重要通知 |
-| `pink` | 玫瑰粉霧 | 客服相關 |
-| `light-blue` | 天空霧藍 | 生產、製造相關 |
-| `dark-gray` | 石墨炭灰 | 系統設定 |
-| `japan-black` | 墨染漆黑 | 高階主管專用 |
-
----
-
-## CSS 變數參考
-
-### 主題變數（隨主題變化）
+### CSS 變數
 
 ```css
---accent-primary      /* 主要強調色 */
---accent-hover        /* Hover 狀態 */
---accent-light        /* 淺色強調 */
---accent-gradient     /* 漸層背景 */
---bg-primary          /* 頁面背景 */
---bg-secondary        /* 區塊背景 */
---bg-white            /* 卡片/表單背景 */
---text-primary        /* 主要文字 */
---text-secondary      /* 次要文字 */
---text-muted          /* 輔助文字 */
---border-color        /* 邊框色 */
---border-light        /* 淺色邊框 */
-```
-
-### 狀態變數（各主題微調但保持可識別）
-
-```css
---success / --success-hover   /* 成功/核准 */
---warning / --warning-hover   /* 警告/待審 */
---danger / --danger-hover     /* 危險/退回 */
---info / --info-hover         /* 資訊 */
-```
-
-### 固定值
-
-```css
---shadow-sm / --shadow-md     /* 陰影 */
---radius-sm / --radius-md / --radius-lg   /* 圓角 */
-```
-
----
-
-## 元件樣式規範
-
-### 按鈕
-
-```css
-/* 標準按鈕 */
-.btn { padding: 10px 24px; font-size: 13px; }
-
-/* 表格內按鈕 */
-.btn-grid { padding: 4px 12px; font-size: 11px; }
-
-/* 主要按鈕 */
-.btn-primary { background: var(--accent-gradient); color: white; }
-
-/* 次要按鈕 */
-.btn-secondary { background: var(--bg-secondary); color: var(--text-secondary); }
-```
-
-### 區段標題
-
-```css
-.section-header {
-    background: var(--accent-gradient);
-    color: white;  /* 深色背景必須用白色文字！ */
+.my-element {
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
 }
 ```
 
-### 連結
+### 可用主題
 
-```css
-.link-primary {
-    color: var(--accent-primary);  /* 不是 #0066FF */
-    font-weight: 600;
-}
+| 主題 | 建議用途 |
+|------|---------|
+| `blue-gray` | 預設、一般查詢 |
+| `green` | 財務、核准相關 |
+| `blue` | 業務、報表相關 |
+| `purple` | 人資、行政相關 |
+| `orange` | 倉儲、物流相關 |
+| `brown` | 採購相關 |
+| `red` | 警示、重要通知 |
+
+### CSS 載入順序
+
 ```
-
-### 狀態標籤
-
-```css
-.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; }
-.status-A { background: var(--status-success-bg); color: var(--success); }
-.status-W { background: var(--status-warning-bg); color: var(--warning); }
-.status-R { background: var(--status-danger-bg); color: var(--danger); }
+1. jet-color-themes.css (主題變數)
+2. components.css (共用元件)
+3. MySite1.Master <style> (框架)
+4. 子頁面 CSS (頁面專用)
 ```
 
 ---
 
-## 協作注意事項
+## 技術規範
 
-### 從 Backend Agent 取得的資訊
+### ASP.NET 控制項
 
-- 資料欄位名稱與型別（用於表單設計）
-- 資料驗證規則（用於前端提示）
-- API 回傳的錯誤訊息（用於錯誤顯示）
+```html
+<!-- 新增控制項時，必須同時更新 .aspx.designer.vb -->
+<asp:Button ID="btnSubmit" runat="server" Text="送出" />
+```
 
-### 提供給 QA Agent 的資訊
+```vb
+' 在 .aspx.designer.vb 中新增
+Protected WithEvents btnSubmit As Global.System.Web.UI.WebControls.Button
+```
 
-- 響應式斷點設計
-- 互動狀態（hover、focus、disabled）
-- 無障礙考量點
+### 響應式斷點
+
+```css
+@media (max-width: 1200px) { /* 大平板 */ }
+@media (max-width: 992px)  { /* 平板 */ }
+@media (max-width: 768px)  { /* 手機橫向 */ }
+@media (max-width: 576px)  { /* 手機直向 */ }
+```
 
 ---
 
-## 設計自檢清單
+## 檔案權限
 
-執行任務前：
-- [ ] 讀取 `.claude/task-status.json` 確認 Backend 相關任務狀態
-- [ ] 確認影響的 CSS/ASPX 檔案
+### 讀取
+- `.claude/handoff/{自己的任務}/*`
+- `.claude/shared/active-tasks.json`
+- `.claude/workspace/ui-ux/notifications.md`
+- `skills/ui-checklist.md`
+- `skills/ui-design-system.md`
+- `skills/general-checklist.md`
+- 專案代碼
 
-設計完成後：
-- [ ] 所有文字與背景有足夠對比度
-- [ ] 按鈕大小適合所在區塊
-- [ ] 連結顏色不會與背景色衝突
-- [ ] 沒有使用高飽和的刺眼顏色
-- [ ] 區段標題的文字顏色與背景對比正確
-- [ ] 使用 CSS 變數，不硬編碼顏色
-- [ ] 更新 task-status.json
-- [ ] 記錄到 work-logs
+### 寫入
+- `.claude/handoff/{自己的任務}/output.md`
+- `.claude/workspace/ui-ux/*`
+- 專案代碼（在 agent/ui-ux 分支）
+
+---
+
+## 檢查清單
+
+### 代碼提交前
+- [ ] 控制項 ID 維持不變
+- [ ] Layout 相對位置未改變
+- [ ] JavaScript 事件處理正常
+- [ ] 新增控制項有更新 designer.vb
+- [ ] PostBack 後下拉選單有重新綁定
+
+### 樣式提交前
+- [ ] 使用 jet-color-themes.css 的變數
+- [ ] 圓角不超過 12px
+- [ ] 陰影使用淡色調
+- [ ] 按鈕有 hover 效果
+- [ ] 輸入框有 focus 狀態
+- [ ] 文字與背景有足夠對比度
+- [ ] 考慮其他頁面的影響

@@ -1,24 +1,64 @@
 # Session On - 上班/開始工作
 
-讀取 `agent-os/SESSION_INIT.md` 並執行完整的初始化流程。
+開始工作階段，載入專案狀態。
 
 ## 執行步驟
 
-SESSION_INIT.md 會指導你完成以下步驟：
+1. **讀取專案狀態**
+   - `.claude/shared/project-status.md`
+   - `.claude/shared/active-tasks.json`
 
-1. 讀取核心規範檔案
-2. 讀取專案狀態（worklog/LastCheckPoint.log、TODO.md）
-3. 向使用者報告上次工作狀態
-4. 等待使用者回應並準備接續工作
+2. **檢查待處理任務**
+   - 未完成的任務
+   - blocked 狀態的任務
 
-請嚴格按照 SESSION_INIT.md 中定義的流程執行。
+3. **讀取最近工作紀錄**
+   - `work-logs/daily/` 中最近的紀錄
 
-## ⚠️ 重要提醒
+4. **向使用者報告**
+   - 專案整體狀態
+   - 未完成任務
+   - 今日優先事項
+   - 下一步建議
 
-執行完初始化流程後，向使用者提醒：
+## Agent 特定初始化
 
-**本專案採用 Shopfloor 協作模式**：
-- 所有程式碼產出必須先輸出到 `shopfloor/Claude_TMP/`
-- 不在對話中貼大段程式碼（超過 20 行）
-- 等待使用者確認後才加入正式專案
-- 詳細規範請參考：`shopfloor/Claude_TMP/etc/README_協作模式說明.txt`
+### Manager Session
+```bash
+# 啟動檔案監聽（監控 Agent 完成任務）
+inotifywait -m -r -e close_write .claude/handoff/ | while read FILE; do
+    [[ "$FILE" == *"output.md" ]] && echo "🔔 Task 完成！"
+done &
+```
+
+### Backend Session
+- 讀取 `.claude/agents/BACKEND.md`
+- 讀取 `skills/backend-checklist.md`
+- 讀取 `skills/sap-checklist.md`
+
+### UI-UX Session
+- 讀取 `.claude/agents/UI-UX.md`
+- 讀取 `skills/ui-checklist.md`
+- 讀取 `skills/ui-design-system.md`
+
+## 報告格式
+
+```markdown
+# Session Started
+
+## 專案狀態
+- 版本：vX.Y.Z
+- 分支：{branch}
+
+## 未完成任務
+| ID | 任務 | 狀態 | Agent |
+|----|------|------|-------|
+| ... | ... | ... | ... |
+
+## 今日優先
+1. ...
+2. ...
+
+## 建議下一步
+...
+```
