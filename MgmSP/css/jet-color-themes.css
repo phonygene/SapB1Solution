@@ -1,0 +1,653 @@
+/* ============================================
+   JET Enterprise Platform - Color Themes
+   歐日系高級質感配色系統
+   ============================================ */
+
+/* 
+ * 使用方式：
+ * 1. 在 <html> 或 <body> 加上 data-theme="[主題名稱]"
+ *    例如：<body data-theme="green">
+ * 
+ * 2. 或直接複製對應主題的 CSS 變數到你的 :root
+ */
+
+/* ============================================
+   基礎藍灰 (Default) - 原始設計
+   ============================================ */
+:root,
+[data-theme="blue-gray"] {
+    /* Header 深色區 */
+    --header-bg: linear-gradient(135deg, #1a1f2e 0%, #2a3142 100%);
+    --header-text: #E2E8F0;
+    --header-text-muted: #94A3B8;
+    
+    /* 頁面背景 */
+    --bg-primary: #F8F9FC;
+    --bg-secondary: #EEF1F6;
+    --bg-white: #FFFFFF;
+    
+    /* 文字 */
+    --text-primary: #2D3748;
+    --text-secondary: #64748B;
+    --text-muted: #94A3B8;
+    
+    /* 主強調色 */
+    --accent-primary: #3B4A6B;
+    --accent-hover: #4A5D82;
+    --accent-light: #7C8DB0;
+    --accent-gradient: linear-gradient(135deg, #3B4A6B 0%, #4A5D82 100%);
+    
+    /* 邊框 */
+    --border-color: #E2E8F0;
+    --border-light: #EEF1F6;
+    
+    /* 點綴色 */
+    --gold-accent: #B8A88A;
+    
+    /* 功能色 */
+    --success: #6B9080;
+    --success-hover: #7BA393;
+    --warning: #C9A227;
+    --warning-hover: #D4AF37;
+    --danger: #A65D57;
+    --danger-hover: #B86E68;
+    --info: #5B7B9A;
+    --info-hover: #6B8BA9;
+}
+
+/* ============================================
+   紅色系 (Red) - 沉穩磚紅
+   ============================================ */
+[data-theme="red"] {
+    --header-bg: linear-gradient(135deg, #2D1F1E 0%, #3F2D2B 100%);
+    --header-text: #F0E8E8;
+    --header-text-muted: #B89A98;
+    
+    --bg-primary: #FCF8F8;
+    --bg-secondary: #F6EFEF;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #3D2B2A;
+    --text-secondary: #7A5D5B;
+    --text-muted: #A68B89;
+    
+    --accent-primary: #8B4A48;
+    --accent-hover: #9E5A58;
+    --accent-light: #B87A78;
+    --accent-gradient: linear-gradient(135deg, #8B4A48 0%, #9E5A58 100%);
+    
+    --border-color: #E8DADA;
+    --border-light: #F3EBEB;
+    
+    --gold-accent: #B8A07A;
+    
+    --success: #6B8F7A;
+    --success-hover: #7BA08A;
+    --warning: #C9A227;
+    --warning-hover: #D4AF37;
+    --danger: #A65D57;
+    --danger-hover: #B86E68;
+    --info: #7A8B9E;
+    --info-hover: #8A9BAE;
+}
+
+/* ============================================
+   橙色系 (Orange) - 溫暖琥珀
+   ============================================ */
+[data-theme="orange"] {
+    --header-bg: linear-gradient(135deg, #2D251A 0%, #3F3425 100%);
+    --header-text: #F5EDE0;
+    --header-text-muted: #C4A882;
+    
+    --bg-primary: #FFFBF5;
+    --bg-secondary: #F9F3EA;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #3D3328;
+    --text-secondary: #7A6B55;
+    --text-muted: #A69680;
+    
+    --accent-primary: #9B6B3A;
+    --accent-hover: #AB7B4A;
+    --accent-light: #C49B6A;
+    --accent-gradient: linear-gradient(135deg, #9B6B3A 0%, #AB7B4A 100%);
+    
+    --border-color: #EBE0D0;
+    --border-light: #F5EFE5;
+    
+    --gold-accent: #B8A060;
+    
+    --success: #6B8F7A;
+    --success-hover: #7BA08A;
+    --warning: #C99A27;
+    --warning-hover: #D4A537;
+    --danger: #A66057;
+    --danger-hover: #B87068;
+    --info: #6B8BA0;
+    --info-hover: #7B9BB0;
+}
+
+/* ============================================
+   黃色系 (Yellow) - 高雅芥末
+   ============================================ */
+[data-theme="yellow"] {
+    --header-bg: linear-gradient(135deg, #2A2818 0%, #3B3822 100%);
+    --header-text: #F5F0D8;
+    --header-text-muted: #C4B87A;
+    
+    --bg-primary: #FEFDF5;
+    --bg-secondary: #F9F7EA;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #3A3828;
+    --text-secondary: #6B6845;
+    --text-muted: #9B9770;
+    
+    --accent-primary: #8B8340;
+    --accent-hover: #9B9350;
+    --accent-light: #B5AD70;
+    --accent-gradient: linear-gradient(135deg, #8B8340 0%, #9B9350 100%);
+    
+    --border-color: #E8E5D0;
+    --border-light: #F3F1E5;
+    
+    --gold-accent: #A89840;
+    
+    --success: #6B8F7A;
+    --success-hover: #7BA08A;
+    --warning: #B89830;
+    --warning-hover: #C8A840;
+    --danger: #A66057;
+    --danger-hover: #B87068;
+    --info: #6B8090;
+    --info-hover: #7B90A0;
+}
+
+/* ============================================
+   綠色系 (Green) - 森林苔蘚
+   ============================================ */
+[data-theme="green"] {
+    --header-bg: linear-gradient(135deg, #1E2D26 0%, #2D3F35 100%);
+    --header-text: #E2E8E5;
+    --header-text-muted: #94A89B;
+    
+    --bg-primary: #F6F9F7;
+    --bg-secondary: #EDF3EF;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #2D3B36;
+    --text-secondary: #5A6B63;
+    --text-muted: #8A9B93;
+    
+    --accent-primary: #3D5A4C;
+    --accent-hover: #4A6B5A;
+    --accent-light: #6B8B7A;
+    --accent-gradient: linear-gradient(135deg, #3D5A4C 0%, #4A6B5A 100%);
+    
+    --border-color: #D4E0D9;
+    --border-light: #E8F0EB;
+    
+    --gold-accent: #A69B6B;
+    
+    --success: #5B8A6F;
+    --success-hover: #6B9A7F;
+    --warning: #B8A355;
+    --warning-hover: #C8B365;
+    --danger: #A6625D;
+    --danger-hover: #B87268;
+    --info: #5A7B8A;
+    --info-hover: #6A8B9A;
+}
+
+/* ============================================
+   藍色系 (Blue) - 海軍深藍
+   ============================================ */
+[data-theme="blue"] {
+    --header-bg: linear-gradient(135deg, #1A2535 0%, #283548 100%);
+    --header-text: #E0E8F0;
+    --header-text-muted: #8AA0B8;
+    
+    --bg-primary: #F5F8FC;
+    --bg-secondary: #EBF1F8;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #283848;
+    --text-secondary: #506070;
+    --text-muted: #8095A8;
+    
+    --accent-primary: #3A5575;
+    --accent-hover: #486888;
+    --accent-light: #6888A8;
+    --accent-gradient: linear-gradient(135deg, #3A5575 0%, #486888 100%);
+    
+    --border-color: #D0DDE8;
+    --border-light: #E5EDF5;
+    
+    --gold-accent: #B0A080;
+    
+    --success: #5A8A78;
+    --success-hover: #6A9A88;
+    --warning: #C0A040;
+    --warning-hover: #D0B050;
+    --danger: #A06058;
+    --danger-hover: #B07068;
+    --info: #4878A0;
+    --info-hover: #5888B0;
+}
+
+/* ============================================
+   紫色系 (Purple) - 貴族紫藤
+   ============================================ */
+[data-theme="purple"] {
+    --header-bg: linear-gradient(135deg, #251E2D 0%, #352D40 100%);
+    --header-text: #EBE5F0;
+    --header-text-muted: #A898B8;
+    
+    --bg-primary: #FAF8FC;
+    --bg-secondary: #F3EFF8;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #352D40;
+    --text-secondary: #605070;
+    --text-muted: #9088A0;
+    
+    --accent-primary: #5A4A70;
+    --accent-hover: #6A5A82;
+    --accent-light: #8A7AA0;
+    --accent-gradient: linear-gradient(135deg, #5A4A70 0%, #6A5A82 100%);
+    
+    --border-color: #DDD5E8;
+    --border-light: #EDE8F3;
+    
+    --gold-accent: #B0A080;
+    
+    --success: #5A8A78;
+    --success-hover: #6A9A88;
+    --warning: #C0A040;
+    --warning-hover: #D0B050;
+    --danger: #A06068;
+    --danger-hover: #B07078;
+    --info: #6080A0;
+    --info-hover: #7090B0;
+}
+
+/* ============================================
+   棕色系 (Brown) - 咖啡摩卡
+   ============================================ */
+[data-theme="brown"] {
+    --header-bg: linear-gradient(135deg, #2A231D 0%, #3D342B 100%);
+    --header-text: #F0E8E0;
+    --header-text-muted: #B8A898;
+    
+    --bg-primary: #FBF9F6;
+    --bg-secondary: #F5F0EA;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #3D352D;
+    --text-secondary: #6B5D50;
+    --text-muted: #9B8D80;
+    
+    --accent-primary: #6B5545;
+    --accent-hover: #7B6555;
+    --accent-light: #9B8575;
+    --accent-gradient: linear-gradient(135deg, #6B5545 0%, #7B6555 100%);
+    
+    --border-color: #E5DDD5;
+    --border-light: #F0EBE5;
+    
+    --gold-accent: #A89868;
+    
+    --success: #6B8A70;
+    --success-hover: #7B9A80;
+    --warning: #C0A040;
+    --warning-hover: #D0B050;
+    --danger: #A06050;
+    --danger-hover: #B07060;
+    --info: #688090;
+    --info-hover: #7890A0;
+}
+
+/* ============================================
+   粉紅色系 (Pink) - 玫瑰粉霧
+   ============================================ */
+[data-theme="pink"] {
+    --header-bg: linear-gradient(135deg, #2D1F25 0%, #402D35 100%);
+    --header-text: #F5E8ED;
+    --header-text-muted: #C4A0AD;
+    
+    --bg-primary: #FFFAF8;
+    --bg-secondary: #F9F0F3;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #402D35;
+    --text-secondary: #7A5865;
+    --text-muted: #A88895;
+    
+    --accent-primary: #8B5A68;
+    --accent-hover: #9B6A78;
+    --accent-light: #B88A98;
+    --accent-gradient: linear-gradient(135deg, #8B5A68 0%, #9B6A78 100%);
+    
+    --border-color: #EDDDE2;
+    --border-light: #F8EFF2;
+    
+    --gold-accent: #B8A07A;
+    
+    --success: #6B8F7A;
+    --success-hover: #7BA08A;
+    --warning: #C9A040;
+    --warning-hover: #D4B050;
+    --danger: #A65D65;
+    --danger-hover: #B86D75;
+    --info: #7088A0;
+    --info-hover: #8098B0;
+}
+
+/* ============================================
+   淺藍色系 (Light Blue) - 天空霧藍
+   ============================================ */
+[data-theme="light-blue"] {
+    --header-bg: linear-gradient(135deg, #1E2830 0%, #2D3A45 100%);
+    --header-text: #E5EDF2;
+    --header-text-muted: #98B0C0;
+    
+    --bg-primary: #F5FAFD;
+    --bg-secondary: #E8F3F8;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #2D3840;
+    --text-secondary: #506878;
+    --text-muted: #8098A8;
+    
+    --accent-primary: #4A7088;
+    --accent-hover: #5A8098;
+    --accent-light: #7AA0B8;
+    --accent-gradient: linear-gradient(135deg, #4A7088 0%, #5A8098 100%);
+    
+    --border-color: #D0E0E8;
+    --border-light: #E5EFF5;
+    
+    --gold-accent: #A8A078;
+    
+    --success: #5A8A78;
+    --success-hover: #6A9A88;
+    --warning: #C0A040;
+    --warning-hover: #D0B050;
+    --danger: #A06060;
+    --danger-hover: #B07070;
+    --info: #4880A8;
+    --info-hover: #5890B8;
+}
+
+/* ============================================
+   深灰色系 (Dark Gray) - 石墨炭灰
+   ============================================ */
+[data-theme="dark-gray"] {
+    --header-bg: linear-gradient(135deg, #1E1E1E 0%, #2D2D2D 100%);
+    --header-text: #E8E8E8;
+    --header-text-muted: #A0A0A0;
+    
+    --bg-primary: #F8F8F8;
+    --bg-secondary: #F0F0F0;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #2D2D2D;
+    --text-secondary: #5A5A5A;
+    --text-muted: #8A8A8A;
+    
+    --accent-primary: #4A4A4A;
+    --accent-hover: #5A5A5A;
+    --accent-light: #7A7A7A;
+    --accent-gradient: linear-gradient(135deg, #4A4A4A 0%, #5A5A5A 100%);
+    
+    --border-color: #DDDDDD;
+    --border-light: #EBEBEB;
+    
+    --gold-accent: #A89868;
+    
+    --success: #608070;
+    --success-hover: #709080;
+    --warning: #B8A040;
+    --warning-hover: #C8B050;
+    --danger: #906060;
+    --danger-hover: #A07070;
+    --info: #607080;
+    --info-hover: #708090;
+}
+
+/* ============================================
+   日本黑 (Japan Black) - 墨染漆黑
+   ============================================ */
+[data-theme="japan-black"] {
+    --header-bg: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+    --header-text: #E8E4E0;
+    --header-text-muted: #8A8680;
+    
+    --bg-primary: #FAF9F7;
+    --bg-secondary: #F2F0ED;
+    --bg-white: #FFFFFF;
+    
+    --text-primary: #1A1A1A;
+    --text-secondary: #4A4A48;
+    --text-muted: #7A7A78;
+    
+    --accent-primary: #2A2A28;
+    --accent-hover: #3A3A38;
+    --accent-light: #5A5A58;
+    --accent-gradient: linear-gradient(135deg, #2A2A28 0%, #3A3A38 100%);
+    
+    --border-color: #D8D6D2;
+    --border-light: #E8E6E2;
+    
+    --gold-accent: #A08850;  /* 傳統金箔色 */
+    
+    --success: #4A7A60;      /* 若竹色 */
+    --success-hover: #5A8A70;
+    --warning: #C8A030;      /* 山吹色 */
+    --warning-hover: #D8B040;
+    --danger: #8A4A48;       /* 蘇芳色 */
+    --danger-hover: #9A5A58;
+    --info: #4A6878;         /* 藍鼠色 */
+    --info-hover: #5A7888;
+}
+
+
+/* ============================================
+   通用樣式套用
+   以下樣式會自動讀取上方的 CSS 變數
+   ============================================ */
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.site-header {
+    background: var(--header-bg);
+}
+
+.site-header,
+.site-header * {
+    color: var(--header-text);
+}
+
+.site-header .user-info {
+    color: var(--header-text-muted);
+}
+
+.form-container,
+.card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+}
+
+.section-header {
+    background: var(--accent-gradient);
+}
+
+.tab-button.active {
+    background: var(--accent-gradient);
+}
+
+.tab-container {
+    border-bottom-color: var(--accent-primary);
+}
+
+.btn-primary {
+    background: var(--accent-gradient);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--info) 0%, var(--info-hover) 100%);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+input[type="text"],
+input[type="date"],
+select,
+textarea {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent-light);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.readonly-field {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.gridview th {
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--border-color) 100%);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.gridview td {
+    border-color: var(--border-color);
+}
+
+.gridview tr:nth-child(even) td {
+    background: var(--bg-primary);
+}
+
+.gridview tr:hover td {
+    background: var(--bg-secondary);
+}
+
+.required {
+    color: var(--gold-accent);
+}
+
+.info-banner {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border-left-color: var(--gold-accent);
+    color: var(--text-secondary);
+}
+
+.breadcrumb {
+    background: var(--bg-white);
+    border-bottom-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.breadcrumb a {
+    color: var(--accent-primary);
+}
+
+.modalBackground {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modalPopup {
+    border-color: var(--border-color);
+}
+
+.modalHeader {
+    background: var(--accent-gradient);
+}
+
+.modalFooter {
+    background: var(--bg-primary);
+    border-top-color: var(--border-light);
+}
+
+/* Badge 狀態 */
+.badge.status-P,
+.badge.status-draft {
+    background: linear-gradient(135deg, var(--text-secondary) 0%, var(--text-muted) 100%);
+}
+
+.badge.status-W,
+.badge.status-pending {
+    background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%);
+}
+
+.badge.status-A,
+.badge.status-approved {
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%);
+}
+
+.badge.status-R,
+.badge.status-rejected {
+    background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
+}
+
+/* 連結 */
+a {
+    color: var(--accent-primary);
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+/* 總額顯示 */
+.total-amount {
+    color: var(--accent-primary);
+}
+
+/* 審核區塊 */
+.approval-panel {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border-color: var(--gold-accent);
+}
+
+.approval-panel h3 {
+    color: var(--accent-primary);
+}

@@ -5,6 +5,10 @@
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Dim timeout As Integer
         Dim act As String
+        Dim masterPage As MySite1 = TryCast(Me.Master, MySite1)
+        If masterPage IsNot Nothing Then
+            masterPage.SetThemeClass("theme-dark")
+        End If
 
         ' 設定用戶顯示資訊 - 顯示用戶ID（首字母大寫）
         If Not IsPostBack Then

@@ -5,193 +5,67 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <title>單據查詢</title>
     <style type="text/css">
-        body {
-            font-family: "Microsoft JhengHei", Arial, sans-serif;
-            font-size: 14px;
-            background-color: #f5f5f5;
-        }
+        /* ============================================
+           DocumentSearch - 頁面專用樣式
+           共用樣式來自 components.css
+           變數來自 jet-color-themes.css
+           ============================================ */
 
-        .form-container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 5px;
-        }
-
-        .section-header {
-            background-color: #17a2b8;
-            color: white;
-            padding: 10px 15px;
-            margin: 10px 0 15px 0;
-            font-weight: bold;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-
-        .filter-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-
-        .filter-group {
-            display: flex;
-            align-items: center;
-        }
-
-        .filter-label {
-            font-weight: bold;
-            margin-right: 5px;
-            white-space: nowrap;
-            color: #333;
-        }
-
+        /* 篩選區域輸入控制項 */
         .filter-control input[type="text"],
+        .filter-control input[type="date"],
         .filter-control select {
-            padding: 5px 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             font-size: 13px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background-color: var(--bg-white);
+            transition: all 0.2s ease;
         }
 
-        .filter-control input[type="date"] {
-            padding: 4px 6px;
+        .filter-control input[type="text"]:focus,
+        .filter-control input[type="date"]:focus,
+        .filter-control select:focus {
+            outline: none;
+            border-color: var(--accent-light);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
         }
 
-        .range-sep {
-            margin: 0 3px;
-            color: #666;
+        .filter-control input::placeholder {
+            color: var(--text-muted);
         }
 
-        .btn {
-            padding: 8px 20px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            margin-right: 5px;
+        /* Radio Button */
+        .filter-control input[type="radio"] {
+            accent-color: var(--accent-primary);
         }
 
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-
-        .btn-grid {
-            padding: 4px 10px;
+        .filter-control label {
+            color: var(--text-secondary);
             font-size: 12px;
-            font-weight: normal;
-            margin-right: 0;
+            margin-left: 2px;
+            margin-right: 8px;
         }
 
-        .btn:hover {
-            opacity: 0.9;
-        }
+        /* 狀態標籤 - 對應資料庫 ApprovalStatus 值 */
+        .status-P { background-color: var(--bg-secondary); color: var(--text-secondary); }
+        .status-W { background-color: var(--status-warning-bg); color: var(--warning); }
+        .status-A { background-color: var(--status-success-bg); color: var(--success); }
+        .status-R { background-color: var(--status-danger-bg); color: var(--danger); }
 
-        .readonly-field {
-            background-color: #e9ecef;
-        }
-
-        .gridview {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 15px;
-            font-size: 13px;
-        }
-
-        .gridview th {
-            background-color: #17a2b8;
-            color: white;
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: center;
-            white-space: nowrap;
-        }
-
-        .gridview td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            vertical-align: middle;
-        }
-
-        .gridview tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
-        .gridview tr:hover {
-            background-color: #e9ecef;
-        }
-
+        /* jID 連結 - 使用主題主色 */
         .link-jid {
-            color: #007bff;
-            text-decoration: underline;
-            cursor: pointer;
-            font-weight: bold;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease;
         }
 
         .link-jid:hover {
-            color: #0056b3;
-        }
-
-        .badge {
-            padding: 3px 8px;
-            border-radius: 10px;
-            color: white;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .status-P {
-            background-color: #6c757d;
-        }
-
-        .status-W {
-            background-color: #ffc107;
-            color: black;
-        }
-
-        .status-A {
-            background-color: #28a745;
-        }
-
-        .status-R {
-            background-color: #dc3545;
-        }
-
-        .remarks-cell {
-            max-width: 200px;
-            cursor: help;
-        }
-
-        .pager {
-            margin-top: 15px;
-            text-align: center;
-        }
-
-        .pager a,
-        .pager span {
-            padding: 5px 10px;
-            margin: 0 2px;
-            border: 1px solid #ddd;
-            text-decoration: none;
-        }
-
-        .pager a:hover {
-            background-color: #e9ecef;
-        }
-
-        .pager span {
-            background-color: #17a2b8;
-            color: white;
+            color: var(--accent-hover);
+            text-decoration: underline;
         }
     </style>
 </asp:Content>
@@ -199,7 +73,7 @@
     <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
 
     <div class="form-container">
-        <h2 style="margin:0 0 20px 0; color:#17a2b8;">單據查詢</h2>
+        <h2 class="page-title">單據查詢</h2>
 
         <div class="section-header">篩選條件</div>
 
@@ -340,7 +214,7 @@
                 </div>
 
                 <!-- Row 5: Sorting & Paging -->
-                <div class="filter-row" style="margin-top:15px; padding-top:15px; border-top:1px solid #ddd;">
+                <div class="filter-row filter-divider">
                     <div class="filter-group">
                         <span class="filter-label">排序依據:</span>
                         <div class="filter-control">
@@ -381,20 +255,20 @@
                 <asp:Label ID="lblMessage" runat="server" Font-Bold="True"></asp:Label>
 
                 <!-- Results Section -->
-                <div class="section-header" style="margin-top:25px;">查詢結果</div>
-                <asp:Label ID="lblResultCount" runat="server" style="color:#666; font-size:13px;"></asp:Label>
+                <div class="section-header">查詢結果</div>
+                <asp:Label ID="lblResultCount" runat="server" CssClass="result-count"></asp:Label>
 
                 <asp:HiddenField ID="hfCopyAttachment" runat="server" Value="0" />
                 <asp:HiddenField ID="hfCopyMDR" runat="server" Value="0" />
                 <asp:HiddenField ID="hfCopyRowIndex" runat="server" Value="" />
                 <asp:Button ID="btnCopyConfirm" runat="server" style="display:none" OnClick="btnCopyConfirm_Click" />
 
-                <div id="divCopyModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4);">
-                    <div style="background:white; width:420px; margin:12% auto; padding:20px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-                        <div style="font-weight:bold; margin-bottom:10px;">複製選項</div>
-                        <div id="divCopyQuestion" style="margin-bottom:15px;">是否複製附件？</div>
-                        <div style="text-align:right;">
-                            <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('yes');">是</button>
+                <div id="divCopyModal" class="modal-overlay">
+                    <div class="modal-content">
+                        <div class="modal-title">複製選項</div>
+                        <div id="divCopyQuestion" class="modal-body">是否複製附件？</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" onclick="copyDialogAnswer('yes');">是</button>
                             <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('no');">否</button>
                             <button type="button" class="btn btn-secondary" onclick="copyDialogAnswer('cancel');">取消</button>
                         </div>
@@ -509,7 +383,7 @@
                     </Columns>
                     <PagerStyle CssClass="pager" />
                     <EmptyDataTemplate>
-                        <div style="text-align:center; padding:30px; color:gray;">
+                        <div class="empty-data">
                             請輸入篩選條件後按「查詢」
                         </div>
                     </EmptyDataTemplate>
@@ -522,9 +396,9 @@
     <!-- Hidden controls for modal -->
     <asp:Button ID="btnDummyRemarks" runat="server" style="display:none" />
     <ajaxToolkit:ModalPopupExtender ID="mpeRemarks" runat="server" TargetControlID="btnDummyRemarks"
-        PopupControlID="pnlRemarks" BackgroundCssClass="modalBackground" CancelControlID="btnCloseRemarks" />
-    <asp:Panel ID="pnlRemarks" runat="server" CssClass="modalPopup" style="display:none;">
-        <div class="modalFooter">
+        PopupControlID="pnlRemarks" BackgroundCssClass="modal-overlay" CancelControlID="btnCloseRemarks" />
+    <asp:Panel ID="pnlRemarks" runat="server" CssClass="modal-content" style="display:none;">
+        <div class="modal-footer">
             <asp:Button ID="btnCloseRemarks" runat="server" Text="關閉" CssClass="btn btn-secondary" />
         </div>
     </asp:Panel>

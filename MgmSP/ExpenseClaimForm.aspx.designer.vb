@@ -23,6 +23,42 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
 
     '''<summary>
+    '''lblCurrentUser 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lblCurrentUser As Global.System.Web.UI.WebControls.Label
+
+    '''<summary>
+    '''lnkLogout 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lnkLogout As Global.System.Web.UI.WebControls.LinkButton
+
+    '''<summary>
+    '''lnkHome 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lnkHome As Global.System.Web.UI.WebControls.HyperLink
+
+    '''<summary>
+    '''lnkExpenseModule 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lnkExpenseModule As Global.System.Web.UI.WebControls.HyperLink
+
+    '''<summary>
     '''ScriptManager1 控制項。
     '''</summary>
     '''<remarks>
@@ -30,6 +66,15 @@ Partial Public Class ExpenseClaimForm
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents ScriptManager1 As Global.System.Web.UI.ScriptManager
+
+    '''<summary>
+    '''UpdatePanel1 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents UpdatePanel1 As Global.System.Web.UI.UpdatePanel
 
     '''<summary>
     '''hfActiveTab 控制項。
@@ -50,13 +95,13 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents hfRateDate As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
-    '''UpdatePanel1 控制項。
+    '''btnCopyDocument 控制項。
     '''</summary>
     '''<remarks>
     '''自動產生的欄位。
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
-    Protected WithEvents UpdatePanel1 As Global.System.Web.UI.UpdatePanel
+    Protected WithEvents btnCopyDocument As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''lblDocNum 控制項。
@@ -248,13 +293,22 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents txtStatusDisplay As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
-    '''txtTaxDate 控制項。
+    '''txtDocDate 控制項。
     '''</summary>
     '''<remarks>
     '''自動產生的欄位。
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
-    Protected WithEvents txtTaxDate As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''lblErrDocDate 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
     '''txtDocDueDate 控制項。
@@ -275,22 +329,13 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents lblErrDocDueDate As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
-    '''txtDocDate 控制項。
+    '''txtTaxDate 控制項。
     '''</summary>
     '''<remarks>
     '''自動產生的欄位。
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
-    Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
-
-    '''<summary>
-    '''lblErrDocDate 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtTaxDate As Global.System.Web.UI.WebControls.TextBox
 
     '''<summary>
     '''lblErrTaxDate 控制項。
@@ -401,15 +446,6 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents gvAttachments As Global.System.Web.UI.WebControls.GridView
 
     '''<summary>
-    '''lblAttachment 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents lblAttachment As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
     '''gvExpenseDetail 控制項。
     '''</summary>
     '''<remarks>
@@ -509,6 +545,51 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents lblVatSum As Global.System.Web.UI.WebControls.Label
 
     '''<summary>
+    '''pnlApproval 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents pnlApproval As Global.System.Web.UI.WebControls.Panel
+
+    '''<summary>
+    '''txtApprovalComments 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents txtApprovalComments As Global.System.Web.UI.WebControls.TextBox
+
+    '''<summary>
+    '''btnApprove 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnApprove As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnUpdateComment 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnUpdateComment As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''btnReject 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents btnReject As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
     '''btnSave 控制項。
     '''</summary>
     '''<remarks>
@@ -572,15 +653,6 @@ Partial Public Class ExpenseClaimForm
     Protected WithEvents btnNewDocument As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
-    '''btnCopyDocument 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents btnCopyDocument As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
     '''lblMessage 控制項。
     '''</summary>
     '''<remarks>
@@ -588,51 +660,6 @@ Partial Public Class ExpenseClaimForm
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents lblMessage As Global.System.Web.UI.WebControls.Label
-
-    '''<summary>
-    '''pnlApproval 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents pnlApproval As Global.System.Web.UI.WebControls.Panel
-
-    '''<summary>
-    '''txtApprovalComments 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents txtApprovalComments As Global.System.Web.UI.WebControls.TextBox
-
-    '''<summary>
-    '''btnApprove 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents btnApprove As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''btnUpdateComment 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents btnUpdateComment As Global.System.Web.UI.WebControls.Button
-
-    '''<summary>
-    '''btnReject 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents btnReject As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''btnDummy 控制項。
@@ -817,90 +844,162 @@ Partial Public Class ExpenseClaimForm
     '''<summary>
     '''btnValidationDummy 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnValidationDummy As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''mpeValidation 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents mpeValidation As Global.AjaxControlToolkit.ModalPopupExtender
 
     '''<summary>
     '''pnlValidation 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents pnlValidation As Global.System.Web.UI.WebControls.Panel
 
     '''<summary>
     '''divValidationHeader 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents divValidationHeader As Global.System.Web.UI.HtmlControls.HtmlGenericControl
 
     '''<summary>
     '''btnValidationClose 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnValidationClose As Global.System.Web.UI.WebControls.LinkButton
 
     '''<summary>
     '''pnlErrors 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents pnlErrors As Global.System.Web.UI.WebControls.Panel
 
     '''<summary>
     '''blErrors 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents blErrors As Global.System.Web.UI.WebControls.BulletedList
 
     '''<summary>
     '''pnlWarnings 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents pnlWarnings As Global.System.Web.UI.WebControls.Panel
 
     '''<summary>
     '''blWarnings 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents blWarnings As Global.System.Web.UI.WebControls.BulletedList
 
     '''<summary>
     '''btnValidationBack 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnValidationBack As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''btnValidationConfirm 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnValidationConfirm As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''btnExpDeptDummy 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnExpDeptDummy As Global.System.Web.UI.WebControls.Button
 
     '''<summary>
     '''mpeExpDept 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents mpeExpDept As Global.AjaxControlToolkit.ModalPopupExtender
 
     '''<summary>
     '''pnlExpDept 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents pnlExpDept As Global.System.Web.UI.WebControls.Panel
-
-    '''<summary>
-    '''hfCopyAttachment 控制項。
-    '''</summary>
-    Protected WithEvents hfCopyAttachment As Global.System.Web.UI.WebControls.HiddenField
-
-    '''<summary>
-    '''hfCopyMDR 控制項。
-    '''</summary>
-    Protected WithEvents hfCopyMDR As Global.System.Web.UI.WebControls.HiddenField
 
     '''<summary>
     '''ddlExpDeptSelect 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents ddlExpDeptSelect As Global.System.Web.UI.WebControls.DropDownList
 
     '''<summary>
     '''btnExpDeptConfirm 控制項。
     '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
     Protected WithEvents btnExpDeptConfirm As Global.System.Web.UI.WebControls.Button
+
+    '''<summary>
+    '''hfCopyAttachment 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfCopyAttachment As Global.System.Web.UI.WebControls.HiddenField
+
+    '''<summary>
+    '''hfCopyMDR 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents hfCopyMDR As Global.System.Web.UI.WebControls.HiddenField
 End Class

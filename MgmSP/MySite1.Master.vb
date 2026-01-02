@@ -11,6 +11,43 @@ Partial Public Class MySite1
     Public DDLWhs As DropDownList
     Public DDLDBS As DropDownList
 
+    ''' <summary>
+    ''' 設定頁面主題色系。使用 data-theme 屬性套用主題。
+    ''' 可用主題：blue-gray(預設), red, orange, yellow, green, blue,
+    '''           purple, brown, pink, light-blue, dark-gray, japan-black
+    ''' </summary>
+    ''' <param name="themeName">主題名稱，例如 "green", "blue", "japan-black"</param>
+    Public Sub SetTheme(themeName As String)
+        If BodyTag Is Nothing Then Return
+        If String.IsNullOrWhiteSpace(themeName) Then Return
+
+        ' 設定 data-theme 屬性
+        BodyTag.Attributes("data-theme") = themeName.Trim().ToLower()
+    End Sub
+
+    ''' <summary>
+    ''' 設定頁面亮/暗模式。
+    ''' </summary>
+    ''' <param name="isDark">True 為暗色模式，False 為亮色模式</param>
+    Public Sub SetDarkMode(isDark As Boolean)
+        If BodyTag Is Nothing Then Return
+
+        Dim currentClass As String = BodyTag.Attributes("class")
+        If String.IsNullOrWhiteSpace(currentClass) Then
+            currentClass = ""
+        End If
+
+        ' 移除現有的 theme-light/theme-dark
+        currentClass = currentClass.Replace("theme-dark", "").Replace("theme-light", "").Trim()
+
+        ' 加上新的模式 class
+        If isDark Then
+            BodyTag.Attributes("class") = (currentClass & " theme-dark").Trim()
+        Else
+            BodyTag.Attributes("class") = (currentClass & " theme-light").Trim()
+        End If
+    End Sub
+
     Sub HyperMainMenuGen(row As Integer, objid As String, text As String, url As String, width As Integer, perms As String, keyp As String)
         Dim tCell As TableCell
         Dim tRow As TableRow

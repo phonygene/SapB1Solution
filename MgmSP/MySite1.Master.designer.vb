@@ -14,6 +14,15 @@ Option Explicit On
 Partial Public Class MySite1
 
     '''<summary>
+    '''BodyTag 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents BodyTag As Global.System.Web.UI.HtmlControls.HtmlGenericControl
+
+    '''<summary>
     '''head 控制項。
     '''</summary>
     '''<remarks>
@@ -41,15 +50,6 @@ Partial Public Class MySite1
     Protected WithEvents Image1 As Global.System.Web.UI.WebControls.Image
 
     '''<summary>
-    '''TSubMenu 控制項。
-    '''</summary>
-    '''<remarks>
-    '''自動產生的欄位。
-    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
-    '''</remarks>
-    Protected WithEvents TSubMenu As Global.System.Web.UI.WebControls.Table
-
-    '''<summary>
     '''TMainMenu 控制項。
     '''</summary>
     '''<remarks>
@@ -57,6 +57,15 @@ Partial Public Class MySite1
     '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
     '''</remarks>
     Protected WithEvents TMainMenu As Global.System.Web.UI.WebControls.Table
+
+    '''<summary>
+    '''TSubMenu 控制項。
+    '''</summary>
+    '''<remarks>
+    '''自動產生的欄位。
+    '''若要修改，請將欄位宣告從設計工具檔案移到程式碼後置檔案。
+    '''</remarks>
+    Protected WithEvents TSubMenu As Global.System.Web.UI.WebControls.Table
 
     '''<summary>
     '''ContentPlaceHolder1 控制項。

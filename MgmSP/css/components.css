@@ -1,0 +1,439 @@
+/* ============================================
+   JET Enterprise Platform - 共用元件樣式表
+
+   架構：
+   1. 主題系統定義在 jet-color-themes.css
+   2. 本檔案只定義元件樣式，使用主題變數
+   3. 固定值（圓角、陰影等）
+
+   使用方式：
+   - 套用主題：在 body 加上 data-theme="[主題名]"
+   - 例如：<body data-theme="green">
+   - 可用主題：blue-gray(預設), red, orange, yellow,
+     green, blue, purple, brown, pink, light-blue,
+     dark-gray, japan-black
+   ============================================ */
+
+/* ============================================
+   固定值 - 不隨主題變化
+   ============================================ */
+:root {
+    /* 陰影 */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.04);
+
+    /* 圓角 */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* 深色區域文字 (sidebar/header 用) */
+    --text-light: rgba(235, 240, 250, 0.9);
+
+    /* 狀態背景色 - 使用半透明讓主題色透出 */
+    --status-success-bg: rgba(107, 144, 128, 0.12);
+    --status-warning-bg: rgba(201, 162, 39, 0.12);
+    --status-danger-bg: rgba(166, 93, 87, 0.12);
+    --status-info-bg: rgba(91, 123, 154, 0.12);
+}
+
+/* ============================================
+   5. 共用元件樣式
+   ============================================ */
+
+/* ----- 表單容器 ----- */
+.form-container {
+    max-width: 1400px;
+    margin: 24px auto;
+    padding: 32px;
+    background-color: var(--bg-white);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+/* ----- 頁面標題 ----- */
+.page-title {
+    margin: 0 0 28px 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent-primary);
+    letter-spacing: -0.01em;
+}
+
+/* ----- 區段標題 ----- */
+.section-header {
+    background: var(--accent-gradient);
+    color: #FFFFFF;
+    padding: 12px 18px;
+    margin: 12px 0 20px 0;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    letter-spacing: 0.02em;
+}
+
+/* ----- 按鈕基礎 ----- */
+.btn {
+    padding: 10px 24px;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* 主要按鈕 - 使用主題強調色 */
+.btn-primary {
+    background: var(--accent-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* 次要按鈕 - 中性灰 */
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* 成功按鈕 */
+.btn-success {
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-hover) 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.btn-success:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+/* 危險按鈕 */
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.btn-danger:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+/* 警告按鈕 */
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning) 0%, var(--warning-hover) 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.btn-warning:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+/* 資訊按鈕 */
+.btn-info {
+    background: linear-gradient(135deg, var(--info) 0%, var(--info-hover) 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.btn-info:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+/* 表格內小按鈕 */
+.btn-grid {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-grid:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+    transform: none;
+}
+
+/* ----- 輸入控制項 ----- */
+.form-control {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background-color: var(--bg-white);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-light);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-control:read-only {
+    background-color: var(--bg-secondary);
+}
+
+/* ----- 篩選區域 ----- */
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+}
+
+.filter-label {
+    font-weight: 500;
+    margin-right: 8px;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.filter-control {
+    display: flex;
+    align-items: center;
+}
+
+.filter-divider {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-light);
+}
+
+.range-sep {
+    margin: 0 6px;
+    color: var(--text-muted);
+}
+
+/* ----- 表格 ----- */
+.gridview {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin-top: 20px;
+    font-size: 13px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.gridview th {
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--border-color) 100%);
+    color: var(--text-primary);
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gridview td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-primary);
+}
+
+.gridview tr:nth-child(even) {
+    background-color: var(--bg-primary);
+}
+
+.gridview tr:hover {
+    background-color: var(--bg-secondary);
+}
+
+.gridview tr:last-child td {
+    border-bottom: none;
+}
+
+/* ----- 連結 ----- */
+.link-primary {
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.link-primary:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* ----- 狀態標籤 ----- */
+.badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-block;
+}
+
+.badge-draft {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.badge-pending {
+    background-color: var(--status-warning-bg);
+    color: var(--warning);
+}
+
+.badge-approved {
+    background-color: var(--status-success-bg);
+    color: var(--success);
+}
+
+.badge-rejected {
+    background-color: var(--status-danger-bg);
+    color: var(--danger);
+}
+
+/* ----- 分頁器 ----- */
+.pager {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.pager a,
+.pager span {
+    padding: 8px 14px;
+    margin: 0 3px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.pager a:hover {
+    background-color: var(--bg-secondary);
+    border-color: var(--accent-light);
+    color: var(--accent-primary);
+}
+
+.pager span {
+    background: var(--accent-gradient);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+/* ----- Modal ----- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 31, 46, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background: var(--bg-white);
+    width: 420px;
+    margin: 12% auto;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.modal-title {
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+    color: var(--text-secondary);
+}
+
+.modal-footer {
+    text-align: right;
+}
+
+/* ----- 空資料提示 ----- */
+.empty-data {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* ----- 結果計數 ----- */
+.result-count {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ----- 訊息提示 ----- */
+.message-success {
+    display: block;
+    margin: 12px 0;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    background-color: var(--status-success-bg);
+    color: var(--success);
+}
+
+.message-error {
+    display: block;
+    margin: 12px 0;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    background-color: var(--status-danger-bg);
+    color: var(--danger);
+}
+
+/* ----- 備註欄位 ----- */
+.remarks-cell {
+    max-width: 200px;
+    cursor: help;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

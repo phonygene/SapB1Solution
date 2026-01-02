@@ -7,29 +7,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JET Enterprise Platform</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
-    <asp:ContentPlaceHolder ID="head" runat="server">
-    </asp:ContentPlaceHolder>
+
+    <!-- 主題色系表 - 定義所有主題的顏色變數 -->
+    <link href="css/jet-color-themes.css" rel="stylesheet" />
+    <!-- 共用元件樣式表 - 使用主題變數定義元件樣式 -->
+    <link href="css/components.css" rel="stylesheet" />
+
+    <!-- ============================================
+         Master CSS - 框架樣式 (先載入)
+
+         架構原則：
+         1. Master 只定義「框架」：sidebar, submenu, content-area 容器
+         2. Master 不定義 content-area 內部元素樣式
+         3. 子頁面 CSS 後載入，可覆蓋 Master
+         4. CSS 變數供子頁面使用，保持一致性
+         ============================================ -->
     <style type="text/css">
+        /* ========================================
+           Reset & Base
+           (CSS 變數已在 components.css 定義)
+           ======================================== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         html, body {
             min-height: 100vh;
         }
+
         body {
             background: linear-gradient(160deg, #171c30 0%, #1e2440 30%, #252d48 50%, #1e2440 70%, #171c30 100%);
             font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: rgba(235, 240, 250, 0.9);
+            color: var(--neutral-text-light);
         }
+
         #form1 {
             min-height: 100vh;
         }
+
+        /* ========================================
+           Layout - Master 框架結構
+           ======================================== */
         .master-container {
             display: flex;
             min-height: 100vh;
         }
+
+        /* ========================================
+           Sidebar - Master 擁有的區域
+           ======================================== */
         .sidebar {
             width: 180px;
             min-width: 180px;
@@ -39,51 +67,42 @@
             display: flex;
             flex-direction: column;
         }
+
         .logo-area {
             padding: 0 20px 24px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             margin-bottom: 16px;
         }
+
         .logo-area img {
             max-width: 100%;
             height: auto;
             filter: brightness(1.1);
         }
+
         .main-menu-area {
             flex: 1;
             padding: 0 12px;
         }
-        .main-content-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .submenu-area {
-            background: rgba(0, 0, 0, 0.15);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 12px 24px;
-            min-height: 48px;
-        }
-        .content-area {
-            flex: 1;
-            padding: 24px;
-            overflow-y: auto;
-        }
-        /* Main Menu Styles */
+
+        /* Sidebar Menu Styles */
         .main-menu-area table {
             width: 100% !important;
             border-collapse: separate;
             border-spacing: 0 4px;
         }
+
         .main-menu-area td {
             background: rgba(255, 255, 255, 0.06) !important;
             border: none !important;
             border-radius: 6px;
             transition: all 0.2s ease;
         }
+
         .main-menu-area td:hover {
             background: rgba(255, 255, 255, 0.12) !important;
         }
+
         .main-menu-area a {
             display: block;
             padding: 12px 16px;
@@ -94,14 +113,32 @@
             letter-spacing: 0.02em;
             transition: color 0.2s ease;
         }
+
         .main-menu-area a:hover {
             color: #ffffff;
         }
-        /* Sub Menu Styles */
+
+        /* ========================================
+           Submenu Area - Master 擁有的區域
+           ======================================== */
+        .main-content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .submenu-area {
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 12px 24px;
+            min-height: 48px;
+        }
+
         .submenu-area table {
             border-collapse: separate;
             border-spacing: 8px 0;
         }
+
         .submenu-area td {
             background: rgba(255, 255, 255, 0.08) !important;
             border: none !important;
@@ -109,9 +146,11 @@
             padding: 0 !important;
             transition: all 0.2s ease;
         }
+
         .submenu-area td:hover {
             background: rgba(255, 255, 255, 0.15) !important;
         }
+
         .submenu-area a {
             display: block;
             padding: 8px 16px;
@@ -122,9 +161,11 @@
             letter-spacing: 0.02em;
             white-space: nowrap;
         }
+
         .submenu-area a:hover {
             color: #ffffff;
         }
+
         .submenu-area .submenu-active {
             background: rgba(255, 255, 255, 0.2) !important;
             color: #ffffff;
@@ -132,8 +173,9 @@
             font-size: 12px;
             font-weight: 500;
         }
-        /* Dropdown Styles */
-        select {
+
+        /* Submenu Dropdown (深色主題) */
+        .submenu-area select {
             background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 4px;
@@ -143,64 +185,54 @@
             font-size: 12px;
             cursor: pointer;
         }
-        select:focus {
+
+        .submenu-area select:focus {
             outline: none;
             border-color: rgba(255, 255, 255, 0.3);
         }
-        select option {
+
+        .submenu-area select option {
             background: #1e2440;
             color: rgba(235, 240, 250, 0.9);
         }
-        /* Content Area Styles */
+
+        /* ========================================
+           Content Area - 只定義容器，不定義內部
+
+           重要：Master 只設定容器的背景和 padding
+           內部元素樣式由子頁面自行定義
+           ======================================== */
         .content-area {
-            background-color: #f5f7fa;
-            color: #2c3e50;
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
         }
-        .content-area input[type="text"],
-        .content-area input[type="password"],
-        .content-area textarea {
-            font-family: inherit;
-            color: #2c3e50;
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
+
+        /* 淺色主題 - 設定容器背景和基本文字色 */
+        .theme-light .content-area {
+            background-color: var(--neutral-bg-page);
+            color: var(--neutral-text-primary);
         }
-        .content-area select {
-            font-family: inherit;
-            color: #2c3e50;
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
+
+        /* 深色主題 - 保持深色背景和淺色文字 */
+        .theme-dark .content-area {
+            background: transparent;
+            color: var(--neutral-text-light);
         }
-        .content-area label,
-        .content-area span,
-        .content-area p,
-        .content-area td,
-        .content-area th,
-        .content-area div {
-            color: #2c3e50;
-        }
-        .content-area a {
-            color: #3b82f6;
-        }
-        .content-area a:hover {
-            color: #1d4ed8;
-        }
-        .content-area h1, .content-area h2, .content-area h3,
-        .content-area h4, .content-area h5, .content-area h6 {
-            color: #1e293b;
-        }
-        /* 保留特定樣式的顏色 (如 badge, section-header 等由子頁面定義) */
-        .content-area [style*="color"],
-        .content-area .badge,
-        .content-area .section-header {
-            color: inherit;
-        }
-        /* Legacy table styles for content */
+
+        /* ========================================
+           Legacy Support
+           ======================================== */
         .auto-style1 {
             width: 100%;
         }
     </style>
+
+    <!-- 子頁面 CSS 在此載入，可覆蓋 Master 樣式 -->
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
 </head>
-<body>
+<body id="BodyTag" runat="server" class="theme-light" data-theme="blue-gray">
     <form id="form1" runat="server">
         <div class="master-container">
             <div class="sidebar">
