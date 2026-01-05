@@ -1,5 +1,7 @@
 # Claude Code 協作流程與架構規範包
 
+> [DEPRECATED] 本規範包為歷史文件，已由專案內 `C:\Projects\SapB1Solution\.claude\MULTI_AGENT_ARCHITECTURE_SPEC.md` 取代。僅供參考，不再作為現行規範。
+
 **版本**：2.0
 **更新日期**：2025-11-14
 **適用對象**：使用 Claude Code 進行專案開發的開發者

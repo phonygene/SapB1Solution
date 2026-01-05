@@ -1,5 +1,7 @@
 # 快速開始指南
 
+> [DEPRECATED] 本指南為歷史文件，現行協作規範以 `C:\Projects\SapB1Solution\.claude\MULTI_AGENT_ARCHITECTURE_SPEC.md` 為準。
+
 **預計時間**：10-15 分鐘
 **適用對象**：第一次使用本協作規範的開發者
 

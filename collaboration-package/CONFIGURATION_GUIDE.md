@@ -1,5 +1,7 @@
 # 配置指南
 
+> [DEPRECATED] 本指南為歷史文件，現行協作規範以 `C:\Projects\SapB1Solution\.claude\MULTI_AGENT_ARCHITECTURE_SPEC.md` 為準。
+
 **預計時間**：5-15 分鐘
 **目標**：完成專案協作規範的初始化配置
 
