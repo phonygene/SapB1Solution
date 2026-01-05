@@ -95,11 +95,39 @@ work-logs/               # 結構化工作紀錄
 └── insights/
 ```
 
-### 自定義指令
+### 自定義指令（Slash Commands / Sharp Commands）
 
-| 指令 | 用途 |
-|------|------|
-| `/reflect` | 手動觸發反思，識別問題模式 |
+Slash Command 是存放在 `.claude/commands/` 目錄下的 Markdown 檔案。
+**Sharp Command 為通用替代語法（所有 Agent 一律支援）**：
+- 輸入 `#manager` 視同 `/manager`
+- 對應規則：`#{name}` -> `.claude/commands/{name}.md`
+- 執行方式：讀取對應命令檔內容並依指示執行
+
+詳細開發規範請見 `skills/slash-command-standards.md`。
+
+#### 目前可用指令
+
+| 指令 | 用途 | 類型 |
+|------|------|------|
+| `/manager` | Manager Agent 初始化 | Agent 角色 |
+| `/backend` | Backend Agent 初始化 | Agent 角色 |
+| `/ui-ux` | UI-UX Agent 初始化 | Agent 角色 |
+| `/reflect` | 手動觸發反思，識別問題模式 | 功能指令 |
+
+#### 快速建立新指令
+
+```markdown
+# .claude/commands/{command-name}.md
+---
+description: 命令說明（顯示在 /help）
+argument-hint: [arg1] [arg2]
+---
+
+命令內容...
+使用 $ARGUMENTS 或 $1, $2 接收參數
+使用 @filepath 引用檔案
+使用 !`command` 執行 shell
+```
 
 ### 狀態追蹤機制
 
@@ -154,6 +182,7 @@ work-logs/               # 結構化工作紀錄
 |------|------|
 | Agent 配置 | `.claude/agents/` |
 | 自定義指令 | `.claude/commands/` |
+| **Slash Command 規範** | `skills/slash-command-standards.md` |
 | 經驗累積 | `skills/` |
 | 全局狀態 | `.claude/shared/` |
 | 工作紀錄 | `work-logs/` |

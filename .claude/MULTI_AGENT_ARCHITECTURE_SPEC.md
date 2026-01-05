@@ -96,6 +96,10 @@
 ### 2.1 概念
 
 `.claude/commands/` 目錄用於定義 Slash Commands，讓 Agent 執行標準化流程。
+**Sharp Commands 為通用替代語法（所有 Agent 一律支援）**：
+- 輸入 `#manager` 視同 `/manager`
+- 對應規則：`#{name}` -> `.claude/commands/{name}.md`
+- 執行方式：讀取對應命令檔內容並依指示執行
 
 ### 2.2 目前可用指令
 

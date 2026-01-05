@@ -1,0 +1,26 @@
+# Claude Code Ignore File
+# 類似 .gitignore，列出的路徑會被 Claude Code 預設忽略
+
+# 封存的舊規格和歷史紀錄
+# 除非使用者明確要求，否則不讀取
+specArchive/
+
+# 編譯輸出
+bin/
+obj/
+packages/
+
+# IDE 設定
+.vs/
+*.suo
+*.user
+
+# 暫存檔案
+*.tmp
+*.temp
+*~
+
+# 日誌（大量且通常不需要）
+*.log
+!worklog/*.log
+!work-logs/**/*.md
