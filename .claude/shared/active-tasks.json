@@ -1,6 +1,25 @@
 {
-  "lastUpdated": "2026-01-02T18:00:00+08:00",
-  "currentSprint": "v1.2.0",
-  "tasks": [],
+  "lastUpdated": "2026-01-05T15:30:00+08:00",
+  "currentSprint": "v1.2.0-test",
+  "tasks": [
+    {
+      "id": "W1-BE",
+      "title": "測試工作1",
+      "assignee": "backend",
+      "status": "in_progress",
+      "priority": "low",
+      "affectedFiles": [],
+      "createdAt": "2026-01-05T15:30:00+08:00"
+    },
+    {
+      "id": "W1-UX",
+      "title": "測試工作2",
+      "assignee": "ui-ux",
+      "status": "in_progress",
+      "priority": "low",
+      "affectedFiles": [],
+      "createdAt": "2026-01-05T15:30:00+08:00"
+    }
+  ],
   "fileConflicts": {}
 }

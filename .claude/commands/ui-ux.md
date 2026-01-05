@@ -36,3 +36,15 @@ description: UI-UX Agent 初始化 (project)
 回報：
 1. 當前有無待處理任務
 2. 是否準備好接受新任務
+
+---
+
+## 每次回覆結束前（必須執行）
+
+**無論回覆內容為何，結束前必須執行：**
+
+```
+將 `.claude/workspace/ui-ux/current.md` 的「## 狀態」改為 `idle`
+```
+
+這是強制規則，確保 littlebird 能正確判斷 Agent 狀態。

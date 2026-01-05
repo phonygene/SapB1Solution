@@ -341,6 +341,30 @@ Protected WithEvents ddlExpenseType As DropDownList
 | macOS | `fswatch` | `brew install fswatch` |
 | Windows | PowerShell FileSystemWatcher 或 WSL | — |
 
+### 5.4 Agent 狀態機（避免輸入中斷）
+
+所有 Agent 使用 `.claude/workspace/{agent}/current.md` 的「## 狀態」欄位：
+- `idle`：等候狀態（可接收新指令）
+- `thinking`：處理中（不可被打斷）
+
+規則：
+1. littlebird 送出訊息前必須確認目標為 `idle`
+2. littlebird 送出訊息後將狀態設為 `thinking`
+3. Agent 完成處理後必須手動改回 `idle`
+
+### 5.5 視窗聚焦備援（滑鼠點擊）
+
+若 `SetForegroundWindow` 失敗，可在 `AGENT_WINDOWS` 設定 `click`：
+```python
+"backend": {
+    "class_name": "CASCADIA_HOSTING_WINDOW_CLASS",
+    "title": "Backend",
+    "hotkey": ("ctrl", "alt", "1"),
+    "click": {"monitor": 1, "x": 200, "y": 80}
+},
+```
+`monitor` 為螢幕索引（從 `--list-windows` 輸出查看），`x/y` 為該螢幕內座標。
+
 ---
 
 ## 6. Agent 配置（2+1 變體）
@@ -577,6 +601,8 @@ done &
 │   │       ├── current.md
 │   │       ├── notes.md
 │   │       └── notifications.md     # ← Manager 推送通知
+│   │   └── manager/
+│   │       └── current.md            # ← 狀態機（idle/thinking）
 │   │
 │   ├── agents/                      # Agent 配置（2+1）
 │   │   ├── MANAGER.md               # 兼 QA 協調

@@ -1,13 +1,16 @@
-# UI-UX Agent - 當前工作
+# MANAGER Agent - 當前工作
 
 ## 狀態
-thinking
+idle
 
 ## 當前任務
+
 （無）
 
 ## 進行中的變更
+
 （無）
 
 ## 待處理項目
+
 （無）

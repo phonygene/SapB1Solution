@@ -74,6 +74,7 @@
 ├── workspace/           # 私有工作區
 │   ├── backend/
 │   └── ui-ux/
+│   └── manager/
 ├── agents/              # Agent 配置
 │   ├── MANAGER.md
 │   ├── BACKEND.md
@@ -136,6 +137,29 @@ argument-hint: [arg1] [arg2]
 - **`work-logs/`**：結構化工作紀錄（daily → monthly → yearly + insights）
 - **`skills/`**：動態經驗累積
 
+### Agent 狀態機
+
+所有 Agent 使用 `.claude/workspace/{agent}/current.md` 的「## 狀態」欄位：
+- `idle`：等候狀態（可接收新指令）
+- `thinking`：處理中（不可被打斷）
+
+規則：
+- littlebird 送出訊息前必須確認目標為 `idle`
+- littlebird 送出訊息後將狀態設為 `thinking`
+- **Agent 每次回覆結束前必須將狀態改回 `idle`**（由 AI 自行執行）
+
+#### 強制規則（所有 Agent 必須遵守）
+
+**無論回覆內容為何，每次回覆結束前必須執行：**
+
+| Agent | 狀態檔案路徑 |
+|-------|-------------|
+| Manager | `.claude/workspace/manager/current.md` |
+| Backend | `.claude/workspace/backend/current.md` |
+| UI-UX | `.claude/workspace/ui-ux/current.md` |
+
+將該檔案的「## 狀態」欄位改為 `idle`。
+
 ### 任務執行流程
 
 1. Manager 分析任務，建立 `handoff/{task-id}/spec.md`
@@ -148,6 +172,11 @@ argument-hint: [arg1] [arg2]
 ## 修正/變更規則
 
 修正錯誤時，**必須先詢問**是否檢查其他相似程式碼。
+
+## 需求確認規則
+
+在調整行為或策略前，**必須先確認使用者目的與接受的取捨**，再執行修改。
+不得以「移除功能」作為預設解法來規避錯誤，除非使用者明確同意。
 
 ---
 

@@ -35,6 +35,7 @@
 3. 讀取 `skills/ui-checklist.md`
 4. 讀取 `skills/ui-design-system.md`（設計規範）
 5. 如果有 Backend 的 output.md，讀取了解 API 規格
+6. 將 `.claude/workspace/ui-ux/current.md` 的「## 狀態」設為 `thinking`
 
 ### 執行任務
 
@@ -68,6 +69,10 @@ YYYY-MM-DD HH:MM
 ## 風險/備註
 - 無 / 列出潛在問題
 ```
+
+完成後將 `.claude/workspace/ui-ux/current.md` 的「## 狀態」設為 `idle`。
+
+**重要**：這不僅適用於完成任務，**每次回覆結束前都必須執行**。
 
 ---
 
@@ -222,3 +227,15 @@ Protected WithEvents btnSubmit As Global.System.Web.UI.WebControls.Button
 - [ ] 輸入框有 focus 狀態
 - [ ] 文字與背景有足夠對比度
 - [ ] 考慮其他頁面的影響
+
+---
+
+## 每次回覆結束前（強制規則）
+
+**無論回覆內容為何，每次回覆結束前必須執行：**
+
+```
+將 `.claude/workspace/ui-ux/current.md` 的「## 狀態」改為 `idle`
+```
+
+這確保 littlebird 能正確判斷 Agent 狀態，避免訊息中斷。

@@ -35,6 +35,7 @@
 3. 讀取 `skills/backend-checklist.md`
 4. 讀取 `skills/sap-checklist.md`（如涉及 SAP）
 5. 檢查相關代碼中的 `[AI-Context]` 註解
+6. 將 `.claude/workspace/backend/current.md` 的「## 狀態」設為 `thinking`
 
 ### 執行任務
 
@@ -68,6 +69,8 @@ YYYY-MM-DD HH:MM
 ## 風險/備註
 - 無 / 列出潛在問題
 ```
+
+完成後將 `.claude/workspace/backend/current.md` 的「## 狀態」設為 `idle`。
 
 ---
 
@@ -226,3 +229,15 @@ End Try
 - [ ] Service Layer 呼叫前檢查 Session
 - [ ] 日期格式 yyyy-MM-dd
 - [ ] 有處理 SAP 錯誤碼
+
+---
+
+## 每次回覆結束前（強制規則）
+
+**無論回覆內容為何，每次回覆結束前必須執行：**
+
+```
+將 `.claude/workspace/backend/current.md` 的「## 狀態」改為 `idle`
+```
+
+這確保 littlebird 能正確判斷 Agent 狀態，避免訊息中斷。

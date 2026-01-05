@@ -42,6 +42,7 @@
    # 推送通知
    echo "新任務 {task-id}" >> .claude/workspace/{agent}/notifications.md
    ```
+4. 將 `.claude/workspace/manager/current.md` 的「## 狀態」設為 `thinking`
 
 ### 任務完成時（審查流程）
 
@@ -61,6 +62,10 @@
 
 4. **記錄到 Work Logs**：
    - 更新 `work-logs/daily/YYYY-MM/YYYY-MM-DD.md`
+
+完成審查後將 `.claude/workspace/manager/current.md` 的「## 狀態」設為 `idle`。
+
+**重要**：這不僅適用於完成審查，**每次回覆結束前都必須執行**。
 
 ### 定期反思
 
@@ -125,3 +130,15 @@
 - [ ] 產出月度彙整 `work-logs/monthly/YYYY-MM.md`
 - [ ] 更新 `work-logs/insights/patterns.md`
 - [ ] 提出 skills/ 優化建議
+
+---
+
+## 每次回覆結束前（強制規則）
+
+**無論回覆內容為何，每次回覆結束前必須執行：**
+
+```
+將 `.claude/workspace/manager/current.md` 的「## 狀態」改為 `idle`
+```
+
+這確保 littlebird 能正確判斷 Agent 狀態，避免訊息中斷。
