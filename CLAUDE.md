@@ -55,6 +55,11 @@
 | **Backend** | VB.NET 邏輯、SAP 整合、資料庫 | agent/backend |
 | **UI-UX** | 介面設計、CSS 樣式、響應式 | agent/ui-ux |
 
+### 單一入口規則
+
+- 使用者**優先**與 Manager 溝通與指派任務。
+- 若使用者直接指派 Backend 或 UI-UX，該 Agent **必須同步回報 Manager**，以便統一排程與衝突控管。
+
 ### 檔案結構
 
 ```
@@ -73,11 +78,8 @@
 │   ├── MANAGER.md
 │   ├── BACKEND.md
 │   └── UI-UX.md
-└── commands/            # Session Skills
-    ├── sess-on.md
-    ├── sess-wrap.md
-    ├── sess-off.md
-    └── sess-check.md
+└── commands/            # 自定義指令
+    └── reflect.md       # 手動觸發反思
 
 skills/                  # 動態累積的經驗
 ├── general-checklist.md
@@ -86,21 +88,25 @@ skills/                  # 動態累積的經驗
 ├── sap-checklist.md
 └── ui-design-system.md
 
-work-logs/               # 工作紀錄
+work-logs/               # 結構化工作紀錄
 ├── daily/
 ├── monthly/
 ├── yearly/
 └── insights/
 ```
 
-### Session Skills
+### 自定義指令
 
-| Skill | 用途 |
-|-------|------|
-| `/sess-on` | 開始工作，載入狀態 |
-| `/sess-wrap` | 階段存檔，繼續工作 |
-| `/sess-off` | 完整存檔，結束工作 |
-| `/sess-check` | 查看進度（唯讀） |
+| 指令 | 用途 |
+|------|------|
+| `/reflect` | 手動觸發反思，識別問題模式 |
+
+### 狀態追蹤機制
+
+- **Git 紀錄**：工作歷史的自然追蹤
+- **`.claude/shared/`**：全局狀態（active-tasks.json, project-status.md）
+- **`work-logs/`**：結構化工作紀錄（daily → monthly → yearly + insights）
+- **`skills/`**：動態經驗累積
 
 ### 任務執行流程
 
@@ -125,12 +131,31 @@ work-logs/               # 工作紀錄
 
 ---
 
+## 封存政策
+
+### specArchive/ 目錄
+
+存放過時的規格和歷史紀錄。**除非使用者明確要求，否則不要讀取此目錄**。
+
+此目錄已在 `.claudeignore` 中設定為忽略，Claude Code 預設不會載入。
+
+### .claudeignore
+
+類似 `.gitignore`，列出 Claude Code 預設忽略的路徑：
+- `specArchive/` - 封存的舊規格
+- `bin/`, `obj/` - 編譯輸出
+- `.vs/` - IDE 設定
+
+---
+
 ## 相關文件
 
 | 類別 | 位置 |
 |------|------|
 | Agent 配置 | `.claude/agents/` |
-| Session Skills | `.claude/commands/` |
+| 自定義指令 | `.claude/commands/` |
 | 經驗累積 | `skills/` |
+| 全局狀態 | `.claude/shared/` |
 | 工作紀錄 | `work-logs/` |
 | 架構規格 | `.claude/MULTI_AGENT_ARCHITECTURE_SPEC.md` |
+| 封存 | `specArchive/`（預設忽略） |

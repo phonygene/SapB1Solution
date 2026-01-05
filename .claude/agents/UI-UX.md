@@ -30,6 +30,7 @@
 ### 開始任務前
 
 1. 檢查 `.claude/workspace/ui-ux/notifications.md` 確認任務
+1. 若任務是使用者直接指派（非 Manager），先在 `.claude/shared/active-tasks.json` 補登並回報 Manager
 2. 讀取 `.claude/handoff/{task-id}/spec.md`
 3. 讀取 `skills/ui-checklist.md`
 4. 讀取 `skills/ui-design-system.md`（設計規範）

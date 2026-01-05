@@ -1,17 +1,26 @@
 # 多 Agent 協作架構：最終實踐規格
 
-> **版本**：1.2
+> **版本**：1.4
 > **日期**：2026-01-02
 > **狀態**：定稿
 > **整合來源**：原始 RFC + Claude/Gemini/GPT/Manus 建議
 >
+> **v1.4 變更**：
+> - 廢棄 Session Skills（/sess-on, /sess-wrap, /sess-off, /sess-check）
+> - 改用 Git 紀錄 + skills/ + 結構化 work-logs/ 取代
+> - 新增 `/reflect` 指令用於手動觸發反思
+> - 保留 `.claude/commands/` 機制供未來擴充
+>
+> **v1.3 變更**：
+> - 移除舊的 `worklog/` checkpoint 機制
+> - 簡化狀態管理，減少 Token 消耗
+>
 > **v1.2 變更**：
-> - 採用 **2+1 變體**：Backend, UI-UX + Manager/QA（Manager 兼任 QA 協調）
-> - 整合 **Session Skills**：/sess-on, /sess-wrap, /sess-off, /sess-check
+> - 採用 **2+1 變體**：Backend, UI-UX + Manager/QA
 > - 採用**完整 Work Logs 系統**（日/月/年彙整 + insights）
 > - Layer 0 採用 Gemini 替代方案（skills/ + [AI-Context] 註解）
-> - fileConflicts 降級為「提示」（採納 GPT 建議）
-> - 加入檔案監聽推送機制（採納 Manus 建議）
+> - fileConflicts 降級為「提示」
+> - 加入檔案監聽推送機制
 
 ---
 
@@ -23,6 +32,7 @@
 2. **漸進式優化**：從錯誤中學習，而非預先定義所有規則
 3. **最小必要結構**：只建立立即需要的東西
 4. **Token 效率**：Agent 只載入自己需要的知識
+5. **單一入口**：使用者優先與 Manager 溝通；若直接指派 Agent，必須同步回報 Manager
 
 ### 1.2 核心架構圖（2+1 變體）
 
@@ -81,131 +91,35 @@
 
 ---
 
-## 2. Session Skills 系統
+## 2. 自定義指令系統
 
-### 2.1 Skills 概念
+### 2.1 概念
 
-**Skills = 動作觸發器**
+`.claude/commands/` 目錄用於定義 Slash Commands，讓 Agent 執行標準化流程。
 
-在特定時機調用，執行標準化流程並更新 Work Logs。
+### 2.2 目前可用指令
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Skills 與 Work Logs 關係                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   Skills（何時做）                Work Logs（做什麼、存什麼）    │
-│   ════════════════                ════════════════════════════   │
-│                                                                  │
-│   /sess-on ─────────────────────► 讀取 LastCheckPoint.log       │
-│                                   載入專案狀態                   │
-│                                                                  │
-│   /sess-wrap ───────────────────► 寫入 checkPoint_*.log         │
-│                                   更新 LastCheckPoint.log        │
-│                                   繼續工作                       │
-│                                                                  │
-│   /sess-off ────────────────────► 寫入 checkPoint_*.log         │
-│                                   更新 LastCheckPoint.log        │
-│                                   記錄到 daily/ 日誌             │
-│                                   結束工作                       │
-│                                                                  │
-│   /sess-check ──────────────────► 只讀取，不寫入                 │
-│                                                                  │
-│   （月底觸發）──────────────────► 產生 monthly/ 彙整             │
-│                                   更新 insights/                 │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 Session Skills 定義
-
-#### /sess-on（上班/開始工作）
+#### /reflect（手動觸發反思）
 
 ```markdown
-# Session On - 上班/開始工作
+# Reflect - 手動觸發反思
+
+## 參數
+- 無參數：反思最近 7 天
+- `-w`：本週反思
+- `-m`：本月反思
 
 ## 執行步驟
-
-1. 讀取 `worklog/LastCheckPoint.log`
-2. 讀取 `.claude/shared/active-tasks.json`
-3. 讀取 `.claude/shared/project-status.md`
-4. 向使用者報告：
-   - 上次工作狀態
-   - 未完成任務
-   - 今日優先事項
-5. 準備接續工作
-
-## Agent 特定初始化
-
-### Manager Session
-- 啟動檔案監聽（監控 handoff/*/output.md）
-- 檢查 blocked 任務是否可解除
-
-### Backend/UI-UX Session
-- 讀取對應的 `.claude/agents/*.md` 角色定義
-- 讀取對應的 `skills/*-checklist.md`
-- 啟動通知監聽（監控 workspace/*/notifications.md）
+1. 讀取指定範圍的 `work-logs/daily/`
+2. 識別重複問題模式
+3. 更新 `work-logs/insights/patterns.md`
+4. 提出 `skills/` 優化建議
+5. 產出反思報告
 ```
 
-#### /sess-wrap（階段性存檔）
+### 2.3 擴充方式
 
-```markdown
-# Session Wrap - 階段性存檔（繼續工作）
-
-## 執行步驟
-
-1. 總結本階段工作成果
-2. 建立歷史記錄：`worklog/checkPoint_YYYYMMDD_HHMM.log`
-3. 更新 `worklog/LastCheckPoint.log`：
-   - 專案整體狀態
-   - 已完成任務
-   - 進行中任務
-   - 下一步建議
-4. 更新 `.claude/shared/active-tasks.json`
-5. **繼續工作**，不結束對話
-
-## 選擇性記錄（-s 參數）
-- 列出所有工作項目
-- 使用 AskUserQuestion 讓使用者選擇排除項目
-- 只記錄保留的內容
-```
-
-#### /sess-off（完整存檔並下班）
-
-```markdown
-# Session Off - 完整存檔並下班
-
-## 執行步驟
-
-1. 總結本次對話所有工作成果
-2. 建立歷史記錄：`worklog/checkPoint_YYYYMMDD_HHMM.log`
-3. 更新 `worklog/LastCheckPoint.log`
-4. 更新 `work-logs/daily/YYYY-MM/YYYY-MM-DD.md`（當日工作紀錄）
-5. 檢查是否月底 → 觸發月彙整
-6. 向使用者道別，**結束工作階段**
-
-## 選擇性記錄（-s 參數）
-同 /sess-wrap
-```
-
-#### /sess-check（查看進度）
-
-```markdown
-# Session Check - 查看進度報告
-
-## 執行步驟（唯讀）
-
-1. 讀取 `worklog/LastCheckPoint.log`
-2. 讀取 `.claude/shared/active-tasks.json`
-3. 向使用者報告：
-   - 最後更新時間
-   - 各 Agent 狀態
-   - 進行中任務
-   - 阻塞項目
-   - 下一步建議
-
-**不寫入任何檔案**
-```
+在 `.claude/commands/` 新增 `{command-name}.md` 即可定義新指令。
 
 ---
 
@@ -302,9 +216,9 @@ work-logs/
 
 | 週期 | 動作 | 觸發方式 |
 |------|------|----------|
-| 每日 | 只記錄，不反思 | /sess-off |
-| 每週 | 快速 review：識別重複錯誤 | 手動 or Manager 提醒 |
-| 每月 | 正式反思：分析問題模式、更新 skills | 月底 /sess-off 時觸發 |
+| 每日 | 只記錄，不反思 | 自然發生（Git commit + work-logs） |
+| 每週 | 快速 review：識別重複錯誤 | `/reflect -w` 或手動 |
+| 每月 | 正式反思：分析問題模式、更新 skills | `/reflect -m` 或手動 |
 | 每季 | 大檢討：評估工具鏈、考慮新技術 | 手動 |
 
 ### 3.5 Insights 檔案
@@ -665,11 +579,8 @@ done &
 │   │   ├── BACKEND.md
 │   │   └── UI-UX.md
 │   │
-│   └── commands/                    # Session Skills
-│       ├── sess-on.md
-│       ├── sess-wrap.md
-│       ├── sess-off.md
-│       └── sess-check.md
+│   └── commands/                    # 自定義指令
+│       └── reflect.md               # 手動觸發反思
 │
 ├── skills/                          # 動態累積的經驗
 │   ├── general-checklist.md
@@ -677,10 +588,6 @@ done &
 │   ├── ui-checklist.md
 │   ├── sap-checklist.md
 │   └── examples/
-│
-├── worklog/                         # Session 狀態（Skills 使用）
-│   ├── LastCheckPoint.log
-│   └── checkPoint_*.log
 │
 ├── work-logs/                       # 結構化工作紀錄
 │   ├── daily/
@@ -810,7 +717,6 @@ brew install fswatch
 # 在專案根目錄執行
 mkdir -p .claude/{shared,handoff,workspace/{backend,ui-ux},agents,commands}
 mkdir -p skills/examples
-mkdir -p worklog
 mkdir -p work-logs/{daily,monthly,yearly,insights}
 
 # 建立初始檔案
@@ -838,33 +744,27 @@ git worktree list
 
 將 MANAGER.md、BACKEND.md、UI-UX.md 存到 `.claude/agents/`
 
-### Step 5: 配置 Session Skills
+### Step 5: 配置自定義指令
 
-將 sess-on.md、sess-wrap.md、sess-off.md、sess-check.md 存到 `.claude/commands/`
+將 reflect.md 存到 `.claude/commands/`
 
-### Step 6: 啟動 Sessions
+### Step 6: 啟動 Agent Sessions
 
 ```bash
 # Terminal 1: Manager（主專案）
 cd /your/project
-# 啟動監聽
-inotifywait -m -r -e close_write --format '%w%f' .claude/handoff/ | while read FILE; do
-    [[ "$FILE" == *"output.md" ]] && echo "🔔 Task 完成！"
-done &
 claude
-# 執行 /sess-on
+# 告知 AI：你是 Manager Agent，請讀取 .claude/agents/MANAGER.md
 
 # Terminal 2: Backend（worktree）
 cd ../worktrees/backend
-inotifywait -m -e close_write --format '%w%f' .claude/workspace/backend/ | while read FILE; do
-    [[ "$FILE" == *"notifications.md" ]] && echo "🔔 新通知！" && tail -1 .claude/workspace/backend/notifications.md
-done &
 claude
-# 執行 /sess-on
+# 告知 AI：你是 Backend Agent，請讀取 .claude/agents/BACKEND.md
 
 # Terminal 3: UI-UX（如需並行）
 cd ../worktrees/ui-ux
-# 同上...
+claude
+# 告知 AI：你是 UI-UX Agent，請讀取 .claude/agents/UI-UX.md
 ```
 
 ---
@@ -876,20 +776,20 @@ cd ../worktrees/ui-ux
 | 項目 | 決策 |
 |------|------|
 | **Agent 架構** | 2+1 變體（Backend, UI-UX + Manager/QA） |
-| **Session 管理** | 使用 Skills（/sess-on, /sess-wrap, /sess-off） |
-| **工作紀錄** | 完整 Work Logs（daily → monthly → yearly + insights） |
+| **狀態追蹤** | Git 紀錄 + `.claude/shared/` |
+| **工作紀錄** | 結構化 Work Logs（daily → monthly → yearly + insights） |
 | **經驗累積** | skills/ 動態累積 + [AI-Context] 註解 |
+| **反思機制** | `/reflect` 手動觸發 |
 | **衝突處理** | fileConflicts 作為警告，用 Git merge 解決 |
-| **通知機制** | 檔案監聽 + 推送（inotifywait） |
 
 ### 執行優先順序
 
 1. ✅ 確認架構設計
-2. ⏳ 建立 .claude/ 目錄結構
+2. ✅ 建立 .claude/ 目錄結構
 3. ⏳ 建立 Git Worktrees
-4. ⏳ 配置 Agent 定義
-5. ⏳ 配置 Session Skills
-6. ⏳ 初始化 skills/
+4. ✅ 配置 Agent 定義
+5. ✅ 配置自定義指令
+6. ✅ 初始化 skills/
 7. ⏳ 按需在代碼中加 [AI-Context] 註解
 8. ⏳ 從實踐中累積經驗
 
@@ -901,4 +801,6 @@ cd ../worktrees/ui-ux
 |------|------|----------|
 | 1.0 | 2026-01-02 | 初稿（4 Agent） |
 | 1.1 | 2026-01-02 | Layer 0 替代方案、fileConflicts 降級、推送機制 |
-| 1.2 | 2026-01-02 | 2+1 變體架構、整合 Session Skills、完整 Work Logs |
+| 1.2 | 2026-01-02 | 2+1 變體架構、完整 Work Logs |
+| 1.3 | 2026-01-02 | 移除 worklog/ checkpoint |
+| 1.4 | 2026-01-02 | 廢棄 Session Skills，改用 Git + skills + work-logs，新增 /reflect |
