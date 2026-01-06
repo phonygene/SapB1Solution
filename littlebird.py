@@ -643,7 +643,7 @@ def _wait_for_agent_completion(agent: str) -> bool:
 
 def _notify_manager_completion(agent: str):
     """通知 Manager 某個 Agent 完成了任務"""
-    message = f"[{agent.upper()}] 任務完成，請驗收"
+    message = f"[{agent.upper()}] Task completed, please review"
     log(f"[NOTIFY] Sending completion notice to manager: {message}")
 
     # 直接調用處理函數通知 Manager
