@@ -63,24 +63,31 @@
 ### 檔案結構
 
 ```
-.claude/
+.claude/                 # 工作規範（需確認權限）
 ├── shared/              # 全局狀態（所有 Agent 可讀）
 │   ├── project-status.md
 │   └── active-tasks.json
-├── handoff/             # 任務交接
-│   └── {task-id}/
-│       ├── spec.md
-│       └── output.md
-├── workspace/           # 私有工作區
-│   ├── backend/
-│   └── ui-ux/
-│   └── manager/
 ├── agents/              # Agent 配置
 │   ├── MANAGER.md
 │   ├── BACKEND.md
 │   └── UI-UX.md
 └── commands/            # 自定義指令
     └── reflect.md       # 手動觸發反思
+
+.agent-workspace/        # Agent 溝通區（免確認權限）
+├── manager/
+│   ├── current.md       # 狀態檔
+│   └── notifications.md
+├── backend/
+│   ├── current.md
+│   └── notifications.md
+├── ui-ux/
+│   ├── current.md
+│   └── notifications.md
+└── handoff/             # 任務交接
+    └── {task-id}/
+        ├── spec.md
+        └── output.md
 
 skills/                  # 動態累積的經驗
 ├── general-checklist.md
@@ -139,7 +146,7 @@ argument-hint: [arg1] [arg2]
 
 ### Agent 狀態機
 
-所有 Agent 使用 `.claude/workspace/{agent}/current.md` 的「## 狀態」欄位：
+所有 Agent 使用 `.agent-workspace/{agent}/current.md` 的「## 狀態」欄位：
 - `idle`：等候狀態（可接收新指令）
 - `thinking`：處理中（不可被打斷）
 
@@ -154,17 +161,17 @@ argument-hint: [arg1] [arg2]
 
 | Agent | 狀態檔案路徑 |
 |-------|-------------|
-| Manager | `.claude/workspace/manager/current.md` |
-| Backend | `.claude/workspace/backend/current.md` |
-| UI-UX | `.claude/workspace/ui-ux/current.md` |
+| Manager | `.agent-workspace/manager/current.md` |
+| Backend | `.agent-workspace/backend/current.md` |
+| UI-UX | `.agent-workspace/ui-ux/current.md` |
 
 將該檔案的「## 狀態」欄位改為 `idle`。
 
 ### 任務執行流程
 
-1. Manager 分析任務，建立 `handoff/{task-id}/spec.md`
+1. Manager 分析任務，建立 `.agent-workspace/handoff/{task-id}/spec.md`
 2. Agent 讀取 spec，執行任務
-3. Agent 完成後寫入 `handoff/{task-id}/output.md`
+3. Agent 完成後寫入 `.agent-workspace/handoff/{task-id}/output.md`
 4. Manager 審查，記錄到 `work-logs/`
 
 ---

@@ -66,8 +66,7 @@ def log(msg: str, level: str = "INFO"):
 # ---- Configuration ----
 BASE_DIR = Path(__file__).resolve().parent
 WATCH_PATHS = [
-    BASE_DIR / ".claude" / "handoff",
-    BASE_DIR / ".claude" / "workspace",
+    BASE_DIR / ".agent-workspace",
 ]
 
 # ---- Notification routing + window targeting ----
@@ -518,11 +517,11 @@ def force_focus_window(hwnd: int) -> bool:
 
 def _status_path_for(target: str) -> Path | None:
     if target == "backend":
-        return BASE_DIR / ".claude" / "workspace" / "backend" / "current.md"
+        return BASE_DIR / ".agent-workspace" / "backend" / "current.md"
     if target == "uiux":
-        return BASE_DIR / ".claude" / "workspace" / "ui-ux" / "current.md"
+        return BASE_DIR / ".agent-workspace" / "ui-ux" / "current.md"
     if target == "manager":
-        return BASE_DIR / ".claude" / "workspace" / "manager" / "current.md"
+        return BASE_DIR / ".agent-workspace" / "manager" / "current.md"
     return None
 
 
@@ -594,6 +593,10 @@ def route_event(path: Path) -> tuple[str, str] | None:
     path_str = str(path)
     lower = path_str.lower()
 
+    # 檢查是否在 .agent-workspace 目錄下
+    if ".agent-workspace" not in lower:
+        return None
+
     if lower.endswith("output.md") and "handoff" in lower:
         parts = path.parts
         task_id = ""
@@ -607,7 +610,7 @@ def route_event(path: Path) -> tuple[str, str] | None:
         msg = f"[Manager] output updated: {task_id or path.name}"
         return "manager", msg
 
-    if lower.endswith("notifications.md") and "workspace" in lower:
+    if lower.endswith("notifications.md"):
         if "backend" in lower:
             return "backend", "[Backend] new notification"
         if "ui-ux" in lower or "uiux" in lower:

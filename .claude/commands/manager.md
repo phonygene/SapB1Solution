@@ -14,8 +14,8 @@ description: Manager Agent 初始化 (project)
 2. **檢查專案狀態**：讀取 `.claude/shared/project-status.md`
 3. **確認任務狀態**：讀取 `.claude/shared/active-tasks.json` 查看所有任務
 4. **檢查各 Agent 狀態**：
-   - `.claude/workspace/backend/current.md`
-   - `.claude/workspace/ui-ux/current.md`
+   - `.agent-workspace/backend/current.md`
+   - `.agent-workspace/ui-ux/current.md`
 
 ## 職責範圍
 
@@ -48,7 +48,7 @@ description: Manager Agent 初始化 (project)
 **無論回覆內容為何，結束前必須執行：**
 
 ```
-將 `.claude/workspace/manager/current.md` 的「## 狀態」改為 `idle`
+將 `.agent-workspace/manager/current.md` 的「## 狀態」改為 `idle`
 ```
 
 這是強制規則，確保 littlebird 能正確判斷 Agent 狀態。

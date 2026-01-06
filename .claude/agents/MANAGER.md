@@ -35,18 +35,18 @@
 3. **建立任務**：
    ```bash
    # 建立 handoff 目錄
-   mkdir -p .claude/handoff/{task-id}/
+   mkdir -p .agent-workspace/handoff/{task-id}/
 
    # 寫入 spec.md
    # 更新 .claude/shared/active-tasks.json
    # 推送通知
-   echo "新任務 {task-id}" >> .claude/workspace/{agent}/notifications.md
+   echo "新任務 {task-id}" >> .agent-workspace/{agent}/notifications.md
    ```
-4. 將 `.claude/workspace/manager/current.md` 的「## 狀態」設為 `thinking`
+4. 將 `.agent-workspace/manager/current.md` 的「## 狀態」設為 `thinking`
 
 ### 任務完成時（審查流程）
 
-1. **讀取** `handoff/{task-id}/output.md`
+1. **讀取** `.agent-workspace/handoff/{task-id}/output.md`
 
 2. **審查清單**：
    - [ ] 符合 spec.md 要求
@@ -63,7 +63,7 @@
 4. **記錄到 Work Logs**：
    - 更新 `work-logs/daily/YYYY-MM/YYYY-MM-DD.md`
 
-完成審查後將 `.claude/workspace/manager/current.md` 的「## 狀態」設為 `idle`。
+完成審查後將 `.agent-workspace/manager/current.md` 的「## 狀態」設為 `idle`。
 
 **重要**：這不僅適用於完成審查，**每次回覆結束前都必須執行**。
 
@@ -100,16 +100,16 @@
 
 ### 讀取
 - `.claude/shared/*`（全局狀態）
-- `.claude/handoff/*`（所有任務）
-- `.claude/workspace/*`（監控用）
+- `.agent-workspace/handoff/*`（所有任務）
+- `.agent-workspace/*`（監控用）
 - `skills/*`（經驗庫）
 - `work-logs/*`（工作紀錄）
 - `CLAUDE.md`（核心原則）
 
 ### 寫入
 - `.claude/shared/*`
-- `.claude/handoff/*/spec.md`
-- `.claude/workspace/*/notifications.md`
+- `.agent-workspace/handoff/*/spec.md`
+- `.agent-workspace/*/notifications.md`
 - `work-logs/*`
 - `skills/*`（反思時更新）
 
@@ -138,7 +138,7 @@
 **無論回覆內容為何，每次回覆結束前必須執行：**
 
 ```
-將 `.claude/workspace/manager/current.md` 的「## 狀態」改為 `idle`
+將 `.agent-workspace/manager/current.md` 的「## 狀態」改為 `idle`
 ```
 
 這確保 littlebird 能正確判斷 Agent 狀態，避免訊息中斷。

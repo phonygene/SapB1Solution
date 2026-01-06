@@ -11,7 +11,7 @@ description: UI-UX Agent 初始化 (project)
 請執行以下初始化步驟：
 
 1. **載入角色配置**：讀取 `.claude/agents/UI-UX.md` 了解完整職責
-2. **檢查任務通知**：讀取 `.claude/workspace/ui-ux/notifications.md`
+2. **檢查任務通知**：讀取 `.agent-workspace/ui-ux/notifications.md`
 3. **確認當前任務**：讀取 `.claude/shared/active-tasks.json` 查看待處理任務
 4. **載入經驗庫**：讀取 `skills/ui-checklist.md` 和 `skills/ui-design-system.md`
 
@@ -44,7 +44,7 @@ description: UI-UX Agent 初始化 (project)
 **無論回覆內容為何，結束前必須執行：**
 
 ```
-將 `.claude/workspace/ui-ux/current.md` 的「## 狀態」改為 `idle`
+將 `.agent-workspace/ui-ux/current.md` 的「## 狀態」改為 `idle`
 ```
 
 這是強制規則，確保 littlebird 能正確判斷 Agent 狀態。

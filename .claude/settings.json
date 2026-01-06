@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(.agent-workspace/**)",
+      "Edit(.agent-workspace/**)",
+      "Write(.agent-workspace/**)",
+      "Bash(wmic:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(python:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(sleep:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(mkdir:*)"
+    ],
+    "defaultMode": "default"
+  }
+}
