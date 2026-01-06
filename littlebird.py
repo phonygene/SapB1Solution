@@ -142,6 +142,7 @@ GlobalAlloc = kernel32.GlobalAlloc
 GlobalLock = kernel32.GlobalLock
 GlobalUnlock = kernel32.GlobalUnlock
 GlobalSize = kernel32.GlobalSize
+GetLastError = kernel32.GetLastError
 
 SW_RESTORE = 9
 CF_UNICODETEXT = 13
@@ -405,25 +406,39 @@ def _set_clipboard_text(text: str) -> bool:
         # 隨機延遲避免多個進程死鎖
         time.sleep(random.uniform(0.01, CLIPBOARD_RETRY_DELAY_MAX))
     else:
-        log(f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts", "ERROR")
+        err = GetLastError()
+        log(f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts (LastError={err})", "ERROR")
         return False
 
     try:
-        EmptyClipboard()
+        if not EmptyClipboard():
+            err = GetLastError()
+            log(f"[ERROR] EmptyClipboard failed (LastError={err})", "ERROR")
+            return False
+
         data = (text + "\0").encode("utf-16-le")
         h_mem = GlobalAlloc(GMEM_MOVEABLE, len(data))
         if not h_mem:
+            err = GetLastError()
+            log(f"[ERROR] GlobalAlloc failed (LastError={err})", "ERROR")
             return False
+
         ptr = GlobalLock(h_mem)
         if not ptr:
+            err = GetLastError()
+            log(f"[ERROR] GlobalLock failed (LastError={err})", "ERROR")
             return False
+
         try:
             ctypes.memmove(ptr, data, len(data))
         finally:
             GlobalUnlock(h_mem)
-        
+
         if not SetClipboardData(CF_UNICODETEXT, h_mem):
+            err = GetLastError()
+            log(f"[ERROR] SetClipboardData failed (LastError={err})", "ERROR")
             return False
+
         return True
     except Exception as e:
         log(f"[ERROR] Clipboard Exception: {e}", "ERROR")
