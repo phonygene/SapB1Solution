@@ -10,13 +10,58 @@ import queue
 import threading
 import time
 import random
+import logging
 from pathlib import Path
+from datetime import datetime
 import argparse
 
 pyautogui = None
 Observer = None
 FileSystemEventHandler = None
 
+
+# ---- Logging Configuration ----
+LOG_FILE = Path(__file__).resolve().parent / "littlebird.log"
+
+def setup_logging():
+    """設置日誌，同時輸出到終端和檔案"""
+    # 清空舊的 handlers
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
+    root_logger.setLevel(logging.DEBUG)
+
+    # 格式
+    formatter = logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # 終端輸出
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    # 檔案輸出
+    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8', mode='a')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+    return root_logger
+
+logger = logging.getLogger(__name__)
+
+def log(msg: str, level: str = "INFO"):
+    """統一的日誌函數"""
+    if level == "ERROR":
+        logger.error(msg)
+    elif level == "WARN":
+        logger.warning(msg)
+    elif level == "DEBUG":
+        logger.debug(msg)
+    else:
+        logger.info(msg)
 
 # ---- Configuration ----
 BASE_DIR = Path(__file__).resolve().parent
@@ -141,7 +186,7 @@ def _get_current_keyboard_layout(hwnd: int = None) -> int:
         # 第二個參數是 output parameter 用來接收 process ID（我們不需要）
         target_thread = GetWindowThreadProcessId(hwnd, None)
         if not target_thread:
-            print(f"[WARN] Failed to get thread ID for hwnd={hwnd}")
+            log(f"[WARN] Failed to get thread ID for hwnd={hwnd}", "WARN")
             return 0
 
         # GetKeyboardLayout 傳入 thread ID，返回該執行緒的鍵盤佈局
@@ -152,7 +197,7 @@ def _get_current_keyboard_layout(hwnd: int = None) -> int:
             lang_id = hkl & 0xFFFF
             return lang_id
     except Exception as e:
-        print(f"[WARN] Failed to get keyboard layout: {e}")
+        log(f"[WARN] Failed to get keyboard layout: {e}", "WARN")
     return 0
 
 
@@ -162,7 +207,7 @@ def _is_english_input(hwnd: int = None) -> bool:
     # 0x0409 = 英文 (美國), 0x0809 = 英文 (英國), etc.
     # 檢查主要語言是否為英文 (語言識別碼的低 10 位 = 0x09 表示英文)
     is_english = (lang_id & 0x00FF) == 0x09
-    print(f"[IME] Layout LANGID: 0x{lang_id:04X}, is_english={is_english}")
+    log(f"[IME] Layout LANGID: 0x{lang_id:04X}, is_english={is_english}")
     return is_english
 
 
@@ -176,12 +221,12 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
         # 先檢查當前是否已經是英文（使用目標視窗的輸入法狀態）
         if _is_english_input(hwnd):
             if attempt > 0:
-                print(f"[IME] Verified: English input active (attempt {attempt + 1})")
+                log(f"[IME] Verified: English input active (attempt {attempt + 1})")
             else:
-                print("[IME] Already in English input mode")
+                log("[IME] Already in English input mode")
             return True
 
-        print(f"[IME] Switching to English input (attempt {attempt + 1}/{IME_SWITCH_RETRY_COUNT})...")
+        log(f"[IME] Switching to English input (attempt {attempt + 1}/{IME_SWITCH_RETRY_COUNT})...")
 
         try:
             # 方法 1：載入並啟用英文輸入法（系統全域）
@@ -192,7 +237,7 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
 
                 # 驗證切換結果
                 if _is_english_input(hwnd):
-                    print(f"[IME] Successfully switched to English (method 1)")
+                    log(f"[IME] Successfully switched to English (method 1)")
                     return True
 
             # 方法 2：發送訊息給目標視窗，請求切換輸入法
@@ -204,7 +249,7 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
 
                     # 驗證切換結果
                     if _is_english_input(hwnd):
-                        print(f"[IME] Successfully switched to English (method 2)")
+                        log(f"[IME] Successfully switched to English (method 2)")
                         return True
 
             # 方法 3：嘗試用 PostMessageW 非同步方式
@@ -216,16 +261,16 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
                     time.sleep(IME_SWITCH_RETRY_DELAY * 2)  # 給多一點時間
 
                     if _is_english_input(hwnd):
-                        print(f"[IME] Successfully switched to English (method 3)")
+                        log(f"[IME] Successfully switched to English (method 3)")
                         return True
 
         except Exception as e:
-            print(f"[WARN] IME switch attempt {attempt + 1} failed: {e}")
+            log(f"[WARN] IME switch attempt {attempt + 1} failed: {e}", "WARN")
 
         time.sleep(IME_SWITCH_RETRY_DELAY)
 
     # 所有嘗試都失敗
-    print(f"[ERROR] Failed to switch to English input after {IME_SWITCH_RETRY_COUNT} attempts")
+    log(f"[ERROR] Failed to switch to English input after {IME_SWITCH_RETRY_COUNT} attempts", "ERROR")
     return False
 
 
@@ -296,12 +341,12 @@ def _click_focus(hwnd: int, click_cfg: dict) -> bool:
     x = click_cfg.get("x")
     y = click_cfg.get("y")
     if monitor_index is None or x is None or y is None:
-        print("[WARN] Click config missing monitor/x/y.")
+        log("[WARN] Click config missing monitor/x/y.", "WARN")
         return False
 
     monitors = _list_monitors()
     if monitor_index < 1 or monitor_index > len(monitors):
-        print(f"[WARN] Click monitor index out of range: {monitor_index}")
+        log(f"[WARN] Click monitor index out of range: {monitor_index}", "WARN")
         return False
 
     mon = monitors[monitor_index - 1]
@@ -350,7 +395,7 @@ def _set_clipboard_text(text: str) -> bool:
         # 隨機延遲避免多個進程死鎖
         time.sleep(random.uniform(0.01, CLIPBOARD_RETRY_DELAY_MAX))
     else:
-        print(f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts")
+        log(f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts", "ERROR")
         return False
 
     try:
@@ -371,7 +416,7 @@ def _set_clipboard_text(text: str) -> bool:
             return False
         return True
     except Exception as e:
-        print(f"[ERROR] Clipboard Exception: {e}")
+        log(f"[ERROR] Clipboard Exception: {e}", "ERROR")
         return False
     finally:
         CloseClipboard()
@@ -520,7 +565,7 @@ def _write_status(path: Path, status: str) -> None:
             lines.extend(["", "## 狀態", status])
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     except Exception as e:
-        print(f"[WARN] Failed to write status: {e}")
+        log(f"[WARN] Failed to write status: {e}", "WARN")
 
 
 def _wait_for_idle(path: Path) -> bool:
@@ -575,17 +620,17 @@ def _wait_for_agent_completion(agent: str) -> bool:
         status = _read_status(status_path)
         if status == IDLE_STATUS or status == "":
             return True
-        print(f"[WAIT] {agent} still {status}, checking again in {COMPLETION_POLL_INTERVAL}s...")
+        log(f"[WAIT] {agent} still {status}, checking again in {COMPLETION_POLL_INTERVAL}s...")
         time.sleep(COMPLETION_POLL_INTERVAL)
 
-    print(f"[WARN] Timeout waiting for {agent} to complete")
+    log(f"[WARN] Timeout waiting for {agent} to complete", "WARN")
     return False
 
 
 def _notify_manager_completion(agent: str):
     """通知 Manager 某個 Agent 完成了任務"""
     message = f"[{agent.upper()}] 任務完成，請驗收"
-    print(f"[NOTIFY] Sending completion notice to manager: {message}")
+    log(f"[NOTIFY] Sending completion notice to manager: {message}")
 
     # 直接調用處理函數通知 Manager
     with gui_action_lock:
@@ -627,7 +672,7 @@ def worker():
         last_sent[key] = now
 
         if DRY_RUN:
-            print(f"[DRY_RUN] {target}: {message}")
+            log(f"[DRY_RUN] {target}: {message}")
             continue
 
         # 【關鍵修正】開始 GUI 操作前，取得全域鎖。
@@ -645,12 +690,12 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
     hwnd = find_window(config)
 
     if not hwnd:
-        print(f"[WARN] Window not found for {target}: {config}")
+        log(f"[WARN] Window not found for {target}: {config}", "WARN")
         return
 
     status_path = _status_path_for(target)
     if status_path and not _wait_for_idle(status_path):
-        print(f"[WARN] Target {target} not idle; skipping message.")
+        log(f"[WARN] Target {target} not idle; skipping message.", "WARN")
         return
 
     prev_hwnd = GetForegroundWindow() if RESTORE_FOCUS else None
@@ -661,7 +706,7 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         if click_cfg and _click_focus(hwnd, click_cfg):
             pass
         else:
-            print(f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.")
+            log(f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.", "WARN")
             return
 
     # 焦點切換後給一點點緩衝，等待 Windows 動畫或 Input Queue 就緒
@@ -675,7 +720,7 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
     # 切換到英文輸入法，避免中文輸入法干擾
     # 如果切換失敗，中止操作以避免中文輸入造成卡死
     if not _switch_to_english_input(hwnd):
-        print(f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.")
+        log(f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.", "ERROR")
         return
     time.sleep(0.1)
 
@@ -699,15 +744,15 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
             _set_clipboard_text(original_clip)
     else:
         # 萬不得已才用 typewrite，且加上 interval
-        print("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.")
+        log("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.", "WARN")
         # 切換到英文輸入法通常很難控制，這裡只能祈禱
         pyautogui.typewrite(message, interval=0.01)
 
     # 按 Enter 前再次確認焦點在目標視窗
     if GetForegroundWindow() != hwnd:
-        print(f"[WARN] Focus lost before Enter, re-focusing {target}...")
+        log(f"[WARN] Focus lost before Enter, re-focusing {target}...", "WARN")
         if not force_focus_window(hwnd):
-            print(f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!")
+            log(f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!", "ERROR")
         time.sleep(0.1)
 
     # 發送訊息並驗證
@@ -718,18 +763,18 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         # 嚴格確認焦點在目標視窗
         current_fg = GetForegroundWindow()
         if current_fg != hwnd:
-            print(f"[RETRY {attempt+1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}...")
+            log(f"[RETRY {attempt+1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}...")
             force_focus_window(hwnd)
             time.sleep(0.3)
 
             # 再次確認
             current_fg = GetForegroundWindow()
             if current_fg != hwnd:
-                print(f"[ERROR] Still not focused after retry, current={current_fg}")
+                log(f"[ERROR] Still not focused after retry, current={current_fg}", "ERROR")
                 continue  # 跳過這次嘗試，進入下一次重試
 
         # 焦點確認正確，確保修飾鍵已釋放，然後按 Enter
-        print(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
+        log(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
 
         # 關鍵：確保 Ctrl/Alt/Shift 都已釋放，避免變成 Ctrl+Enter 等組合鍵
         pyautogui.keyUp('ctrl')
@@ -747,21 +792,21 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
             time.sleep(0.1)
             actual_status = _read_status(status_path)
             if actual_status == THINKING_STATUS:
-                print(f"[OK] Message sent to {target} (verified: status={actual_status})")
+                log(f"[OK] Message sent to {target} (verified: status={actual_status})")
                 send_success = True
                 break
             else:
-                print(f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'")
+                log(f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'", "WARN")
         else:
             # Manager 不需要驗證
             if status_path and target == "manager":
                 _write_status(status_path, IDLE_STATUS)
-            print(f"[OK] Message sent to {target}")
+            log(f"[OK] Message sent to {target}")
             send_success = True
             break
 
     if not send_success:
-        print(f"[ERROR] Failed to send message to {target} after {max_retries} attempts")
+        log(f"[ERROR] Failed to send message to {target} after {max_retries} attempts", "ERROR")
         return
 
     # 復原焦點
@@ -774,14 +819,14 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
 
     # 對非 Manager 的 Agent，等待完成後通知 Manager
     if wait_for_completion and target != "manager":
-        print(f"[MONITOR] Starting completion monitor for {target}...")
+        log(f"[MONITOR] Starting completion monitor for {target}...")
 
         def monitor_and_notify():
             if _wait_for_agent_completion(target):
-                print(f"[COMPLETE] {target} finished, notifying manager...")
+                log(f"[COMPLETE] {target} finished, notifying manager...")
                 _notify_manager_completion(target)
             else:
-                print(f"[WARN] {target} did not complete in time")
+                log(f"[WARN] {target} did not complete in time", "WARN")
 
         monitor_thread = threading.Thread(target=monitor_and_notify, daemon=True)
         monitor_thread.start()
@@ -808,18 +853,24 @@ def load_deps():
 
 
 def list_windows():
-    print("MON | HWND         | PID   | TITLE")
-    print("-" * 70)
+    log("MON | HWND         | PID   | TITLE")
+    log("-" * 70)
     for hwnd, title, cls, win_pid in _iter_windows():
         title_clean = title.replace("\t", " ").replace("\n", " ").strip()
         if "CASCADIA" in cls or "Terminal" in title or "Code" in title:
             mon_idx, _ = _monitor_for_window(hwnd)
             mon_str = f"{mon_idx}" if mon_idx is not None else "-"
-            print(f"{mon_str:<3} | {hwnd:<12} | {win_pid:<5} | {title_clean[:40]}")
+            log(f"{mon_str:<3} | {hwnd:<12} | {win_pid:<5} | {title_clean[:40]}")
 
 
 def main():
     global DRY_RUN, DEBOUNCE_SECONDS
+
+    # 初始化日誌
+    setup_logging()
+    log(f"=== Littlebird started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
+    log(f"Log file: {LOG_FILE}")
+
     parser = argparse.ArgumentParser(description="Littlebird file watcher")
     parser.add_argument("--list-windows", action="store_true", help="List visible windows")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without typing")
@@ -852,7 +903,7 @@ def main():
 
     for path in WATCH_PATHS:
         if not path.exists():
-            print(f"[WARN] watch path missing: {path}")
+            log(f"[WARN] watch path missing: {path}", "WARN")
 
     handler = WatchHandler()
     observer = Observer()
@@ -865,8 +916,8 @@ def main():
     thread.start()
 
     observer.start()
-    print(f"Littlebird running. Watching {len(WATCH_PATHS)} paths.")
-    print("Press Ctrl+C to stop.")
+    log(f"Littlebird running. Watching {len(WATCH_PATHS)} paths.")
+    log("Press Ctrl+C to stop.")
 
     try:
         while True:
