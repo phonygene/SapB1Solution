@@ -131,18 +131,48 @@ GetWindowRect = user32.GetWindowRect
 MonitorFromWindow = user32.MonitorFromWindow
 GetMonitorInfoW = user32.GetMonitorInfoW
 EnumDisplayMonitors = user32.EnumDisplayMonitors
+# Clipboard APIs - 必須設定正確的 argtypes/restype (64-bit 安全)
 OpenClipboard = user32.OpenClipboard
-CloseClipboard = user32.CloseClipboard
-EmptyClipboard = user32.EmptyClipboard
-SetClipboardData = user32.SetClipboardData
-GetClipboardData = user32.GetClipboardData
-IsClipboardFormatAvailable = user32.IsClipboardFormatAvailable
+OpenClipboard.argtypes = [wintypes.HWND]
+OpenClipboard.restype = wintypes.BOOL
 
+CloseClipboard = user32.CloseClipboard
+CloseClipboard.restype = wintypes.BOOL
+
+EmptyClipboard = user32.EmptyClipboard
+EmptyClipboard.restype = wintypes.BOOL
+
+SetClipboardData = user32.SetClipboardData
+SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+SetClipboardData.restype = wintypes.HANDLE
+
+GetClipboardData = user32.GetClipboardData
+GetClipboardData.argtypes = [wintypes.UINT]
+GetClipboardData.restype = wintypes.HANDLE
+
+IsClipboardFormatAvailable = user32.IsClipboardFormatAvailable
+IsClipboardFormatAvailable.argtypes = [wintypes.UINT]
+IsClipboardFormatAvailable.restype = wintypes.BOOL
+
+# Global Memory APIs - 關鍵：HGLOBAL 是 64-bit handle
 GlobalAlloc = kernel32.GlobalAlloc
+GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
+GlobalAlloc.restype = wintypes.HGLOBAL
+
 GlobalLock = kernel32.GlobalLock
+GlobalLock.argtypes = [wintypes.HGLOBAL]
+GlobalLock.restype = wintypes.LPVOID
+
 GlobalUnlock = kernel32.GlobalUnlock
+GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+GlobalUnlock.restype = wintypes.BOOL
+
 GlobalSize = kernel32.GlobalSize
+GlobalSize.argtypes = [wintypes.HGLOBAL]
+GlobalSize.restype = ctypes.c_size_t
+
 GetLastError = kernel32.GetLastError
+GetLastError.restype = wintypes.DWORD
 
 SW_RESTORE = 9
 CF_UNICODETEXT = 13
