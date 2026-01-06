@@ -334,6 +334,16 @@ def _monitor_for_window(hwnd: int) -> tuple[int | None, dict | None]:
     return None, None
 
 
+def _release_modifiers():
+    """釋放所有修飾鍵，避免組合鍵殘留導致 Enter 變成 Shift+Enter 等問題"""
+    if not pyautogui:
+        return
+    pyautogui.keyUp('ctrl')
+    pyautogui.keyUp('alt')
+    pyautogui.keyUp('shift')
+    time.sleep(0.05)
+
+
 def _click_focus(hwnd: int, click_cfg: dict) -> bool:
     if not pyautogui:
         return False
@@ -353,6 +363,7 @@ def _click_focus(hwnd: int, click_cfg: dict) -> bool:
     abs_x = mon["left"] + int(x)
     abs_y = mon["top"] + int(y)
     pyautogui.click(abs_x, abs_y)
+    _release_modifiers()  # 防呆：點擊後釋放修飾鍵
     time.sleep(0.1)
     return GetForegroundWindow() == hwnd
 
@@ -715,6 +726,7 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
     hotkey = config.get("hotkey")
     if hotkey:
         pyautogui.hotkey(*hotkey)
+        _release_modifiers()  # 防呆：hotkey 後釋放修飾鍵
         time.sleep(0.1)
 
     # 切換到英文輸入法，避免中文輸入法干擾
@@ -729,12 +741,9 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
 
     # 寫入剪貼簿
     if _set_clipboard_text(message):
-        # 確保 Ctrl 鍵已釋放 (有時 hotkey 會殘留)
-        pyautogui.keyUp('ctrl')
-        pyautogui.keyUp('alt')
-
         # 貼上
         pyautogui.hotkey("ctrl", "v")
+        _release_modifiers()  # 防呆：貼上後釋放修飾鍵
         time.sleep(0.2)  # 增加延遲，等待貼上完成
 
         # 恢復剪貼簿
@@ -747,6 +756,7 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         log("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.", "WARN")
         # 切換到英文輸入法通常很難控制，這裡只能祈禱
         pyautogui.typewrite(message, interval=0.01)
+        _release_modifiers()  # 防呆：typewrite 後釋放修飾鍵
 
     # 按 Enter 前再次確認焦點在目標視窗
     if GetForegroundWindow() != hwnd:
@@ -776,11 +786,7 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         # 焦點確認正確，確保修飾鍵已釋放，然後按 Enter
         log(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
 
-        # 關鍵：確保 Ctrl/Alt/Shift 都已釋放，避免變成 Ctrl+Enter 等組合鍵
-        pyautogui.keyUp('ctrl')
-        pyautogui.keyUp('alt')
-        pyautogui.keyUp('shift')
-
+        _release_modifiers()  # 防呆：Enter 前釋放修飾鍵
         pyautogui.press("enter")
 
         # 對非 Manager：發送後設定 thinking，然後驗證
