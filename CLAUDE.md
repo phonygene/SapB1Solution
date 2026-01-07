@@ -195,6 +195,65 @@ argument-hint: [arg1] [arg2]
 
 ---
 
+## 自動批准操作清單
+
+以下操作已設定為自動批准，Agent 執行時不需要用戶確認：
+
+### 第一類：純讀取操作（零風險）
+
+| 操作 | 說明 |
+|------|------|
+| `Read` | 讀取任何檔案 |
+| `Glob` | 搜尋檔案名稱模式 |
+| `Grep` | 搜尋檔案內容 |
+| `WebSearch` | 網路搜尋 |
+| `WebFetch` | 獲取網頁內容 |
+
+### 第二類：Git 查詢操作（零風險）
+
+| 操作 | 說明 |
+|------|------|
+| `git status` | 查看工作區狀態 |
+| `git log` | 查看提交歷史 |
+| `git diff` | 查看差異 |
+| `git branch` | 查看分支列表 |
+| `git show` | 查看特定提交 |
+| `git remote` | 查看遠端設定 |
+
+### 第三類：系統資訊查詢（零風險）
+
+| 操作 | 說明 |
+|------|------|
+| `dir` | 列出目錄內容 |
+| `type` | 顯示檔案內容 |
+| `where` | 查找命令位置 |
+| `node` | Node.js 相關查詢 |
+| `dotnet` | .NET 相關查詢 |
+| `npm list/show` | 套件資訊查詢 |
+
+### 第四類：專案工作區寫入（低風險）
+
+| 路徑 | 說明 |
+|------|------|
+| `.agent-workspace/**` | Agent 協作區 |
+| `work-logs/**` | 工作日誌 |
+| `skills/**` | 經驗累積 |
+| `.claude/shared/**` | 共享狀態 |
+
+### 第五類：MCP 資料庫操作
+
+| 操作 | 說明 |
+|------|------|
+| `sql_query` | SQL 查詢（SELECT） |
+| `get_table_info` | 取得資料表結構 |
+| `list_tables` | 列出資料表 |
+| `get_db_status` | 取得資料庫狀態 |
+| `list_backups` | 列出備份檔案 |
+
+> 設定檔案位置：`.claude/settings.json`
+
+---
+
 ## 封存政策
 
 ### specArchive/ 目錄

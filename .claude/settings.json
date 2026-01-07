@@ -1,9 +1,37 @@
 {
   "permissions": {
     "allow": [
-      "Read(.agent-workspace/**)",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(git remote:*)",
+
+      "Bash(dir:*)",
+      "Bash(type:*)",
+      "Bash(where:*)",
+      "Bash(node:*)",
+      "Bash(dotnet:*)",
+      "Bash(npm list:*)",
+      "Bash(npm show:*)",
+      "Bash(npm --version:*)",
+
       "Edit(.agent-workspace/**)",
       "Write(.agent-workspace/**)",
+      "Edit(work-logs/**)",
+      "Write(work-logs/**)",
+      "Edit(skills/**)",
+      "Write(skills/**)",
+      "Edit(.claude/shared/**)",
+      "Write(.claude/shared/**)",
+
       "Bash(wmic:*)",
       "Bash(taskkill:*)",
       "Bash(cmd.exe:*)",
@@ -16,6 +44,7 @@
       "Bash(rm:*)",
       "Bash(cp:*)",
       "Bash(mkdir:*)",
+
       "mcp__sapb1-sql__sql_query",
       "mcp__sapb1-sql__get_table_info",
       "mcp__sapb1-sql__list_tables",
