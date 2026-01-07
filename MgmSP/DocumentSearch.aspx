@@ -84,8 +84,9 @@
                     <div class="filter-group">
                         <span class="filter-label">單據類型:</span>
                         <div class="filter-control">
-                            <asp:DropDownList ID="ddlDocType" runat="server" Width="120px">
+                            <asp:DropDownList ID="ddlDocType" runat="server" Width="120px" AutoPostBack="true" OnSelectedIndexChanged="ddlDocType_SelectedIndexChanged">
                                 <asp:ListItem Value="ExpenseClaim" Text="費用申請單"></asp:ListItem>
+                                <asp:ListItem Value="PurchaseRequest" Text="請購單"></asp:ListItem>
                             </asp:DropDownList>
                         </div>
                     </div>

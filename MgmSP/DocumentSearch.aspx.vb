@@ -127,22 +127,24 @@ Partial Public Class DocumentSearch
     Private Sub ExecuteSearch()
         Try
             lblMessage.Text = ""
-            
-            Dim whereClause As String = BuildWhereClause()
+
+            Dim docType As String = ddlDocType.SelectedValue
+            Dim tableName As String = GetTableName(docType)
+            Dim whereClause As String = BuildWhereClause(docType)
             Dim orderClause As String = BuildOrderClause()
-            
+
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                
+
                 ' 1. 先計算符合條件的總筆數
-                Dim countSql As String = "SELECT COUNT(*) FROM jOPCH WHERE 1=1 " & whereClause
+                Dim countSql As String = String.Format("SELECT COUNT(*) FROM {0} WHERE 1=1 {1}", tableName, whereClause)
                 Dim totalCount As Integer = 0
-                
+
                 Using cmd As New SqlCommand(countSql, conn)
-                    AddParameters(cmd)
+                    AddParameters(cmd, docType)
                     totalCount = Convert.ToInt32(cmd.ExecuteScalar())
                 End Using
-                
+
                 ' 2. 檢查是否超過 300 筆
                 Dim showWarning As Boolean = False
                 If totalCount > MAX_RECORDS Then
@@ -150,25 +152,35 @@ Partial Public Class DocumentSearch
                     lblMessage.Text = String.Format("⚠️ 查詢結果共 {0} 筆，超過 {1} 筆限制，僅顯示前 {1} 筆。請調整篩選條件。", totalCount, MAX_RECORDS)
                     lblMessage.ForeColor = System.Drawing.Color.DarkOrange
                 End If
-                
-                ' 3. 執行查詢 (TOP 300)
-                Dim selectSql As String = String.Format(
-                    "SELECT TOP {0} jID, CardCode, CardName, InvNum, U_PID, ApprovalStatus, DocDate, DocDueDate, " &
-                    "Comments, CreateBy, CreateDate, " &
-                    "(CASE WHEN ApprovalStatus = 'A' THEN 'Y' ELSE 'N' END) AS IsApproved " &
-                    "FROM jOPCH WHERE 1=1 {1} {2}",
-                    MAX_RECORDS, whereClause, orderClause)
-                
+
+                ' 3. 執行查詢 (TOP 300) - 根據單據類型選擇欄位
+                Dim selectSql As String
+                If docType = "PurchaseRequest" Then
+                    selectSql = String.Format(
+                        "SELECT TOP {0} jID, CardCode, CardName, NULL AS InvNum, U_PID, ApprovalStatus, DocDate, ReqDate AS DocDueDate, " &
+                        "Comments, CreateBy, CreateDate, " &
+                        "(CASE WHEN ApprovalStatus = 'Approved' THEN 'Y' ELSE 'N' END) AS IsApproved " &
+                        "FROM {1} WHERE 1=1 {2} {3}",
+                        MAX_RECORDS, tableName, whereClause, orderClause)
+                Else
+                    selectSql = String.Format(
+                        "SELECT TOP {0} jID, CardCode, CardName, InvNum, U_PID, ApprovalStatus, DocDate, DocDueDate, " &
+                        "Comments, CreateBy, CreateDate, " &
+                        "(CASE WHEN ApprovalStatus = 'A' THEN 'Y' ELSE 'N' END) AS IsApproved " &
+                        "FROM {1} WHERE 1=1 {2} {3}",
+                        MAX_RECORDS, tableName, whereClause, orderClause)
+                End If
+
                 Using cmd As New SqlCommand(selectSql, conn)
-                    AddParameters(cmd)
-                    
+                    AddParameters(cmd, docType)
+
                     Dim da As New SqlDataAdapter(cmd)
                     Dim dt As New DataTable()
                     da.Fill(dt)
-                    
+
                     gvResults.DataSource = dt
                     gvResults.DataBind()
-                    
+
                     If Not showWarning Then
                         lblResultCount.Text = String.Format("共 {0} 筆資料", totalCount)
                     Else
@@ -176,11 +188,28 @@ Partial Public Class DocumentSearch
                     End If
                 End Using
             End Using
-            
+
         Catch ex As Exception
             lblMessage.Text = "查詢失敗: " & ex.Message
             lblMessage.ForeColor = System.Drawing.Color.Red
         End Try
+    End Sub
+
+    Private Function GetTableName(docType As String) As String
+        Select Case docType
+            Case "PurchaseRequest"
+                Return "jOPRQ"
+            Case Else
+                Return "jOPCH"
+        End Select
+    End Function
+
+    Protected Sub ddlDocType_SelectedIndexChanged(sender As Object, e As EventArgs)
+        ' 清除查詢結果
+        gvResults.DataSource = Nothing
+        gvResults.DataBind()
+        lblResultCount.Text = ""
+        lblMessage.Text = ""
     End Sub
 
     Private Function BuildWhereClause() As String

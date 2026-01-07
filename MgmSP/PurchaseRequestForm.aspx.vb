@@ -1,0 +1,1239 @@
+Imports System.Data.SqlClient
+Imports System.IO
+Imports System.Web.Configuration
+
+''' <summary>
+''' 請購單 (Purchase Request Form)
+''' 建立日期: 2026-01-07
+''' 基於費用申請單 (ExpenseClaimForm) 修改
+''' </summary>
+Partial Public Class PurchaseRequestForm
+    Inherits System.Web.UI.Page
+
+#Region "類別定義"
+    <Serializable()>
+    Public Class PRLine
+        Public Property LineNum As Integer
+        Public Property ItemCode As String
+        Public Property Description As String
+        Public Property Quantity As Decimal
+        Public Property Price As Decimal
+        Public Property LineTotal As Decimal ' 未稅金額
+        Public Property VatGroup As String
+        Public Property VatRate As Decimal
+        Public Property VatSum As Decimal ' 稅額
+        Public Property GTotal As Decimal ' 含稅金額
+        Public Property WhsCode As String
+        Public Property ShipDate As DateTime?
+        Public Property CostingCode As String
+        Public Property CostingCode2 As String
+        ' 顯示用
+        Public Property Currency As String
+        Public Property Rate As Decimal
+    End Class
+
+    <Serializable()>
+    Public Class AttachmentItem
+        Public Property ID As Integer
+        Public Property FileName As String
+        Public Property FilePath As String
+        Public Property UploadDate As DateTime
+        Public Property UploadTime As String
+        Public Property Uploader As String
+    End Class
+#End Region
+
+#Region "變數宣告"
+    Private ReadOnly connStr As String = WebConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
+    Private ReadOnly sapConnStr As String = WebConfigurationManager.ConnectionStrings("SapSQLConnection").ConnectionString
+
+    Private currentUserId As String = ""
+    Private currentJID As Integer = 0
+    Private canApprove As Boolean = False
+#End Region
+
+#Region "屬性 (ViewState)"
+    Private Property CurrentLines As List(Of PRLine)
+        Get
+            If ViewState("CurrentLines") Is Nothing Then
+                ViewState("CurrentLines") = New List(Of PRLine)()
+            End If
+            Return CType(ViewState("CurrentLines"), List(Of PRLine))
+        End Get
+        Set(value As List(Of PRLine))
+            ViewState("CurrentLines") = value
+        End Set
+    End Property
+
+    Private Property CurrentAttachments As List(Of AttachmentItem)
+        Get
+            If ViewState("CurrentAttachments") Is Nothing Then
+                ViewState("CurrentAttachments") = New List(Of AttachmentItem)()
+            End If
+            Return CType(ViewState("CurrentAttachments"), List(Of AttachmentItem))
+        End Get
+        Set(value As List(Of AttachmentItem))
+            ViewState("CurrentAttachments") = value
+        End Set
+    End Property
+#End Region
+
+#Region "頁面載入"
+    Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        Try
+            If Session("s_id") Is Nothing Then
+                Response.Redirect("~/usermgm/login.aspx")
+                Return
+            End If
+            currentUserId = Session("s_id").ToString()
+            lblCurrentUser.Text = currentUserId
+
+            CheckApprovalPermission()
+
+            If Request.QueryString("jID") IsNot Nothing Then
+                Integer.TryParse(Request.QueryString("jID"), currentJID)
+            End If
+
+            If Not IsPostBack Then
+                InitializeDropDowns()
+
+                If currentJID > 0 Then
+                    LoadDocument(currentJID)
+                Else
+                    SetDefaultValues()
+                    InitializeGridViews()
+                End If
+            End If
+
+        Catch ex As Exception
+            ShowError("頁面載入錯誤: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub lnkLogout_Click(sender As Object, e As EventArgs)
+        Response.Redirect("~/usermgm/logout.aspx")
+    End Sub
+
+    Private Sub CheckApprovalPermission()
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Dim sql As String = "SELECT Approver FROM [User] WHERE id = @UserId"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    If dr.Read() Then
+                        canApprove = (Convert.ToInt32(dr("Approver")) = 1)
+                    End If
+                End Using
+            End Using
+        End Using
+    End Sub
+
+    Private Sub SetDefaultValues()
+        lblDocNum.Text = "[新單據]"
+        txtReqName.Text = currentUserId
+        txtOwner.Text = currentUserId
+        lblDocStatus.Text = "新增中"
+        lblDocStatus.CssClass = "badge status-W"
+        txtStatusDisplay.Text = "新增中"
+
+        Dim today As String = DateTime.Now.ToString("yyyy-MM-dd")
+        txtDocDate.Text = today
+
+        If ddlDocCurrency.Items.FindByValue("NTD") IsNot Nothing Then
+            ddlDocCurrency.SelectedValue = "NTD"
+        End If
+        txtDocRate.Text = "1.0"
+
+        txtApprovalComments.ReadOnly = True
+        btnApprove.Visible = True
+        btnApprove.Enabled = False
+        btnReject.Visible = True
+        btnReject.Enabled = False
+
+        btnDelete.Visible = False
+    End Sub
+#End Region
+
+#Region "初始化資料"
+    Private Sub InitializeDropDowns()
+        LoadCurrencies()
+        LoadDepartments()
+        LoadWarehouses()
+        LoadPurchasers()
+        LoadCostingCodes()
+        LoadVatGroups()
+    End Sub
+
+    Private Sub InitializeGridViews()
+        If CurrentLines.Count = 0 Then
+            AddNewEmptyLine()
+        End If
+        BindGrid()
+        BindAttachmentGrid()
+    End Sub
+
+    Private Sub LoadCurrencies()
+        ddlDocCurrency.Items.Clear()
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT CurrCode FROM OCRN"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            ddlDocCurrency.Items.Add(New ListItem(dr("CurrCode").ToString(), dr("CurrCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入幣別失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub LoadDepartments()
+        ddlReqDept.Items.Clear()
+        ddlReqDept.Items.Add(New ListItem("- 請選擇 -", ""))
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT EDeptID, EDeptName FROM jDEPT ORDER BY EDeptID"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            ddlReqDept.Items.Add(New ListItem(dr("EDeptName").ToString(), dr("EDeptID").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            ' 嘗試設定使用者預設部門
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT expDEPT FROM [User] WHERE id = @UserId"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Dim userDept As String = result.ToString()
+                        If ddlReqDept.Items.FindByValue(userDept) IsNot Nothing Then
+                            ddlReqDept.SelectedValue = userDept
+                        End If
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入部門失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub LoadWarehouses()
+        ' 從 SAP OWHS 載入倉庫
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT WhsCode, WhsName FROM OWHS WHERE Inactive = 'N' ORDER BY WhsCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        ViewState("Warehouses") = New List(Of ListItem)()
+                        Dim whsList As List(Of ListItem) = CType(ViewState("Warehouses"), List(Of ListItem))
+                        whsList.Add(New ListItem("", ""))
+                        While dr.Read()
+                            whsList.Add(New ListItem(dr("WhsCode").ToString(), dr("WhsCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入倉庫失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub LoadPurchasers()
+        ddlPurchaser.Items.Clear()
+        ddlPurchaser.Items.Add(New ListItem("-- 請選擇 --", ""))
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT SlpCode, SlpName FROM OSLP WHERE Active = 'Y' ORDER BY SlpName"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            ddlPurchaser.Items.Add(New ListItem(dr("SlpName").ToString(), dr("SlpCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入採購人員失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub LoadCostingCodes()
+        ' 產品別 (Dimension 1)
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 1 AND Active = 'Y' ORDER BY PrcCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        ViewState("CostingCode") = New List(Of ListItem)()
+                        Dim list As List(Of ListItem) = CType(ViewState("CostingCode"), List(Of ListItem))
+                        list.Add(New ListItem("", ""))
+                        While dr.Read()
+                            list.Add(New ListItem(dr("PrcCode").ToString(), dr("PrcCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入產品別失敗: " & ex.Message)
+        End Try
+
+        ' 部門別 (Dimension 2)
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 2 AND Active = 'Y' ORDER BY PrcCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        ViewState("CostingCode2") = New List(Of ListItem)()
+                        Dim list As List(Of ListItem) = CType(ViewState("CostingCode2"), List(Of ListItem))
+                        list.Add(New ListItem("", ""))
+                        While dr.Read()
+                            list.Add(New ListItem(dr("PrcCode").ToString(), dr("PrcCode").ToString()))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入部門別失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub LoadVatGroups()
+        ' 從 SAP OVTG 載入稅碼
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT Code, Name, Rate FROM OVTG WHERE Category = 'I' ORDER BY Code"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        ViewState("VatGroups") = New DataTable()
+                        Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
+                        dt.Load(dr)
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("載入稅碼失敗: " & ex.Message)
+        End Try
+    End Sub
+#End Region
+
+#Region "GridView 綁定"
+    Private Sub BindGrid()
+        gvPRDetail.DataSource = CurrentLines
+        gvPRDetail.DataBind()
+        UpdateTotals()
+    End Sub
+
+    Private Sub BindAttachmentGrid()
+        gvAttachments.DataSource = CurrentAttachments
+        gvAttachments.DataBind()
+    End Sub
+
+    Protected Sub gvPRDetail_RowDataBound(sender As Object, e As GridViewRowEventArgs)
+        If e.Row.RowType = DataControlRowType.DataRow Then
+            Dim line As PRLine = CType(e.Row.DataItem, PRLine)
+
+            ' 綁定品號
+            Dim txtItemCode As TextBox = CType(e.Row.FindControl("txtItemCode"), TextBox)
+            If txtItemCode IsNot Nothing Then
+                txtItemCode.Text = line.ItemCode
+            End If
+
+            ' 綁定說明
+            Dim txtDescription As TextBox = CType(e.Row.FindControl("txtDescription"), TextBox)
+            If txtDescription IsNot Nothing Then
+                txtDescription.Text = line.Description
+            End If
+
+            ' 綁定數量
+            Dim txtQuantity As TextBox = CType(e.Row.FindControl("txtQuantity"), TextBox)
+            If txtQuantity IsNot Nothing Then
+                txtQuantity.Text = If(line.Quantity > 0, line.Quantity.ToString("N2"), "1")
+            End If
+
+            ' 綁定單價
+            Dim txtPrice As TextBox = CType(e.Row.FindControl("txtPrice"), TextBox)
+            If txtPrice IsNot Nothing Then
+                txtPrice.Text = line.Price.ToString("N2")
+            End If
+
+            ' 綁定稅碼
+            Dim ddlVatGroup As DropDownList = CType(e.Row.FindControl("ddlVatGroup"), DropDownList)
+            If ddlVatGroup IsNot Nothing Then
+                ddlVatGroup.Items.Clear()
+                ddlVatGroup.Items.Add(New ListItem("", ""))
+                Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
+                If dt IsNot Nothing Then
+                    For Each dr As DataRow In dt.Rows
+                        ddlVatGroup.Items.Add(New ListItem(dr("Code").ToString(), dr("Code").ToString()))
+                    Next
+                End If
+                If Not String.IsNullOrEmpty(line.VatGroup) AndAlso ddlVatGroup.Items.FindByValue(line.VatGroup) IsNot Nothing Then
+                    ddlVatGroup.SelectedValue = line.VatGroup
+                End If
+            End If
+
+            ' 綁定稅額
+            Dim txtVatSum As TextBox = CType(e.Row.FindControl("txtVatSum"), TextBox)
+            If txtVatSum IsNot Nothing Then
+                txtVatSum.Text = line.VatSum.ToString("N2")
+            End If
+
+            ' 綁定含稅金額
+            Dim txtGTotal As TextBox = CType(e.Row.FindControl("txtGTotal"), TextBox)
+            If txtGTotal IsNot Nothing Then
+                txtGTotal.Text = line.GTotal.ToString("N2")
+            End If
+
+            ' 綁定倉庫
+            Dim ddlWhsCode As DropDownList = CType(e.Row.FindControl("ddlWhsCode"), DropDownList)
+            If ddlWhsCode IsNot Nothing Then
+                ddlWhsCode.Items.Clear()
+                Dim whsList As List(Of ListItem) = CType(ViewState("Warehouses"), List(Of ListItem))
+                If whsList IsNot Nothing Then
+                    For Each item In whsList
+                        ddlWhsCode.Items.Add(New ListItem(item.Text, item.Value))
+                    Next
+                End If
+                If Not String.IsNullOrEmpty(line.WhsCode) AndAlso ddlWhsCode.Items.FindByValue(line.WhsCode) IsNot Nothing Then
+                    ddlWhsCode.SelectedValue = line.WhsCode
+                End If
+            End If
+
+            ' 綁定交期
+            Dim txtShipDate As TextBox = CType(e.Row.FindControl("txtShipDate"), TextBox)
+            If txtShipDate IsNot Nothing AndAlso line.ShipDate.HasValue Then
+                txtShipDate.Text = line.ShipDate.Value.ToString("yyyy-MM-dd")
+            End If
+
+            ' 綁定產品別
+            Dim ddlCostingCode As DropDownList = CType(e.Row.FindControl("ddlCostingCode"), DropDownList)
+            If ddlCostingCode IsNot Nothing Then
+                ddlCostingCode.Items.Clear()
+                Dim costList As List(Of ListItem) = CType(ViewState("CostingCode"), List(Of ListItem))
+                If costList IsNot Nothing Then
+                    For Each item In costList
+                        ddlCostingCode.Items.Add(New ListItem(item.Text, item.Value))
+                    Next
+                End If
+                If Not String.IsNullOrEmpty(line.CostingCode) AndAlso ddlCostingCode.Items.FindByValue(line.CostingCode) IsNot Nothing Then
+                    ddlCostingCode.SelectedValue = line.CostingCode
+                End If
+            End If
+
+            ' 綁定部門別
+            Dim ddlCostingCode2 As DropDownList = CType(e.Row.FindControl("ddlCostingCode2"), DropDownList)
+            If ddlCostingCode2 IsNot Nothing Then
+                ddlCostingCode2.Items.Clear()
+                Dim costList2 As List(Of ListItem) = CType(ViewState("CostingCode2"), List(Of ListItem))
+                If costList2 IsNot Nothing Then
+                    For Each item In costList2
+                        ddlCostingCode2.Items.Add(New ListItem(item.Text, item.Value))
+                    Next
+                End If
+                If Not String.IsNullOrEmpty(line.CostingCode2) AndAlso ddlCostingCode2.Items.FindByValue(line.CostingCode2) IsNot Nothing Then
+                    ddlCostingCode2.SelectedValue = line.CostingCode2
+                End If
+            End If
+        End If
+    End Sub
+#End Region
+
+#Region "明細操作"
+    Private Sub AddNewEmptyLine()
+        Dim newLine As New PRLine() With {
+            .LineNum = CurrentLines.Count + 1,
+            .ItemCode = "",
+            .Description = "",
+            .Quantity = 1,
+            .Price = 0,
+            .LineTotal = 0,
+            .VatGroup = "",
+            .VatRate = 0,
+            .VatSum = 0,
+            .GTotal = 0,
+            .WhsCode = "",
+            .ShipDate = Nothing,
+            .CostingCode = "",
+            .CostingCode2 = ""
+        }
+        CurrentLines.Add(newLine)
+    End Sub
+
+    Protected Sub btnAddLine_Click(sender As Object, e As EventArgs)
+        SyncGridToList()
+        AddNewEmptyLine()
+        BindGrid()
+    End Sub
+
+    Protected Sub btnDeleteLine_Click(sender As Object, e As EventArgs)
+        SyncGridToList()
+        Dim linesToRemove As New List(Of Integer)()
+
+        For i As Integer = 0 To gvPRDetail.Rows.Count - 1
+            Dim chk As CheckBox = CType(gvPRDetail.Rows(i).FindControl("chkSelect"), CheckBox)
+            If chk IsNot Nothing AndAlso chk.Checked Then
+                linesToRemove.Add(i)
+            End If
+        Next
+
+        ' 從後往前刪除，避免索引錯位
+        For i As Integer = linesToRemove.Count - 1 To 0 Step -1
+            CurrentLines.RemoveAt(linesToRemove(i))
+        Next
+
+        ' 重新編號
+        For i As Integer = 0 To CurrentLines.Count - 1
+            CurrentLines(i).LineNum = i + 1
+        Next
+
+        BindGrid()
+    End Sub
+
+    Private Sub SyncGridToList()
+        For i As Integer = 0 To gvPRDetail.Rows.Count - 1
+            If i < CurrentLines.Count Then
+                Dim row As GridViewRow = gvPRDetail.Rows(i)
+                Dim line As PRLine = CurrentLines(i)
+
+                Dim txtItemCode As TextBox = CType(row.FindControl("txtItemCode"), TextBox)
+                If txtItemCode IsNot Nothing Then line.ItemCode = txtItemCode.Text.Trim()
+
+                Dim txtDescription As TextBox = CType(row.FindControl("txtDescription"), TextBox)
+                If txtDescription IsNot Nothing Then line.Description = txtDescription.Text.Trim()
+
+                Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
+                If txtQuantity IsNot Nothing Then
+                    Decimal.TryParse(txtQuantity.Text, line.Quantity)
+                End If
+
+                Dim txtPrice As TextBox = CType(row.FindControl("txtPrice"), TextBox)
+                If txtPrice IsNot Nothing Then
+                    Decimal.TryParse(txtPrice.Text, line.Price)
+                End If
+
+                Dim ddlVatGroup As DropDownList = CType(row.FindControl("ddlVatGroup"), DropDownList)
+                If ddlVatGroup IsNot Nothing Then
+                    line.VatGroup = ddlVatGroup.SelectedValue
+                    ' 取得稅率
+                    Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
+                    If dt IsNot Nothing Then
+                        Dim rows = dt.Select("Code = '" & line.VatGroup & "'")
+                        If rows.Length > 0 Then
+                            line.VatRate = Convert.ToDecimal(rows(0)("Rate"))
+                        Else
+                            line.VatRate = 0
+                        End If
+                    End If
+                End If
+
+                Dim ddlWhsCode As DropDownList = CType(row.FindControl("ddlWhsCode"), DropDownList)
+                If ddlWhsCode IsNot Nothing Then line.WhsCode = ddlWhsCode.SelectedValue
+
+                Dim txtShipDate As TextBox = CType(row.FindControl("txtShipDate"), TextBox)
+                If txtShipDate IsNot Nothing AndAlso Not String.IsNullOrEmpty(txtShipDate.Text) Then
+                    Dim shipDate As DateTime
+                    If DateTime.TryParse(txtShipDate.Text, shipDate) Then
+                        line.ShipDate = shipDate
+                    End If
+                Else
+                    line.ShipDate = Nothing
+                End If
+
+                Dim ddlCostingCode As DropDownList = CType(row.FindControl("ddlCostingCode"), DropDownList)
+                If ddlCostingCode IsNot Nothing Then line.CostingCode = ddlCostingCode.SelectedValue
+
+                Dim ddlCostingCode2 As DropDownList = CType(row.FindControl("ddlCostingCode2"), DropDownList)
+                If ddlCostingCode2 IsNot Nothing Then line.CostingCode2 = ddlCostingCode2.SelectedValue
+
+                ' 計算金額
+                line.LineTotal = line.Quantity * line.Price
+                line.VatSum = Math.Round(line.LineTotal * line.VatRate / 100, 2)
+                line.GTotal = line.LineTotal + line.VatSum
+            End If
+        Next
+    End Sub
+
+    Protected Sub CalculateLineTotal(sender As Object, e As EventArgs)
+        SyncGridToList()
+        BindGrid()
+    End Sub
+
+    Private Sub UpdateTotals()
+        Dim totalWithoutTax As Decimal = 0
+        Dim totalTax As Decimal = 0
+
+        For Each line As PRLine In CurrentLines
+            totalWithoutTax += line.LineTotal
+            totalTax += line.VatSum
+        Next
+
+        lblDocTotal.Text = totalWithoutTax.ToString("N2")
+        lblVatSum.Text = totalTax.ToString("N2")
+        lblDocTotalWithTax.Text = (totalWithoutTax + totalTax).ToString("N2")
+    End Sub
+#End Region
+
+#Region "品號搜尋"
+    Protected Sub gvPRDetail_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SearchItem" Then
+            SyncGridToList()
+            hfItemSearchRowIndex.Value = e.CommandArgument.ToString()
+            txtItemSearchKeyword.Text = ""
+            gvItemSearch.DataSource = Nothing
+            gvItemSearch.DataBind()
+            mpeItem.Show()
+        End If
+    End Sub
+
+    Protected Sub btnDoSearchItem_Click(sender As Object, e As EventArgs)
+        Dim keyword As String = txtItemSearchKeyword.Text.Trim()
+        If String.IsNullOrEmpty(keyword) Then
+            Return
+        End If
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String
+                If rblItemSearchMode.SelectedValue = "Exact" Then
+                    sql = "SELECT TOP 100 ItemCode, ItemName, LastPurPrc FROM OITM WHERE (ItemCode LIKE @Keyword + '%' OR ItemName LIKE @Keyword + '%') AND frozenFor = 'N' ORDER BY ItemCode"
+                Else
+                    sql = "SELECT TOP 100 ItemCode, ItemName, LastPurPrc FROM OITM WHERE (ItemCode LIKE '%' + @Keyword + '%' OR ItemName LIKE '%' + @Keyword + '%') AND frozenFor = 'N' ORDER BY ItemCode"
+                End If
+
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Keyword", keyword)
+                    Using adapter As New SqlDataAdapter(cmd)
+                        Dim dt As New DataTable()
+                        adapter.Fill(dt)
+                        gvItemSearch.DataSource = dt
+                        gvItemSearch.DataBind()
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("品號搜尋失敗: " & ex.Message)
+        End Try
+
+        mpeItem.Show()
+    End Sub
+
+    Protected Sub gvItemSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SelectItem" Then
+            Dim args() As String = e.CommandArgument.ToString().Split("|"c)
+            Dim itemCode As String = args(0)
+            Dim itemName As String = args(1)
+            Dim lastPurPrc As Decimal = 0
+            If args.Length > 2 Then
+                Decimal.TryParse(args(2), lastPurPrc)
+            End If
+
+            Dim rowIndex As Integer = Convert.ToInt32(hfItemSearchRowIndex.Value)
+            If rowIndex >= 0 AndAlso rowIndex < CurrentLines.Count Then
+                CurrentLines(rowIndex).ItemCode = itemCode
+                CurrentLines(rowIndex).Description = itemName
+                CurrentLines(rowIndex).Price = lastPurPrc
+                ' 重新計算金額
+                CurrentLines(rowIndex).LineTotal = CurrentLines(rowIndex).Quantity * CurrentLines(rowIndex).Price
+                CurrentLines(rowIndex).VatSum = Math.Round(CurrentLines(rowIndex).LineTotal * CurrentLines(rowIndex).VatRate / 100, 2)
+                CurrentLines(rowIndex).GTotal = CurrentLines(rowIndex).LineTotal + CurrentLines(rowIndex).VatSum
+            End If
+
+            mpeItem.Hide()
+            BindGrid()
+        End If
+    End Sub
+
+    Protected Sub gvItemSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvItemSearch.PageIndex = e.NewPageIndex
+        btnDoSearchItem_Click(Nothing, Nothing)
+    End Sub
+#End Region
+
+#Region "供應商搜尋"
+    Protected Sub btnSearchCardCode_Click(sender As Object, e As EventArgs)
+        hfSearchSource.Value = "CardCode"
+        txtVendorSearchKeyword.Text = txtCardCode.Text
+        mpeVendor.Show()
+    End Sub
+
+    Protected Sub btnSearchCardName_Click(sender As Object, e As EventArgs)
+        hfSearchSource.Value = "CardName"
+        txtVendorSearchKeyword.Text = txtCardName.Text
+        mpeVendor.Show()
+    End Sub
+
+    Protected Sub btnDoSearchVendor_Click(sender As Object, e As EventArgs)
+        Dim keyword As String = txtVendorSearchKeyword.Text.Trim()
+        If String.IsNullOrEmpty(keyword) Then Return
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String
+                If rblSearchMode.SelectedValue = "Exact" Then
+                    sql = "SELECT TOP 100 CardCode, CardName FROM OCRD WHERE CardType = 'S' AND (CardCode LIKE @Keyword + '%' OR CardName LIKE @Keyword + '%') ORDER BY CardCode"
+                Else
+                    sql = "SELECT TOP 100 CardCode, CardName FROM OCRD WHERE CardType = 'S' AND (CardCode LIKE '%' + @Keyword + '%' OR CardName LIKE '%' + @Keyword + '%') ORDER BY CardCode"
+                End If
+
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Keyword", keyword)
+                    Using adapter As New SqlDataAdapter(cmd)
+                        Dim dt As New DataTable()
+                        adapter.Fill(dt)
+                        gvVendorSearch.DataSource = dt
+                        gvVendorSearch.DataBind()
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("供應商搜尋失敗: " & ex.Message)
+        End Try
+
+        mpeVendor.Show()
+    End Sub
+
+    Protected Sub gvVendorSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SelectVendor" Then
+            Dim args() As String = e.CommandArgument.ToString().Split("|"c)
+            txtCardCode.Text = args(0)
+            txtCardName.Text = args(1)
+            mpeVendor.Hide()
+        End If
+    End Sub
+
+    Protected Sub gvVendorSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvVendorSearch.PageIndex = e.NewPageIndex
+        btnDoSearchVendor_Click(Nothing, Nothing)
+    End Sub
+#End Region
+
+#Region "幣別匯率"
+    Protected Sub ddlDocCurrency_SelectedIndexChanged(sender As Object, e As EventArgs)
+        UpdateExchangeRate()
+    End Sub
+
+    Protected Sub txtDocRate_TextChanged(sender As Object, e As EventArgs)
+        ' 使用者手動輸入匯率
+    End Sub
+
+    Protected Sub btnRefreshRate_Click(sender As Object, e As EventArgs)
+        UpdateExchangeRate()
+    End Sub
+
+    Private Sub UpdateExchangeRate()
+        Dim currency As String = ddlDocCurrency.SelectedValue
+        If String.IsNullOrEmpty(currency) OrElse currency = "NTD" Then
+            txtDocRate.Text = "1.0"
+            Return
+        End If
+
+        Dim docDate As DateTime = DateTime.Now
+        If Not String.IsNullOrEmpty(txtDocDate.Text) Then
+            DateTime.TryParse(txtDocDate.Text, docDate)
+        End If
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT TOP 1 Rate FROM ORTT WHERE Currency = @Currency AND RateDate <= @RateDate ORDER BY RateDate DESC"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Currency", currency)
+                    cmd.Parameters.AddWithValue("@RateDate", docDate)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        txtDocRate.Text = Convert.ToDecimal(result).ToString("N6")
+                    Else
+                        txtDocRate.Text = "1.0"
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("取得匯率失敗: " & ex.Message)
+        End Try
+    End Sub
+#End Region
+
+#Region "附件上傳"
+    Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
+        If Not fileUpload.HasFile Then
+            ShowError("請選擇要上傳的檔案")
+            Return
+        End If
+
+        Try
+            Dim uploadFolder As String = Server.MapPath("~/Uploads/PR/")
+            If Not Directory.Exists(uploadFolder) Then
+                Directory.CreateDirectory(uploadFolder)
+            End If
+
+            For Each uploadedFile As HttpPostedFile In fileUpload.PostedFiles
+                Dim fileName As String = Path.GetFileName(uploadedFile.FileName)
+                Dim uniqueName As String = DateTime.Now.ToString("yyyyMMddHHmmss") & "_" & fileName
+                Dim filePath As String = Path.Combine(uploadFolder, uniqueName)
+                uploadedFile.SaveAs(filePath)
+
+                Dim attachment As New AttachmentItem() With {
+                    .ID = CurrentAttachments.Count + 1,
+                    .FileName = fileName,
+                    .FilePath = filePath,
+                    .UploadDate = DateTime.Now,
+                    .UploadTime = DateTime.Now.ToString("HH:mm:ss"),
+                    .Uploader = currentUserId
+                }
+                CurrentAttachments.Add(attachment)
+            Next
+
+            BindAttachmentGrid()
+            lblMessage.Text = "附件上傳成功"
+            lblMessage.ForeColor = Drawing.Color.Green
+        Catch ex As Exception
+            ShowError("附件上傳失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub gvAttachments_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "DeleteFile" Then
+            Dim index As Integer = Convert.ToInt32(e.CommandArgument)
+            If index >= 0 AndAlso index < CurrentAttachments.Count Then
+                ' 刪除實體檔案
+                If File.Exists(CurrentAttachments(index).FilePath) Then
+                    File.Delete(CurrentAttachments(index).FilePath)
+                End If
+                CurrentAttachments.RemoveAt(index)
+                BindAttachmentGrid()
+            End If
+        End If
+    End Sub
+#End Region
+
+#Region "文件儲存"
+    Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)
+        SyncGridToList()
+
+        Dim errors As New List(Of String)()
+        Dim warnings As New List(Of String)()
+
+        ' 驗證
+        If String.IsNullOrEmpty(txtDocDate.Text) Then
+            errors.Add("請購日期為必填")
+        End If
+
+        If CurrentLines.Count = 0 OrElse CurrentLines.All(Function(l) String.IsNullOrEmpty(l.ItemCode)) Then
+            errors.Add("請至少新增一筆明細")
+        End If
+
+        For i As Integer = 0 To CurrentLines.Count - 1
+            Dim line = CurrentLines(i)
+            If Not String.IsNullOrEmpty(line.ItemCode) Then
+                If line.Quantity <= 0 Then
+                    errors.Add($"第 {i + 1} 行: 數量必須大於 0")
+                End If
+            End If
+        Next
+
+        If errors.Count > 0 Then
+            ShowValidationErrors(errors, warnings)
+            Return
+        End If
+
+        Try
+            SaveDocument()
+            lblMessage.Text = "請購單儲存成功！單號: " & txtJID.Text
+            lblMessage.ForeColor = Drawing.Color.Green
+
+            ' 重新載入
+            Response.Redirect("PurchaseRequestForm.aspx?jID=" & txtJID.Text)
+        Catch ex As Exception
+            ShowError("儲存失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub SaveDocument()
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+            Using trans As SqlTransaction = conn.BeginTransaction()
+                Try
+                    Dim jID As Integer = currentJID
+
+                    If jID = 0 Then
+                        ' 新增
+                        Dim insertSql As String = "INSERT INTO jOPRQ (CardCode, CardName, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
+                                                   "VALUES (@CardCode, @CardName, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); SELECT SCOPE_IDENTITY();"
+
+                        Using cmd As New SqlCommand(insertSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@CardCode", If(String.IsNullOrEmpty(txtCardCode.Text), DBNull.Value, txtCardCode.Text))
+                            cmd.Parameters.AddWithValue("@CardName", If(String.IsNullOrEmpty(txtCardName.Text), DBNull.Value, txtCardName.Text))
+                            cmd.Parameters.AddWithValue("@ReqName", txtReqName.Text)
+                            cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
+                            cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
+                            cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
+                            cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
+                            cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
+                            cmd.Parameters.AddWithValue("@DocTotal", Decimal.Parse(lblDocTotalWithTax.Text))
+                            cmd.Parameters.AddWithValue("@VatSum", Decimal.Parse(lblVatSum.Text))
+                            cmd.Parameters.AddWithValue("@Comments", If(String.IsNullOrEmpty(txtRemarks.Text), DBNull.Value, txtRemarks.Text))
+                            cmd.Parameters.AddWithValue("@U_PID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
+                            cmd.Parameters.AddWithValue("@CreateBy", currentUserId)
+
+                            jID = Convert.ToInt32(cmd.ExecuteScalar())
+                        End Using
+                    Else
+                        ' 更新
+                        Dim updateSql As String = "UPDATE jOPRQ SET CardCode=@CardCode, CardName=@CardName, ReqDept=@ReqDept, DocDate=@DocDate, ReqDate=@ReqDate, " &
+                                                   "DocCurrency=@DocCurrency, DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, Comments=@Comments, U_PID=@U_PID, UpdateDate=GETDATE(), UpdateBy=@UpdateBy WHERE jID=@jID"
+
+                        Using cmd As New SqlCommand(updateSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", jID)
+                            cmd.Parameters.AddWithValue("@CardCode", If(String.IsNullOrEmpty(txtCardCode.Text), DBNull.Value, txtCardCode.Text))
+                            cmd.Parameters.AddWithValue("@CardName", If(String.IsNullOrEmpty(txtCardName.Text), DBNull.Value, txtCardName.Text))
+                            cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
+                            cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
+                            cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
+                            cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
+                            cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
+                            cmd.Parameters.AddWithValue("@DocTotal", Decimal.Parse(lblDocTotalWithTax.Text))
+                            cmd.Parameters.AddWithValue("@VatSum", Decimal.Parse(lblVatSum.Text))
+                            cmd.Parameters.AddWithValue("@Comments", If(String.IsNullOrEmpty(txtRemarks.Text), DBNull.Value, txtRemarks.Text))
+                            cmd.Parameters.AddWithValue("@U_PID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
+                            cmd.Parameters.AddWithValue("@UpdateBy", currentUserId)
+                            cmd.ExecuteNonQuery()
+                        End Using
+
+                        ' 刪除舊明細
+                        Using cmd As New SqlCommand("DELETE FROM jPRQ1 WHERE jID = @jID", conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", jID)
+                            cmd.ExecuteNonQuery()
+                        End Using
+                    End If
+
+                    ' 新增明細
+                    For i As Integer = 0 To CurrentLines.Count - 1
+                        Dim line = CurrentLines(i)
+                        If String.IsNullOrEmpty(line.ItemCode) Then Continue For
+
+                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, Quantity, Price, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
+                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @Quantity, @Price, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
+
+                        Using cmd As New SqlCommand(insertLineSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", jID)
+                            cmd.Parameters.AddWithValue("@LineNum", i)
+                            cmd.Parameters.AddWithValue("@ItemCode", line.ItemCode)
+                            cmd.Parameters.AddWithValue("@Dscription", If(String.IsNullOrEmpty(line.Description), DBNull.Value, line.Description))
+                            cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
+                            cmd.Parameters.AddWithValue("@Price", line.Price)
+                            cmd.Parameters.AddWithValue("@LineTotal", line.LineTotal)
+                            cmd.Parameters.AddWithValue("@GTotal", line.GTotal)
+                            cmd.Parameters.AddWithValue("@VatGroup", If(String.IsNullOrEmpty(line.VatGroup), DBNull.Value, line.VatGroup))
+                            cmd.Parameters.AddWithValue("@VatPrcnt", line.VatRate)
+                            cmd.Parameters.AddWithValue("@LineVat", line.VatSum)
+                            cmd.Parameters.AddWithValue("@WhsCode", If(String.IsNullOrEmpty(line.WhsCode), DBNull.Value, line.WhsCode))
+                            cmd.Parameters.AddWithValue("@ShipDate", If(line.ShipDate.HasValue, line.ShipDate.Value, DBNull.Value))
+                            cmd.Parameters.AddWithValue("@CostingCode", If(String.IsNullOrEmpty(line.CostingCode), DBNull.Value, line.CostingCode))
+                            cmd.Parameters.AddWithValue("@CostingCode2", If(String.IsNullOrEmpty(line.CostingCode2), DBNull.Value, line.CostingCode2))
+                            cmd.Parameters.AddWithValue("@Currency", ddlDocCurrency.SelectedValue)
+                            cmd.Parameters.AddWithValue("@Rate", Decimal.Parse(txtDocRate.Text))
+                            cmd.Parameters.AddWithValue("@CreateBy", currentUserId)
+                            cmd.ExecuteNonQuery()
+                        End Using
+                    Next
+
+                    trans.Commit()
+                    txtJID.Text = jID.ToString()
+                    currentJID = jID
+
+                Catch ex As Exception
+                    trans.Rollback()
+                    Throw
+                End Try
+            End Using
+        End Using
+    End Sub
+#End Region
+
+#Region "文件載入"
+    Private Sub LoadDocument(jID As Integer)
+        Using conn As New SqlConnection(connStr)
+            conn.Open()
+
+            ' 載入表頭
+            Dim sql As String = "SELECT * FROM jOPRQ WHERE jID = @jID"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@jID", jID)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    If dr.Read() Then
+                        txtJID.Text = jID.ToString()
+                        lblDocNum.Text = "PR-" & jID.ToString("D6")
+                        txtCardCode.Text = If(IsDBNull(dr("CardCode")), "", dr("CardCode").ToString())
+                        txtCardName.Text = If(IsDBNull(dr("CardName")), "", dr("CardName").ToString())
+                        txtReqName.Text = dr("ReqName").ToString()
+
+                        If Not IsDBNull(dr("ReqDept")) AndAlso ddlReqDept.Items.FindByValue(dr("ReqDept").ToString()) IsNot Nothing Then
+                            ddlReqDept.SelectedValue = dr("ReqDept").ToString()
+                        End If
+
+                        txtDocDate.Text = Convert.ToDateTime(dr("DocDate")).ToString("yyyy-MM-dd")
+
+                        If Not IsDBNull(dr("ReqDate")) Then
+                            txtReqDate.Text = Convert.ToDateTime(dr("ReqDate")).ToString("yyyy-MM-dd")
+                        End If
+
+                        If ddlDocCurrency.Items.FindByValue(dr("DocCurrency").ToString()) IsNot Nothing Then
+                            ddlDocCurrency.SelectedValue = dr("DocCurrency").ToString()
+                        End If
+                        txtDocRate.Text = Convert.ToDecimal(dr("DocRate")).ToString("N6")
+
+                        txtRemarks.Text = If(IsDBNull(dr("Comments")), "", dr("Comments").ToString())
+                        txtUPID.Text = If(IsDBNull(dr("U_PID")), "", dr("U_PID").ToString())
+                        txtOwner.Text = If(IsDBNull(dr("CreateBy")), "", dr("CreateBy").ToString())
+
+                        ' 狀態
+                        Dim approvalStatus As String = dr("ApprovalStatus").ToString()
+                        txtApprovalStatus.Text = approvalStatus
+                        Select Case approvalStatus
+                            Case "Pending"
+                                lblDocStatus.Text = "待審核"
+                                lblDocStatus.CssClass = "badge status-W"
+                                txtStatusDisplay.Text = "待審核"
+                            Case "Approved"
+                                lblDocStatus.Text = "已核准"
+                                lblDocStatus.CssClass = "badge status-A"
+                                txtStatusDisplay.Text = "已核准"
+                            Case "Rejected"
+                                lblDocStatus.Text = "已退回"
+                                lblDocStatus.CssClass = "badge status-R"
+                                txtStatusDisplay.Text = "已退回"
+                        End Select
+
+                        ' 審核區塊
+                        If canApprove AndAlso approvalStatus = "Pending" Then
+                            txtApprovalComments.ReadOnly = False
+                            btnApprove.Enabled = True
+                            btnReject.Enabled = True
+                        Else
+                            txtApprovalComments.ReadOnly = True
+                            btnApprove.Enabled = False
+                            btnReject.Enabled = False
+                        End If
+
+                        If Not IsDBNull(dr("ApprovalComments")) Then
+                            txtApprovalComments.Text = dr("ApprovalComments").ToString()
+                        End If
+
+                        ' 按鈕狀態
+                        btnDelete.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
+                        btnUpdate.Visible = (approvalStatus = "Pending")
+                        btnSubmit.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
+                    End If
+                End Using
+            End Using
+
+            ' 載入明細
+            CurrentLines.Clear()
+            sql = "SELECT * FROM jPRQ1 WHERE jID = @jID ORDER BY LineNum"
+            Using cmd As New SqlCommand(sql, conn)
+                cmd.Parameters.AddWithValue("@jID", jID)
+                Using dr As SqlDataReader = cmd.ExecuteReader()
+                    While dr.Read()
+                        Dim line As New PRLine() With {
+                            .LineNum = Convert.ToInt32(dr("LineNum")) + 1,
+                            .ItemCode = dr("ItemCode").ToString(),
+                            .Description = If(IsDBNull(dr("Dscription")), "", dr("Dscription").ToString()),
+                            .Quantity = Convert.ToDecimal(dr("Quantity")),
+                            .Price = Convert.ToDecimal(dr("Price")),
+                            .LineTotal = Convert.ToDecimal(dr("LineTotal")),
+                            .VatGroup = If(IsDBNull(dr("VatGroup")), "", dr("VatGroup").ToString()),
+                            .VatRate = Convert.ToDecimal(dr("VatPrcnt")),
+                            .VatSum = Convert.ToDecimal(dr("LineVat")),
+                            .GTotal = Convert.ToDecimal(dr("GTotal")),
+                            .WhsCode = If(IsDBNull(dr("WhsCode")), "", dr("WhsCode").ToString()),
+                            .ShipDate = If(IsDBNull(dr("ShipDate")), Nothing, Convert.ToDateTime(dr("ShipDate"))),
+                            .CostingCode = If(IsDBNull(dr("CostingCode")), "", dr("CostingCode").ToString()),
+                            .CostingCode2 = If(IsDBNull(dr("CostingCode2")), "", dr("CostingCode2").ToString())
+                        }
+                        CurrentLines.Add(line)
+                    End While
+                End Using
+            End Using
+
+            BindGrid()
+            BindAttachmentGrid()
+        End Using
+    End Sub
+#End Region
+
+#Region "審核"
+    Protected Sub btnApprove_Click(sender As Object, e As EventArgs)
+        If currentJID = 0 Then Return
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Approved', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
+                    cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
+                    cmd.Parameters.AddWithValue("@Comments", txtApprovalComments.Text)
+                    cmd.Parameters.AddWithValue("@UpdateBy", currentUserId)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+
+            lblMessage.Text = "請購單已核准！"
+            lblMessage.ForeColor = Drawing.Color.Green
+            Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
+        Catch ex As Exception
+            ShowError("核准失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub btnReject_Click(sender As Object, e As EventArgs)
+        If currentJID = 0 Then Return
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Rejected', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@jID", currentJID)
+                    cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
+                    cmd.Parameters.AddWithValue("@Comments", txtApprovalComments.Text)
+                    cmd.Parameters.AddWithValue("@UpdateBy", currentUserId)
+                    cmd.ExecuteNonQuery()
+                End Using
+            End Using
+
+            lblMessage.Text = "請購單已退回！"
+            lblMessage.ForeColor = Drawing.Color.Orange
+            Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
+        Catch ex As Exception
+            ShowError("退回失敗: " & ex.Message)
+        End Try
+    End Sub
+#End Region
+
+#Region "其他按鈕"
+    Protected Sub btnDelete_Click(sender As Object, e As EventArgs)
+        If currentJID = 0 Then Return
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Using trans As SqlTransaction = conn.BeginTransaction()
+                    Try
+                        ' 刪除明細
+                        Using cmd As New SqlCommand("DELETE FROM jPRQ1 WHERE jID = @jID", conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", currentJID)
+                            cmd.ExecuteNonQuery()
+                        End Using
+
+                        ' 刪除表頭
+                        Using cmd As New SqlCommand("DELETE FROM jOPRQ WHERE jID = @jID", conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", currentJID)
+                            cmd.ExecuteNonQuery()
+                        End Using
+
+                        trans.Commit()
+                    Catch
+                        trans.Rollback()
+                        Throw
+                    End Try
+                End Using
+            End Using
+
+            Response.Redirect("DocumentSearch.aspx")
+        Catch ex As Exception
+            ShowError("刪除失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub btnCancel_Click(sender As Object, e As EventArgs)
+        Response.Redirect("DocumentSearch.aspx")
+    End Sub
+
+    Protected Sub btnUpdate_Click(sender As Object, e As EventArgs)
+        btnSubmit_Click(sender, e)
+    End Sub
+
+    Protected Sub btnExportPDF_Click(sender As Object, e As EventArgs)
+        ' TODO: 實作 PDF 匯出
+        lblMessage.Text = "PDF 匯出功能開發中..."
+        lblMessage.ForeColor = Drawing.Color.Blue
+    End Sub
+
+    Protected Sub btnNewDocument_Click(sender As Object, e As EventArgs)
+        Response.Redirect("PurchaseRequestForm.aspx")
+    End Sub
+#End Region
+
+#Region "驗證"
+    Protected Sub btnValidationBack_Click(sender As Object, e As EventArgs)
+        mpeValidation.Hide()
+    End Sub
+
+    Protected Sub btnValidationConfirm_Click(sender As Object, e As EventArgs)
+        ' 確認後儲存
+        mpeValidation.Hide()
+        Try
+            SaveDocument()
+            lblMessage.Text = "請購單儲存成功！單號: " & txtJID.Text
+            lblMessage.ForeColor = Drawing.Color.Green
+            Response.Redirect("PurchaseRequestForm.aspx?jID=" & txtJID.Text)
+        Catch ex As Exception
+            ShowError("儲存失敗: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub ShowValidationErrors(errors As List(Of String), warnings As List(Of String))
+        blErrors.Items.Clear()
+        blWarnings.Items.Clear()
+
+        If errors.Count > 0 Then
+            pnlErrors.Visible = True
+            For Each err In errors
+                blErrors.Items.Add(err)
+            Next
+        Else
+            pnlErrors.Visible = False
+        End If
+
+        If warnings.Count > 0 Then
+            pnlWarnings.Visible = True
+            For Each warn In warnings
+                blWarnings.Items.Add(warn)
+            Next
+            btnValidationConfirm.Visible = (errors.Count = 0)
+        Else
+            pnlWarnings.Visible = False
+            btnValidationConfirm.Visible = False
+        End If
+
+        mpeValidation.Show()
+    End Sub
+#End Region
+
+#Region "輔助方法"
+    Private Sub ShowError(message As String)
+        lblMessage.Text = message
+        lblMessage.ForeColor = Drawing.Color.Red
+    End Sub
+#End Region
+
+End Class

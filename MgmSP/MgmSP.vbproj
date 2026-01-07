@@ -152,6 +152,7 @@
     <Content Include="ExpenseClaimForm.aspx" />
     <Content Include="ExpenseClaimList.aspx" />
     <Content Include="ExpenseClaimReport.ashx" />
+    <Content Include="PurchaseRequestForm.aspx" />
     <Content Include="fd\freport.aspx" />
     <Content Include="Global.asax" />
     <Content Include="Home.aspx" />
@@ -263,6 +264,13 @@
     </Compile>
     <Compile Include="ExpenseClaimList.aspx.vb">
       <DependentUpon>ExpenseClaimList.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PurchaseRequestForm.aspx.designer.vb">
+      <DependentUpon>PurchaseRequestForm.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="PurchaseRequestForm.aspx.vb">
+      <DependentUpon>PurchaseRequestForm.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="fd\freport.aspx.designer.vb">
