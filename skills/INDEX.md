@@ -22,7 +22,7 @@
 | 檔案 | 適用 Agent | 更新日期 |
 |------|-----------|----------|
 | `backend-checklist.md` | Backend | 2026-01-07 |
-| `general-checklist.md` | All | 2026-01-07 |
+| `general-checklist.md` | All | 2026-01-08 |
 | `sap-checklist.md` | Backend | 2026-01-07 |
 | `slash-command-standards.md` | All | 2026-01-07 |
 | `ui-checklist.md` | UI-UX | 2026-01-07 |
