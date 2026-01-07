@@ -15,7 +15,12 @@
       "Bash(grep:*)",
       "Bash(rm:*)",
       "Bash(cp:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "mcp__sapb1-sql__sql_query",
+      "mcp__sapb1-sql__get_table_info",
+      "mcp__sapb1-sql__list_tables",
+      "mcp__sapb1-sql__get_db_status",
+      "mcp__sapb1-sql__list_backups"
     ],
     "defaultMode": "default"
   }
