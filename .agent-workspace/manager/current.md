@@ -5,10 +5,19 @@ idle
 
 ## 當前任務
 
-請購單 Phase 1 已完成並提交
+等候新指令
 
 ## 最後更新
-2026-01-07 11:00 - 請購單 Phase 1 commit 完成 (d0194d7)
+2026-01-07 - 完成多項修正與功能實作
+
+## 已完成項目
+
+- Littlebird 輸入鎖定功能（BlockInput API、托盤圖示、Ctrl+Alt+Q 熱鍵）
+- PurchaseRequestForm 編譯錯誤修正
+- 請購單選單項目新增
+- UTF-8 BOM 編碼問題修正
+- general-checklist.md 更新（新增強制 BOM 檢查流程）
+- OSLP 查詢欄位確認（Active 欄位正確）
 
 ## 進行中的變更
 

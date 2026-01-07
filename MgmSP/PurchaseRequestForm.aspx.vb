@@ -1207,8 +1207,8 @@ Partial Public Class PurchaseRequestForm
 
         If errors.Count > 0 Then
             pnlErrors.Visible = True
-            For Each err In errors
-                blErrors.Items.Add(err)
+            For Each errMsg In errors
+                blErrors.Items.Add(New ListItem(errMsg))
             Next
         Else
             pnlErrors.Visible = False
@@ -1216,8 +1216,8 @@ Partial Public Class PurchaseRequestForm
 
         If warnings.Count > 0 Then
             pnlWarnings.Visible = True
-            For Each warn In warnings
-                blWarnings.Items.Add(warn)
+            For Each warnMsg In warnings
+                blWarnings.Items.Add(New ListItem(warnMsg))
             Next
             btnValidationConfirm.Visible = (errors.Count = 0)
         Else

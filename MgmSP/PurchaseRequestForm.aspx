@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="PurchaseRequestForm.aspx.vb" Inherits="MgmSP.PurchaseRequestForm"
+﻿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="PurchaseRequestForm.aspx.vb" Inherits="MgmSP.PurchaseRequestForm"
     MaintainScrollPositionOnPostback="true" %>
 <%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ajaxToolkit" %>
 
@@ -24,10 +24,10 @@
             --text-secondary: #64748B;
             --text-muted: #94A3B8;
 
-            /* 強調色 */
-            --accent-primary: #3B4A6B;
-            --accent-hover: #4A5D82;
-            --accent-light: #7C8DB0;
+            /* 強調色 - 綠色系 */
+            --accent-primary: #4A6B5B;
+            --accent-hover: #5B7B6B;
+            --accent-light: #7B9B8B;
 
             /* 功能色 */
             --border-color: #E2E8F0;
@@ -132,7 +132,7 @@
         textarea:focus {
             outline: none;
             border-color: var(--accent-light);
-            box-shadow: 0 0 0 3px rgba(124, 141, 176, 0.12);
+            box-shadow: 0 0 0 3px rgba(123, 155, 139, 0.15);
         }
 
         textarea {
@@ -165,8 +165,8 @@
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, var(--accent-hover) 0%, #5A6D92 100%);
-            box-shadow: 0 4px 12px rgba(59, 74, 107, 0.25);
+            background: linear-gradient(135deg, var(--accent-hover) 0%, #6B8B7B 100%);
+            box-shadow: 0 4px 12px rgba(74, 107, 91, 0.25);
         }
 
         .btn-success {
@@ -699,7 +699,7 @@
                         <h2 class="page-header-title">請購單 (Purchase Request)</h2>
                         <div style="text-align:right;">
                             <asp:Label ID="lblDocNum" runat="server" Text="[New]" Font-Bold="True"
-                                Font-Size="18px" ForeColor="#3B4A6B"></asp:Label>
+                                Font-Size="18px" ForeColor="#4A6B5B"></asp:Label>
                             <br />
                             <asp:Label ID="lblDocStatus" runat="server" CssClass="badge status-P" Text="草稿">
                             </asp:Label>

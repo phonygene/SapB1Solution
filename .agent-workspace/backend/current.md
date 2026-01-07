@@ -1,7 +1,7 @@
 # Backend Agent - 當前工作
 
 ## 狀態
-idle
+thinking
 
 ## 當前任務
 T010-BE 已完成

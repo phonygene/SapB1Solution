@@ -20,6 +20,39 @@
 - [ ] 新增控制項時同步更新 `.aspx.designer.vb`
 - [ ] `<%@ Page ... Inherits="MgmSP.ClassName" %>` 必須有 `MgmSP.` 前綴
 
+---
+
+## 創建新 .aspx/.vb 檔案後（強制執行）
+
+> **Claude Code 的 Write 工具不會自動添加 BOM！**
+> **每次創建新檔案後必須立即執行以下步驟，不可跳過。**
+
+### 步驟 1：立即轉換為 UTF-8 with BOM
+
+```powershell
+$path = "路徑"
+$content = Get-Content -Path $path -Raw -Encoding UTF8
+$utf8Bom = New-Object System.Text.UTF8Encoding $true
+[System.IO.File]::WriteAllText($path, $content, $utf8Bom)
+```
+
+### 步驟 2：驗證 BOM 已添加
+
+```powershell
+[System.IO.File]::ReadAllBytes($path)[0..2] -join ','
+# 應該輸出：239,187,191
+```
+
+### 步驟 3：如果是 .aspx 頁面
+
+- [ ] 確認 .aspx.designer.vb 存在且已更新
+- [ ] 確認 Inherits 有 `MgmSP.` 前綴
+
+### 為什麼這很重要？
+
+- 缺少 BOM → 中文變亂碼 → 伺服器剖析錯誤 → 頁面無法執行
+- 這個問題已經發生多次，必須從流程上杜絕
+
 ## 程式碼品質
 
 - [ ] 有適當的錯誤處理（Try-Catch）
@@ -150,3 +183,15 @@
 - **根因**: 釋放修飾鍵的代碼分散在多處，且有遺漏（typewrite 後無釋放）
 - **解法**: 建立 `_release_modifiers()` 統一函數，在所有按鍵操作後調用
 - **教訓**: 應用「紅綠燈原則」—發現防呆需求時，盤點所有同類位置統一實作
+
+### 2026-01-07: UTF-8 BOM 問題再次發生
+- **問題**: 新建的 PurchaseRequestForm.aspx 缺少 BOM，導致中文變亂碼、頁面剖析失敗
+- **根因**:
+  1. Claude Code 的 Write 工具預設不添加 BOM
+  2. 規範存在但只是「被動檢查清單」，不是「主動操作步驟」
+  3. 沒有「創建新檔案後必做」的強制流程
+- **解法**: 在 general-checklist.md 新增「創建新 .aspx/.vb 檔案後（強制執行）」區塊
+- **教訓**:
+  1. 知道規範 ≠ 執行規範，必須有明確的操作步驟
+  2. 工具的限制必須用流程來彌補
+  3. 重複犯錯表示規範不夠具體，需要升級為強制流程

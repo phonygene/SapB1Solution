@@ -174,6 +174,16 @@ GlobalSize.restype = ctypes.c_size_t
 GetLastError = kernel32.GetLastError
 GetLastError.restype = wintypes.DWORD
 
+# BlockInput API - 鎖定用戶輸入（需要管理員權限）
+BlockInput = user32.BlockInput
+BlockInput.argtypes = [wintypes.BOOL]
+BlockInput.restype = wintypes.BOOL
+
+# Shell32 for admin check
+shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+IsUserAnAdmin = shell32.IsUserAnAdmin
+IsUserAnAdmin.restype = wintypes.BOOL
+
 SW_RESTORE = 9
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002
@@ -198,6 +208,17 @@ ENGLISH_LANG_ID = 0x0409   # 英文語言識別碼
 # 輸入法切換重試參數
 IME_SWITCH_RETRY_COUNT = 5
 IME_SWITCH_RETRY_DELAY = 0.15
+
+# 緊急解鎖熱鍵
+ABORT_HOTKEY = '<ctrl>+<alt>+q'
+
+
+def is_admin() -> bool:
+    """檢查是否以管理員權限運行"""
+    try:
+        return IsUserAnAdmin() != 0
+    except Exception:
+        return False
 
 
 def _get_current_keyboard_layout(hwnd: int = None) -> int:
@@ -302,6 +323,228 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
     # 所有嘗試都失敗
     log(f"[ERROR] Failed to switch to English input after {IME_SWITCH_RETRY_COUNT} attempts", "ERROR")
     return False
+
+
+# ---- Input Blocker ----
+
+class InputBlocker:
+    """管理輸入鎖定狀態，防止用戶操作干擾自動化流程"""
+
+    def __init__(self):
+        self._locked = False
+        self._lock = threading.Lock()
+        self._abort_requested = False
+        self._admin_checked = False
+        self._is_admin = False
+
+    def _check_admin(self) -> bool:
+        """檢查管理員權限（只檢查一次）"""
+        if not self._admin_checked:
+            self._is_admin = is_admin()
+            self._admin_checked = True
+            if not self._is_admin:
+                log("[WARN] 未以管理員權限運行，輸入鎖定功能將被停用", "WARN")
+        return self._is_admin
+
+    def lock(self) -> bool:
+        """鎖定用戶輸入"""
+        with self._lock:
+            if self._locked:
+                return True  # 已經鎖定
+
+            if not self._check_admin():
+                return False
+
+            try:
+                result = BlockInput(True)
+                if result:
+                    self._locked = True
+                    self._abort_requested = False
+                    log("[LOCK] 用戶輸入已鎖定")
+                    return True
+                else:
+                    err = GetLastError()
+                    log(f"[ERROR] BlockInput(True) 失敗 (LastError={err})", "ERROR")
+                    return False
+            except Exception as e:
+                log(f"[ERROR] BlockInput 異常: {e}", "ERROR")
+                return False
+
+    def unlock(self) -> bool:
+        """解鎖用戶輸入"""
+        with self._lock:
+            if not self._locked:
+                return True  # 本來就沒鎖定
+
+            try:
+                BlockInput(False)
+                self._locked = False
+                log("[UNLOCK] 用戶輸入已解鎖")
+                return True
+            except Exception as e:
+                log(f"[ERROR] BlockInput(False) 異常: {e}", "ERROR")
+                return False
+
+    def request_abort(self):
+        """請求中止當前操作並解鎖"""
+        log("[ABORT] 收到中止請求")
+        self._abort_requested = True
+        self.unlock()
+
+    def reset_abort(self):
+        """重置中止狀態"""
+        self._abort_requested = False
+
+    @property
+    def is_locked(self) -> bool:
+        return self._locked
+
+    @property
+    def abort_requested(self) -> bool:
+        return self._abort_requested
+
+
+# ---- Tray Icon ----
+
+class TrayIcon:
+    """系統托盤圖示管理，顯示輸入鎖定狀態"""
+
+    GREEN = (0, 200, 0)
+    RED = (200, 0, 0)
+
+    def __init__(self, input_blocker: InputBlocker):
+        self.input_blocker = input_blocker
+        self.icon = None
+        self._thread = None
+        self._pystray = None
+        self._pil_available = False
+
+    def _load_deps(self):
+        """載入依賴庫"""
+        try:
+            import pystray
+            from PIL import Image, ImageDraw
+            self._pystray = pystray
+            self._pil_available = True
+            return True
+        except ImportError as e:
+            log(f"[WARN] 無法載入托盤圖示依賴: {e}", "WARN")
+            log("[INFO] 請安裝: pip install pystray Pillow")
+            return False
+
+    def _create_icon_image(self, color):
+        """創建圓形燈號圖示"""
+        from PIL import Image, ImageDraw
+        size = 64
+        image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        # 繪製圓形燈號
+        margin = 4
+        draw.ellipse([margin, margin, size - margin, size - margin], fill=color)
+        return image
+
+    def _create_menu(self):
+        """創建右鍵選單"""
+        return self._pystray.Menu(
+            self._pystray.MenuItem('Littlebird 輸入鎖定', lambda: None, enabled=False),
+            self._pystray.Menu.SEPARATOR,
+            self._pystray.MenuItem('強制解鎖 (Ctrl+Alt+Q)', self._on_unlock),
+            self._pystray.MenuItem('退出', self._on_exit)
+        )
+
+    def update_status(self, locked: bool):
+        """更新圖示顏色"""
+        if self.icon and self._pil_available:
+            color = self.RED if locked else self.GREEN
+            self.icon.icon = self._create_icon_image(color)
+            self.icon.title = "Littlebird: 已鎖定 (Ctrl+Alt+Q 解鎖)" if locked else "Littlebird: 運行中"
+
+    def start(self):
+        """啟動托盤圖示（非阻塞）"""
+        if not self._load_deps():
+            return False
+
+        try:
+            self.icon = self._pystray.Icon(
+                "littlebird",
+                icon=self._create_icon_image(self.GREEN),
+                title="Littlebird: 運行中",
+                menu=self._create_menu()
+            )
+            self._thread = threading.Thread(target=self.icon.run, daemon=True)
+            self._thread.start()
+            log("[OK] 托盤圖示已啟動")
+            return True
+        except Exception as e:
+            log(f"[ERROR] 托盤圖示啟動失敗: {e}", "ERROR")
+            return False
+
+    def stop(self):
+        """停止托盤圖示"""
+        if self.icon:
+            try:
+                self.icon.stop()
+            except Exception:
+                pass
+
+    def _on_unlock(self):
+        """選單：強制解鎖"""
+        self.input_blocker.request_abort()
+        self.update_status(False)
+
+    def _on_exit(self):
+        """選單：退出"""
+        self.input_blocker.unlock()
+        self.stop()
+        os._exit(0)
+
+
+# ---- Hotkey Listener ----
+
+class HotkeyListener:
+    """全域熱鍵監聽，用於緊急解鎖"""
+
+    def __init__(self, input_blocker: InputBlocker, tray_icon: TrayIcon):
+        self.input_blocker = input_blocker
+        self.tray_icon = tray_icon
+        self._listener = None
+
+    def start(self):
+        """啟動熱鍵監聽"""
+        try:
+            from pynput.keyboard import GlobalHotKeys
+
+            def on_abort():
+                log("[HOTKEY] Ctrl+Alt+Q 被按下 - 中止操作")
+                self.input_blocker.request_abort()
+                if self.tray_icon:
+                    self.tray_icon.update_status(False)
+
+            self._listener = GlobalHotKeys({ABORT_HOTKEY: on_abort})
+            self._listener.start()
+            log(f"[OK] 熱鍵監聽已啟動 ({ABORT_HOTKEY})")
+            return True
+        except ImportError as e:
+            log(f"[WARN] 無法載入熱鍵監聽依賴: {e}", "WARN")
+            log("[INFO] 請安裝: pip install pynput")
+            return False
+        except Exception as e:
+            log(f"[ERROR] 熱鍵監聽啟動失敗: {e}", "ERROR")
+            return False
+
+    def stop(self):
+        """停止熱鍵監聽"""
+        if self._listener:
+            try:
+                self._listener.stop()
+            except Exception:
+                pass
+
+
+# ---- 全域實例 ----
+input_blocker: InputBlocker | None = None
+tray_icon: TrayIcon | None = None
+hotkey_listener: HotkeyListener | None = None
 
 
 class RECT(ctypes.Structure):
@@ -745,6 +988,8 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
     發送訊息給目標 Agent。
     wait_for_completion: 如果為 True 且目標不是 Manager，會等待 Agent 完成並通知 Manager
     """
+    global input_blocker, tray_icon
+
     config = AGENT_WINDOWS.get(target, {})
     hwnd = find_window(config)
 
@@ -759,131 +1004,172 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
 
     prev_hwnd = GetForegroundWindow() if RESTORE_FOCUS else None
 
-    # 嘗試取得焦點
-    if not force_focus_window(hwnd):
-        click_cfg = config.get("click")
-        if click_cfg and _click_focus(hwnd, click_cfg):
-            pass
-        else:
-            log(f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.", "WARN")
+    # === 輸入鎖定：操作前鎖定用戶輸入 ===
+    locked = False
+    if input_blocker:
+        input_blocker.reset_abort()  # 重置中止狀態
+        locked = input_blocker.lock()
+        if locked and tray_icon:
+            tray_icon.update_status(True)
+
+    try:
+        # === 檢查是否被中止 ===
+        if input_blocker and input_blocker.abort_requested:
+            log(f"[ABORT] Operation aborted before start")
             return
 
-    # 焦點切換後給一點點緩衝，等待 Windows 動畫或 Input Queue 就緒
-    time.sleep(0.2)
-
-    hotkey = config.get("hotkey")
-    if hotkey:
-        pyautogui.hotkey(*hotkey)
-        _release_modifiers()  # 防呆：hotkey 後釋放修飾鍵
-        time.sleep(0.1)
-
-    # 切換到英文輸入法，避免中文輸入法干擾
-    # 如果切換失敗，中止操作以避免中文輸入造成卡死
-    if not _switch_to_english_input(hwnd):
-        log(f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.", "ERROR")
-        return
-    time.sleep(0.1)
-
-    # 保存原始剪貼簿 (如果需要)
-    original_clip = _get_clipboard_text() if RESTORE_CLIPBOARD else None
-
-    # 寫入剪貼簿
-    if _set_clipboard_text(message):
-        # 貼上
-        pyautogui.hotkey("ctrl", "v")
-        _release_modifiers()  # 防呆：貼上後釋放修飾鍵
-        time.sleep(0.2)  # 增加延遲，等待貼上完成
-
-        # 恢復剪貼簿
-        if original_clip is not None:
-            # 不用 retry 太多次，如果不重要就跳過
-            time.sleep(0.1)
-            _set_clipboard_text(original_clip)
-    else:
-        # 萬不得已才用 typewrite，且加上 interval
-        log("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.", "WARN")
-        # 切換到英文輸入法通常很難控制，這裡只能祈禱
-        pyautogui.typewrite(message, interval=0.01)
-        _release_modifiers()  # 防呆：typewrite 後釋放修飾鍵
-
-    # 按 Enter 前再次確認焦點在目標視窗
-    if GetForegroundWindow() != hwnd:
-        log(f"[WARN] Focus lost before Enter, re-focusing {target}...", "WARN")
+        # 嘗試取得焦點
         if not force_focus_window(hwnd):
-            log(f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!", "ERROR")
+            click_cfg = config.get("click")
+            if click_cfg and _click_focus(hwnd, click_cfg):
+                pass
+            else:
+                log(f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.", "WARN")
+                return
+
+        # 焦點切換後給一點點緩衝，等待 Windows 動畫或 Input Queue 就緒
+        time.sleep(0.2)
+
+        # === 檢查是否被中止 ===
+        if input_blocker and input_blocker.abort_requested:
+            log(f"[ABORT] Operation aborted after focus")
+            return
+
+        hotkey = config.get("hotkey")
+        if hotkey:
+            pyautogui.hotkey(*hotkey)
+            _release_modifiers()  # 防呆：hotkey 後釋放修飾鍵
+            time.sleep(0.1)
+
+        # 切換到英文輸入法，避免中文輸入法干擾
+        # 如果切換失敗，中止操作以避免中文輸入造成卡死
+        if not _switch_to_english_input(hwnd):
+            log(f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.", "ERROR")
+            return
         time.sleep(0.1)
 
-    # 發送訊息並驗證
-    max_retries = 3
-    send_success = False
+        # === 檢查是否被中止 ===
+        if input_blocker and input_blocker.abort_requested:
+            log(f"[ABORT] Operation aborted before clipboard")
+            return
 
-    for attempt in range(max_retries):
-        # 嚴格確認焦點在目標視窗
-        current_fg = GetForegroundWindow()
-        if current_fg != hwnd:
-            log(f"[RETRY {attempt+1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}...")
-            force_focus_window(hwnd)
-            time.sleep(0.3)
+        # 保存原始剪貼簿 (如果需要)
+        original_clip = _get_clipboard_text() if RESTORE_CLIPBOARD else None
 
-            # 再次確認
+        # 寫入剪貼簿
+        if _set_clipboard_text(message):
+            # 貼上
+            pyautogui.hotkey("ctrl", "v")
+            _release_modifiers()  # 防呆：貼上後釋放修飾鍵
+            time.sleep(0.2)  # 增加延遲，等待貼上完成
+
+            # 恢復剪貼簿
+            if original_clip is not None:
+                # 不用 retry 太多次，如果不重要就跳過
+                time.sleep(0.1)
+                _set_clipboard_text(original_clip)
+        else:
+            # 萬不得已才用 typewrite，且加上 interval
+            log("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.", "WARN")
+            # 切換到英文輸入法通常很難控制，這裡只能祈禱
+            pyautogui.typewrite(message, interval=0.01)
+            _release_modifiers()  # 防呆：typewrite 後釋放修飾鍵
+
+        # === 檢查是否被中止 ===
+        if input_blocker and input_blocker.abort_requested:
+            log(f"[ABORT] Operation aborted before Enter")
+            return
+
+        # 按 Enter 前再次確認焦點在目標視窗
+        if GetForegroundWindow() != hwnd:
+            log(f"[WARN] Focus lost before Enter, re-focusing {target}...", "WARN")
+            if not force_focus_window(hwnd):
+                log(f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!", "ERROR")
+            time.sleep(0.1)
+
+        # 發送訊息並驗證
+        max_retries = 3
+        send_success = False
+
+        for attempt in range(max_retries):
+            # === 檢查是否被中止 ===
+            if input_blocker and input_blocker.abort_requested:
+                log(f"[ABORT] Operation aborted during retry loop")
+                return
+
+            # 嚴格確認焦點在目標視窗
             current_fg = GetForegroundWindow()
             if current_fg != hwnd:
-                log(f"[ERROR] Still not focused after retry, current={current_fg}", "ERROR")
-                continue  # 跳過這次嘗試，進入下一次重試
+                log(f"[RETRY {attempt+1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}...")
+                force_focus_window(hwnd)
+                time.sleep(0.3)
 
-        # 焦點確認正確，確保修飾鍵已釋放，然後按 Enter
-        log(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
+                # 再次確認
+                current_fg = GetForegroundWindow()
+                if current_fg != hwnd:
+                    log(f"[ERROR] Still not focused after retry, current={current_fg}", "ERROR")
+                    continue  # 跳過這次嘗試，進入下一次重試
 
-        _release_modifiers()  # 防呆：Enter 前釋放修飾鍵
-        pyautogui.press("enter")
+            # 焦點確認正確，確保修飾鍵已釋放，然後按 Enter
+            log(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
 
-        # 對非 Manager：發送後設定 thinking，然後驗證
-        if target != "manager" and status_path:
-            time.sleep(0.3)  # 等待一下
-            _write_status(status_path, THINKING_STATUS)
+            _release_modifiers()  # 防呆：Enter 前釋放修飾鍵
+            pyautogui.press("enter")
 
-            # 驗證狀態確實被設定
-            time.sleep(0.1)
-            actual_status = _read_status(status_path)
-            if actual_status == THINKING_STATUS:
-                log(f"[OK] Message sent to {target} (verified: status={actual_status})")
+            # 對非 Manager：發送後設定 thinking，然後驗證
+            if target != "manager" and status_path:
+                time.sleep(0.3)  # 等待一下
+                _write_status(status_path, THINKING_STATUS)
+
+                # 驗證狀態確實被設定
+                time.sleep(0.1)
+                actual_status = _read_status(status_path)
+                if actual_status == THINKING_STATUS:
+                    log(f"[OK] Message sent to {target} (verified: status={actual_status})")
+                    send_success = True
+                    break
+                else:
+                    log(f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'", "WARN")
+            else:
+                # Manager 不需要驗證
+                if status_path and target == "manager":
+                    _write_status(status_path, IDLE_STATUS)
+                log(f"[OK] Message sent to {target}")
                 send_success = True
                 break
-            else:
-                log(f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'", "WARN")
-        else:
-            # Manager 不需要驗證
-            if status_path and target == "manager":
-                _write_status(status_path, IDLE_STATUS)
-            log(f"[OK] Message sent to {target}")
-            send_success = True
-            break
 
-    if not send_success:
-        log(f"[ERROR] Failed to send message to {target} after {max_retries} attempts", "ERROR")
-        return
+        if not send_success:
+            log(f"[ERROR] Failed to send message to {target} after {max_retries} attempts", "ERROR")
+            return
 
-    # 復原焦點
-    if RESTORE_FOCUS and prev_hwnd and prev_hwnd != hwnd:
-        time.sleep(0.1)
-        try:
-            SetForegroundWindow(prev_hwnd)
-        except Exception:
-            pass
+        # 復原焦點
+        if RESTORE_FOCUS and prev_hwnd and prev_hwnd != hwnd:
+            time.sleep(0.1)
+            try:
+                SetForegroundWindow(prev_hwnd)
+            except Exception:
+                pass
 
-    # 對非 Manager 的 Agent，等待完成後通知 Manager
-    if wait_for_completion and target != "manager":
-        log(f"[MONITOR] Starting completion monitor for {target}...")
+        # 對非 Manager 的 Agent，等待完成後通知 Manager
+        if wait_for_completion and target != "manager":
+            log(f"[MONITOR] Starting completion monitor for {target}...")
 
-        def monitor_and_notify():
-            if _wait_for_agent_completion(target):
-                log(f"[COMPLETE] {target} finished, notifying manager...")
-                _notify_manager_completion(target)
-            else:
-                log(f"[WARN] {target} did not complete in time", "WARN")
+            def monitor_and_notify():
+                if _wait_for_agent_completion(target):
+                    log(f"[COMPLETE] {target} finished, notifying manager...")
+                    _notify_manager_completion(target)
+                else:
+                    log(f"[WARN] {target} did not complete in time", "WARN")
 
-        monitor_thread = threading.Thread(target=monitor_and_notify, daemon=True)
-        monitor_thread.start()
+            monitor_thread = threading.Thread(target=monitor_and_notify, daemon=True)
+            monitor_thread.start()
+
+    finally:
+        # === 輸入解鎖：無論如何都要解鎖 ===
+        if input_blocker and locked:
+            input_blocker.unlock()
+            if tray_icon:
+                tray_icon.update_status(False)
 
 
 def load_deps():
@@ -919,6 +1205,7 @@ def list_windows():
 
 def main():
     global DRY_RUN, DEBOUNCE_SECONDS
+    global input_blocker, tray_icon, hotkey_listener
 
     # 初始化日誌
     setup_logging()
@@ -929,6 +1216,7 @@ def main():
     parser.add_argument("--list-windows", action="store_true", help="List visible windows")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without typing")
     parser.add_argument("--debounce", type=float, default=DEBOUNCE_SECONDS, help="Debounce seconds")
+    parser.add_argument("--no-lock", action="store_true", help="Disable input locking (run without admin)")
     args = parser.parse_args()
 
     if args.list_windows:
@@ -939,6 +1227,34 @@ def main():
     DEBOUNCE_SECONDS = args.debounce
 
     load_deps()
+
+    # === 初始化輸入鎖定系統 ===
+    if not args.no_lock:
+        # 檢查管理員權限
+        if is_admin():
+            log("[OK] 以管理員權限運行，輸入鎖定功能已啟用")
+        else:
+            log("[WARN] 未以管理員權限運行", "WARN")
+            log("[INFO] 輸入鎖定功能需要管理員權限")
+            log("[INFO] 請以管理員身份重新運行，或使用 --no-lock 參數跳過此功能")
+
+        # 初始化 InputBlocker
+        input_blocker = InputBlocker()
+
+        # 初始化 TrayIcon
+        tray_icon = TrayIcon(input_blocker)
+        tray_icon.start()
+
+        # 初始化 HotkeyListener
+        hotkey_listener = HotkeyListener(input_blocker, tray_icon)
+        hotkey_listener.start()
+
+        log(f"[INFO] 緊急解鎖熱鍵: Ctrl+Alt+Q")
+    else:
+        log("[INFO] 輸入鎖定功能已停用 (--no-lock)")
+        input_blocker = None
+        tray_icon = None
+        hotkey_listener = None
 
     class WatchHandler(FileSystemEventHandler):
         def on_modified(self, event):
@@ -977,10 +1293,21 @@ def main():
         while True:
             time.sleep(0.5)
     except KeyboardInterrupt:
+        log("[INFO] 收到中斷信號，正在停止...")
         observer.stop()
     finally:
         observer.join()
         event_queue.put(None)
+
+        # === 清理輸入鎖定系統 ===
+        if input_blocker:
+            input_blocker.unlock()  # 確保解鎖
+        if hotkey_listener:
+            hotkey_listener.stop()
+        if tray_icon:
+            tray_icon.stop()
+
+        log("[OK] Littlebird 已停止")
 
 
 if __name__ == "__main__":

@@ -333,7 +333,7 @@ Partial Public Class DocumentSearch
         Return String.Format(" ORDER BY {0} {1}", sortColumn, sortOrder)
     End Function
 
-    Private Sub AddParameters(cmd As SqlCommand)
+    Private Sub AddParameters(cmd As SqlCommand, Optional docType As String = "")
         cmd.Parameters.AddWithValue("@CurrentUser", currentUserId)
         
         If Not String.IsNullOrEmpty(txtUserCode.Text.Trim()) Then
@@ -452,17 +452,20 @@ Partial Public Class DocumentSearch
 #End Region
 
 #Region "Helper Functions"
-    Protected Function GetStatusText(status As String) As String
+    Public Function GetStatusText(status As String) As String
         Select Case status
             Case "P" : Return "草稿"
             Case "W" : Return "待審核"
             Case "A" : Return "已核准"
             Case "R" : Return "已退回"
+            Case "Pending" : Return "待審核"
+            Case "Approved" : Return "已核准"
+            Case "Rejected" : Return "已退回"
             Case Else : Return status
         End Select
     End Function
 
-    Protected Function TruncateRemarks(text As String, maxLen As Integer) As String
+    Public Function TruncateRemarks(text As String, maxLen As Integer) As String
         If String.IsNullOrEmpty(text) Then Return ""
         If text.Length <= maxLen Then Return text
         Return text.Substring(0, maxLen) & "..."

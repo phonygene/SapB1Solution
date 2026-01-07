@@ -26,6 +26,26 @@ Partial Public Class MySite1
     End Sub
 
     ''' <summary>
+    ''' 直接設定 body 的 CSS class（會覆蓋現有 class）。
+    ''' </summary>
+    ''' <param name="className">要設定的 CSS class，例如 "theme-dark"</param>
+    Public Sub SetThemeClass(className As String)
+        If BodyTag Is Nothing Then Return
+        If String.IsNullOrWhiteSpace(className) Then Return
+
+        Dim currentClass As String = BodyTag.Attributes("class")
+        If String.IsNullOrWhiteSpace(currentClass) Then
+            currentClass = ""
+        End If
+
+        ' 移除現有的 theme-light/theme-dark
+        currentClass = currentClass.Replace("theme-dark", "").Replace("theme-light", "").Trim()
+
+        ' 加上新的 class
+        BodyTag.Attributes("class") = (currentClass & " " & className.Trim()).Trim()
+    End Sub
+
+    ''' <summary>
     ''' 設定頁面亮/暗模式。
     ''' </summary>
     ''' <param name="isDark">True 為暗色模式，False 為亮色模式</param>
@@ -257,6 +277,10 @@ Partial Public Class MySite1
                 ' [修改] 費用申請 - 所有登入使用者皆可使用（移到前面，不需權限檢查）
                 i = i + 1
                 HyperMainMenuGen(i, "expense", "費用申請", "~/ExpenseClaimForm.aspx?smid=ec&smode=1", mmenusize, "nouse", "")
+
+                ' [新增] 請購單 - 所有登入使用者皆可使用
+                i = i + 1
+                HyperMainMenuGen(i, "purchasereq", "請購單", "~/PurchaseRequestForm.aspx", mmenusize, "nouse", "")
 
                 ' [修改] 單據查詢 - 所有登入使用者皆可使用（移到前面）
                 i = i + 1
