@@ -595,33 +595,50 @@ Partial Public Class PurchaseRequestForm
             SyncGridToList()
             hfItemSearchRowIndex.Value = e.CommandArgument.ToString()
             txtItemSearchKeyword.Text = ""
-            gvItemSearch.DataSource = Nothing
-            gvItemSearch.DataBind()
+            BindItemSearchGrid("")
             mpeItem.Show()
         End If
     End Sub
 
     Protected Sub btnDoSearchItem_Click(sender As Object, e As EventArgs)
-        Dim keyword As String = txtItemSearchKeyword.Text.Trim()
-        If String.IsNullOrEmpty(keyword) Then
-            Return
-        End If
+        BindItemSearchGrid(txtItemSearchKeyword.Text.Trim())
+        mpeItem.Show()
+    End Sub
 
+    Protected Sub gvItemSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvItemSearch.PageIndex = e.NewPageIndex
+        BindItemSearchGrid(txtItemSearchKeyword.Text.Trim())
+        mpeItem.Show()
+    End Sub
+
+    Private Sub BindItemSearchGrid(keyword As String)
         Try
+            Dim sqlWhere As String = "WHERE frozenFor = 'N' "
+            Dim isExact As Boolean = (rblItemSearchMode.SelectedValue = "Exact")
+
+            If Not String.IsNullOrEmpty(keyword) Then
+                keyword = keyword.Replace("*", "").Replace("%", "")
+
+                If isExact Then
+                    sqlWhere &= " AND (ItemCode LIKE @Kw OR ItemName LIKE @Kw)"
+                    keyword = keyword & "%"
+                Else
+                    sqlWhere &= " AND (ItemCode LIKE @Kw OR ItemName LIKE @Kw)"
+                    keyword = "%" & keyword & "%"
+                End If
+            End If
+
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String
-                If rblItemSearchMode.SelectedValue = "Exact" Then
-                    sql = "SELECT TOP 100 ItemCode, ItemName, LastPurPrc FROM OITM WHERE (ItemCode LIKE @Keyword + '%' OR ItemName LIKE @Keyword + '%') AND frozenFor = 'N' ORDER BY ItemCode"
-                Else
-                    sql = "SELECT TOP 100 ItemCode, ItemName, LastPurPrc FROM OITM WHERE (ItemCode LIKE '%' + @Keyword + '%' OR ItemName LIKE '%' + @Keyword + '%') AND frozenFor = 'N' ORDER BY ItemCode"
-                End If
-
+                Dim sql As String = $"SELECT TOP 100 ItemCode, ItemName, LastPurPrc FROM OITM {sqlWhere} ORDER BY ItemCode"
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@Keyword", keyword)
-                    Using adapter As New SqlDataAdapter(cmd)
+                    If Not String.IsNullOrEmpty(keyword) Then
+                        cmd.Parameters.AddWithValue("@Kw", keyword)
+                    End If
+
+                    Using da As New SqlDataAdapter(cmd)
                         Dim dt As New DataTable()
-                        adapter.Fill(dt)
+                        da.Fill(dt)
                         gvItemSearch.DataSource = dt
                         gvItemSearch.DataBind()
                     End Using
@@ -630,8 +647,6 @@ Partial Public Class PurchaseRequestForm
         Catch ex As Exception
             ShowError("品號搜尋失敗: " & ex.Message)
         End Try
-
-        mpeItem.Show()
     End Sub
 
     Protected Sub gvItemSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
@@ -659,55 +674,81 @@ Partial Public Class PurchaseRequestForm
             BindGrid()
         End If
     End Sub
-
-    Protected Sub gvItemSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
-        gvItemSearch.PageIndex = e.NewPageIndex
-        btnDoSearchItem_Click(Nothing, Nothing)
-    End Sub
 #End Region
 
 #Region "供應商搜尋"
     Protected Sub btnSearchCardCode_Click(sender As Object, e As EventArgs)
-        hfSearchSource.Value = "CardCode"
-        txtVendorSearchKeyword.Text = txtCardCode.Text
-        mpeVendor.Show()
+        PerformVendorSearch("Code", txtCardCode.Text.Trim())
     End Sub
 
     Protected Sub btnSearchCardName_Click(sender As Object, e As EventArgs)
-        hfSearchSource.Value = "CardName"
-        txtVendorSearchKeyword.Text = txtCardName.Text
+        PerformVendorSearch("Name", txtCardName.Text.Trim())
+    End Sub
+
+    Private Sub PerformVendorSearch(source As String, keyword As String)
+        hfSearchSource.Value = source
+        txtVendorSearchKeyword.Text = keyword
+        BindVendorSearchGrid(keyword)
         mpeVendor.Show()
     End Sub
 
     Protected Sub btnDoSearchVendor_Click(sender As Object, e As EventArgs)
-        Dim keyword As String = txtVendorSearchKeyword.Text.Trim()
-        If String.IsNullOrEmpty(keyword) Then Return
+        BindVendorSearchGrid(txtVendorSearchKeyword.Text.Trim())
+        mpeVendor.Show()
+    End Sub
 
+    Protected Sub gvVendorSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvVendorSearch.PageIndex = e.NewPageIndex
+        BindVendorSearchGrid(txtVendorSearchKeyword.Text.Trim())
+        mpeVendor.Show()
+    End Sub
+
+    Private Sub BindVendorSearchGrid(keyword As String)
         Try
+            Dim sqlWhere As String = "WHERE CardType='S' AND FrozenFor='N' "
+
+            Dim searchSource As String = hfSearchSource.Value
+            Dim isExact As Boolean = (rblSearchMode.SelectedValue = "Exact")
+
+            If Not String.IsNullOrEmpty(keyword) Then
+                keyword = keyword.Replace("*", "").Replace("%", "")
+
+                If isExact Then
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND CardCode LIKE @Kw"
+                    Else
+                        sqlWhere &= " AND CardName LIKE @Kw"
+                    End If
+                    keyword = keyword & "%"
+                Else
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND CardCode LIKE @Kw"
+                    Else
+                        sqlWhere &= " AND CardName LIKE @Kw"
+                    End If
+                    keyword = "%" & keyword & "%"
+                End If
+            End If
+
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String
-                If rblSearchMode.SelectedValue = "Exact" Then
-                    sql = "SELECT TOP 100 CardCode, CardName FROM OCRD WHERE CardType = 'S' AND (CardCode LIKE @Keyword + '%' OR CardName LIKE @Keyword + '%') ORDER BY CardCode"
-                Else
-                    sql = "SELECT TOP 100 CardCode, CardName FROM OCRD WHERE CardType = 'S' AND (CardCode LIKE '%' + @Keyword + '%' OR CardName LIKE '%' + @Keyword + '%') ORDER BY CardCode"
-                End If
-
+                Dim sql As String = $"SELECT TOP 100 CardCode, CardName FROM OCRD {sqlWhere} ORDER BY CardCode"
                 Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@Keyword", keyword)
-                    Using adapter As New SqlDataAdapter(cmd)
+                    If Not String.IsNullOrEmpty(keyword) Then
+                        cmd.Parameters.AddWithValue("@Kw", keyword)
+                    End If
+
+                    Using da As New SqlDataAdapter(cmd)
                         Dim dt As New DataTable()
-                        adapter.Fill(dt)
+                        da.Fill(dt)
                         gvVendorSearch.DataSource = dt
                         gvVendorSearch.DataBind()
                     End Using
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("供應商搜尋失敗: " & ex.Message)
+            ShowError("搜尋供應商錯誤: " & ex.Message)
         End Try
-
-        mpeVendor.Show()
     End Sub
 
     Protected Sub gvVendorSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
@@ -717,11 +758,6 @@ Partial Public Class PurchaseRequestForm
             txtCardName.Text = args(1)
             mpeVendor.Hide()
         End If
-    End Sub
-
-    Protected Sub gvVendorSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
-        gvVendorSearch.PageIndex = e.NewPageIndex
-        btnDoSearchVendor_Click(Nothing, Nothing)
     End Sub
 #End Region
 
