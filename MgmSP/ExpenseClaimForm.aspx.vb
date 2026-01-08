@@ -541,13 +541,7 @@ Partial Public Class ExpenseClaimForm
                             Dim dueDate As DateTime = HolidayHelper.CalculateDueDateSkipHoliday(docDate, extraMonth, extraDays, wasAdjusted)
 
                             txtDocDueDate.Text = dueDate.ToString("yyyy-MM-dd")
-
-                            ' 如果有順延，顯示提示
-                            If wasAdjusted Then
-                                Dim holidayName As String = HolidayHelper.GetHolidayName(originalDueDate)
-                                lblDueDateHint.Text = String.Format("(原 {0:MM/dd} 為{1}，已順延)", originalDueDate, holidayName)
-                                lblDueDateHint.Visible = True
-                            End If
+                            ' 付款條件自動計算：自動順延假日，不顯示提示
                         End If
                     End Using
                 End Using

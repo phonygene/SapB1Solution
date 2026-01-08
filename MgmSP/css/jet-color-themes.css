@@ -53,6 +53,16 @@
     --danger-hover: #B86E68;
     --info: #5B7B9A;
     --info-hover: #6B8BA9;
+
+    /* Neutral 變數 - Master 框架使用 */
+    --neutral-bg-page: #F8F9FC;
+    --neutral-text-primary: #2D3748;
+    --neutral-text-light: #E2E8F0;
+
+    /* 狀態標籤背景色 */
+    --status-warning-bg: #FEF3C7;
+    --status-success-bg: #D1FAE5;
+    --status-danger-bg: #FEE2E2;
 }
 
 /* ============================================

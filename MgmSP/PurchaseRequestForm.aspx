@@ -1188,6 +1188,35 @@
                     </div>
                 </asp:Panel>
 
+                <!-- 假日順延確認彈窗 -->
+                <asp:HiddenField ID="hfOriginalReqDate" runat="server" />
+                <asp:HiddenField ID="hfAdjustedReqDate" runat="server" />
+                <asp:Button ID="btnHolidayDummy" runat="server" Style="display:none" />
+                <ajaxToolkit:ModalPopupExtender ID="mpeHoliday" runat="server"
+                    BehaviorID="mpeHolidayBehavior" TargetControlID="btnHolidayDummy"
+                    PopupControlID="pnlHoliday" BackgroundCssClass="modalBackground"
+                    DropShadow="false" />
+                <asp:Panel ID="pnlHoliday" runat="server" CssClass="modalPopup"
+                    Style="display:none; width:400px;">
+                    <div class="modalHeader">
+                        <span>需求日期為假日</span>
+                        <asp:LinkButton ID="btnHolidayClose" runat="server" ForeColor="White"
+                            Font-Bold="true" Style="text-decoration:none;"
+                            OnClick="btnHolidayKeep_Click">✕</asp:LinkButton>
+                    </div>
+                    <div class="modalBody" style="padding:20px;">
+                        <p>您選擇的日期 <asp:Label ID="lblHolidayOriginalDate" runat="server" Font-Bold="true"></asp:Label>
+                           為 <asp:Label ID="lblHolidayName" runat="server" ForeColor="#C44536" Font-Bold="true"></asp:Label></p>
+                        <p>是否要順延到下一個工作日 <asp:Label ID="lblHolidayNextWorkday" runat="server" Font-Bold="true" ForeColor="#2E7D32"></asp:Label>？</p>
+                    </div>
+                    <div class="modalFooter">
+                        <asp:Button ID="btnHolidayKeep" runat="server" Text="否，維持原日期"
+                            CssClass="btn btn-secondary" OnClick="btnHolidayKeep_Click" />
+                        <asp:Button ID="btnHolidayAdjust" runat="server" Text="是，順延"
+                            CssClass="btn btn-primary" OnClick="btnHolidayAdjust_Click" />
+                    </div>
+                </asp:Panel>
+
                 <!-- 供應商價格更新確認彈窗 -->
                 <asp:Button ID="btnPriceUpdateDummy" runat="server" Style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpePriceUpdate" runat="server"

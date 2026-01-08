@@ -1432,7 +1432,7 @@ Partial Public Class PurchaseRequestForm
     End Sub
 
     ''' <summary>
-    ''' 需求日期變更事件 - 檢查是否為假日並自動順延
+    ''' 需求日期變更事件 - 手動修改時檢查是否為假日，詢問使用者是否順延
     ''' </summary>
     Protected Sub txtReqDate_TextChanged(sender As Object, e As EventArgs)
         Try
@@ -1447,14 +1447,45 @@ Partial Public Class PurchaseRequestForm
                 Dim holidayName As String = HolidayHelper.GetHolidayName(reqDate)
                 Dim nextWorkday As DateTime = HolidayHelper.GetNextWorkingDay(reqDate)
 
-                ' 自動調整到下一個工作日
-                txtReqDate.Text = nextWorkday.ToString("yyyy-MM-dd")
-                lblReqDateHint.Text = String.Format("(原 {0:MM/dd} 為{1}，已順延)", reqDate, holidayName)
-                lblReqDateHint.Visible = True
+                ' 儲存原始日期和順延日期，供對話框使用
+                hfOriginalReqDate.Value = reqDate.ToString("yyyy-MM-dd")
+                hfAdjustedReqDate.Value = nextWorkday.ToString("yyyy-MM-dd")
+
+                ' 設定對話框顯示內容
+                lblHolidayOriginalDate.Text = reqDate.ToString("yyyy/MM/dd")
+                lblHolidayName.Text = holidayName
+                lblHolidayNextWorkday.Text = nextWorkday.ToString("yyyy/MM/dd")
+
+                ' 顯示詢問對話框
+                mpeHoliday.Show()
             End If
         Catch ex As Exception
             ' 日期解析失敗不阻斷流程
         End Try
+    End Sub
+
+    ''' <summary>
+    ''' 假日順延 - 維持原日期
+    ''' </summary>
+    Protected Sub btnHolidayKeep_Click(sender As Object, e As EventArgs)
+        mpeHoliday.Hide()
+        ' 保持 txtReqDate 的值不變（使用者選擇的假日）
+        lblReqDateHint.Text = "(此日期為假日)"
+        lblReqDateHint.Visible = True
+    End Sub
+
+    ''' <summary>
+    ''' 假日順延 - 順延到下一個工作日
+    ''' </summary>
+    Protected Sub btnHolidayAdjust_Click(sender As Object, e As EventArgs)
+        mpeHoliday.Hide()
+        If Not String.IsNullOrEmpty(hfAdjustedReqDate.Value) AndAlso Not String.IsNullOrEmpty(hfOriginalReqDate.Value) Then
+            Dim originalDate As DateTime = DateTime.Parse(hfOriginalReqDate.Value)
+            Dim holidayName As String = HolidayHelper.GetHolidayName(originalDate)
+            txtReqDate.Text = hfAdjustedReqDate.Value
+            lblReqDateHint.Text = String.Format("(原 {0:MM/dd} 為{1}，已順延)", originalDate, holidayName)
+            lblReqDateHint.Visible = True
+        End If
     End Sub
 #End Region
 
