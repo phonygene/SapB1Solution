@@ -1,26 +1,33 @@
 {
-  "lastUpdated": "2026-01-06T14:02:00+08:00",
-  "currentSprint": "v1.2.0-test",
+  "lastUpdated": "2026-01-08T10:30:00+08:00",
+  "currentSprint": "v1.2.0-user-profile",
   "tasks": [
     {
-      "id": "2026-01-06-T005",
-      "title": "測試工作5",
+      "id": "2026-01-08-user-profile-backend",
+      "title": "User 表欄位擴充與資料存取模組",
       "assignee": "backend",
-      "status": "completed",
-      "priority": "low",
-      "affectedFiles": [],
-      "createdAt": "2026-01-06T14:00:00+08:00",
-      "completedAt": "2026-01-06T14:01:00+08:00"
+      "status": "pending",
+      "priority": "high",
+      "affectedFiles": [
+        "MgmSP/Modules/UserProfileHelper.vb"
+      ],
+      "createdAt": "2026-01-08T10:30:00+08:00",
+      "dependencies": []
     },
     {
-      "id": "2026-01-06-T006",
-      "title": "測試工作6",
+      "id": "2026-01-08-user-profile-ui",
+      "title": "Home 頁面帳號設定介面",
       "assignee": "ui-ux",
-      "status": "completed",
-      "priority": "low",
-      "affectedFiles": [],
-      "createdAt": "2026-01-06T14:00:00+08:00",
-      "completedAt": "2026-01-06T14:01:00+08:00"
+      "status": "blocked",
+      "priority": "high",
+      "affectedFiles": [
+        "MgmSP/Home.aspx",
+        "MgmSP/Home.aspx.vb",
+        "MgmSP/Home.aspx.designer.vb"
+      ],
+      "createdAt": "2026-01-08T10:30:00+08:00",
+      "dependencies": ["2026-01-08-user-profile-backend"],
+      "blockedReason": "等待 Backend 完成 UserProfileHelper.vb"
     }
   ],
   "fileConflicts": {}
