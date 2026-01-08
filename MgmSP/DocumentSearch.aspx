@@ -50,11 +50,11 @@
         }
 
         /* 狀態標籤 - 對應資料庫 ApprovalStatus 值 */
-        /* 設計原則：淺色背景 + 深色文字，確保高對比度 */
-        .status-P { background-color: var(--bg-secondary); color: var(--text-primary); }
-        .status-W { background-color: #FEF3C7; color: #92600A; }  /* 淡黃背景 + 深褐文字 */
-        .status-A { background-color: #D1FAE5; color: #166534; }  /* 淡綠背景 + 深綠文字 */
-        .status-R { background-color: #FEE2E2; color: #991B1B; }  /* 淡紅背景 + 深紅文字 */
+        /* 設計原則：深色/飽和背景 + 白色文字 */
+        .status-P { background-color: #64748B; color: #FFFFFF; }  /* 草稿 - 灰 */
+        .status-W { background-color: #D97706; color: #FFFFFF; }  /* 待審 - 琥珀 */
+        .status-A { background-color: #059669; color: #FFFFFF; }  /* 核准 - 翠綠 */
+        .status-R { background-color: #DC2626; color: #FFFFFF; }  /* 退回 - 紅 */
 
         /* jID 連結 - 使用主題主色 */
         .link-jid {

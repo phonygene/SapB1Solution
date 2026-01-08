@@ -302,23 +302,23 @@
 }
 
 .badge-draft {
-    background-color: var(--bg-secondary);
-    color: var(--text-secondary);
+    background-color: #64748B;
+    color: #FFFFFF;
 }
 
 .badge-pending {
-    background-color: #FEF3C7;
-    color: #92600A;  /* 深褐 - 高對比 */
+    background-color: #D97706;
+    color: #FFFFFF;
 }
 
 .badge-approved {
-    background-color: #D1FAE5;
-    color: #166534;  /* 深綠 - 高對比 */
+    background-color: #059669;
+    color: #FFFFFF;
 }
 
 .badge-rejected {
-    background-color: #FEE2E2;
-    color: #991B1B;  /* 深紅 - 高對比 */
+    background-color: #DC2626;
+    color: #FFFFFF;
 }
 
 /* ----- 分頁器 ----- */
