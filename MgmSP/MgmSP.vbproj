@@ -230,6 +230,7 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="commcode\UserVendorTaxId.vb" />
+    <Compile Include="commcode\HolidayHelper.vb" />
     <Compile Include="Default.aspx.vb">
       <DependentUpon>Default.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
