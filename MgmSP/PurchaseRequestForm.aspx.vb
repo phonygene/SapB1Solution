@@ -23,6 +23,7 @@ Partial Public Class PurchaseRequestForm
         Public Property VatRate As Decimal
         Public Property VatSum As Decimal ' 稅額
         Public Property GTotal As Decimal ' 含稅金額
+        Public Property PriceAfVAT As Decimal ' 含稅單價 (SAP B1 命名)
         Public Property WhsCode As String
         Public Property ShipDate As DateTime?
         Public Property CostingCode As String
@@ -76,6 +77,30 @@ Partial Public Class PurchaseRequestForm
             ViewState("CurrentAttachments") = value
         End Set
     End Property
+
+    ''' <summary>
+    ''' 待選供應商代碼 (用於價格更新確認流程)
+    ''' </summary>
+    Private Property PendingVendorCode As String
+        Get
+            Return If(ViewState("PendingVendorCode"), "").ToString()
+        End Get
+        Set(value As String)
+            ViewState("PendingVendorCode") = value
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 待選供應商名稱 (用於價格更新確認流程)
+    ''' </summary>
+    Private Property PendingVendorName As String
+        Get
+            Return If(ViewState("PendingVendorName"), "").ToString()
+        End Get
+        Set(value As String)
+            ViewState("PendingVendorName") = value
+        End Set
+    End Property
 #End Region
 
 #Region "頁面載入"
@@ -115,14 +140,15 @@ Partial Public Class PurchaseRequestForm
     End Sub
 
     Private Sub CheckApprovalPermission()
+        ' 請購單審核權限使用 PU_App 欄位
         Using conn As New SqlConnection(connStr)
             conn.Open()
-            Dim sql As String = "SELECT Approver FROM [User] WHERE id = @UserId"
+            Dim sql As String = "SELECT PU_App FROM [User] WHERE id = @UserId"
             Using cmd As New SqlCommand(sql, conn)
                 cmd.Parameters.AddWithValue("@UserId", currentUserId)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     If dr.Read() Then
-                        canApprove = (Convert.ToInt32(dr("Approver")) = 1)
+                        canApprove = (Convert.ToInt32(If(IsDBNull(dr("PU_App")), 0, dr("PU_App"))) = 1)
                     End If
                 End Using
             End Using
@@ -159,9 +185,8 @@ Partial Public Class PurchaseRequestForm
     Private Sub InitializeDropDowns()
         LoadCurrencies()
         LoadDepartments()
-        LoadWarehouses()
+        ' LoadWarehouses, LoadProducts, LoadDepartments2 改為在 RowDataBound 中呼叫 (參照費用申請單模式)
         LoadPurchasers()
-        LoadCostingCodes()
         LoadVatGroups()
     End Sub
 
@@ -228,25 +253,26 @@ Partial Public Class PurchaseRequestForm
         End Try
     End Sub
 
-    Private Sub LoadWarehouses()
-        ' 從 SAP OWHS 載入倉庫
+    ''' <summary>
+    ''' 載入倉庫下拉選單 (參照費用申請單模式 - 直接填充控制項)
+    ''' </summary>
+    Private Sub LoadWarehouses(ddl As DropDownList)
+        ddl.Items.Clear()
+        ddl.Items.Add(New ListItem("", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
                 Dim sql As String = "SELECT WhsCode, WhsName FROM OWHS WHERE Inactive = 'N' ORDER BY WhsCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
-                        ViewState("Warehouses") = New List(Of ListItem)()
-                        Dim whsList As List(Of ListItem) = CType(ViewState("Warehouses"), List(Of ListItem))
-                        whsList.Add(New ListItem("", ""))
                         While dr.Read()
-                            whsList.Add(New ListItem(dr("WhsCode").ToString(), dr("WhsCode").ToString()))
+                            ddl.Items.Add(New ListItem(dr("WhsCode").ToString(), dr("WhsCode").ToString()))
                         End While
                     End Using
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("載入倉庫失敗: " & ex.Message)
+            ' 靜默處理，避免影響頁面載入
         End Try
     End Sub
 
@@ -270,65 +296,63 @@ Partial Public Class PurchaseRequestForm
         End Try
     End Sub
 
-    Private Sub LoadCostingCodes()
-        ' 產品別 (Dimension 1)
+    ''' <summary>
+    ''' 載入產品別下拉選單 (參照費用申請單模式 - 直接填充控制項)
+    ''' </summary>
+    Private Sub LoadProducts(ddl As DropDownList)
+        ddl.Items.Clear()
+        ddl.Items.Add(New ListItem("", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 1 AND Active = 'Y' ORDER BY PrcCode"
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 1 AND PrcCode NOT LIKE 'Centr%' ORDER BY PrcCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
-                        ViewState("CostingCode") = New List(Of ListItem)()
-                        Dim list As List(Of ListItem) = CType(ViewState("CostingCode"), List(Of ListItem))
-                        list.Add(New ListItem("", ""))
                         While dr.Read()
-                            list.Add(New ListItem(dr("PrcCode").ToString(), dr("PrcCode").ToString()))
+                            ddl.Items.Add(New ListItem(dr("PrcName").ToString() & " (" & dr("PrcCode").ToString() & ")", dr("PrcCode").ToString()))
                         End While
                     End Using
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("載入產品別失敗: " & ex.Message)
+            ' 靜默處理，避免影響頁面載入
         End Try
+    End Sub
 
-        ' 部門別 (Dimension 2)
+    ''' <summary>
+    ''' 載入部門別下拉選單 (參照費用申請單模式 - 直接填充控制項)
+    ''' </summary>
+    Private Sub LoadDepartments2(ddl As DropDownList)
+        ddl.Items.Clear()
+        ddl.Items.Add(New ListItem("", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
-                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 2 AND Active = 'Y' ORDER BY PrcCode"
+                Dim sql As String = "SELECT PrcCode, PrcName FROM OPRC WHERE DimCode = 2 AND PrcCode NOT LIKE 'Centr%' ORDER BY PrcCode"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
-                        ViewState("CostingCode2") = New List(Of ListItem)()
-                        Dim list As List(Of ListItem) = CType(ViewState("CostingCode2"), List(Of ListItem))
-                        list.Add(New ListItem("", ""))
                         While dr.Read()
-                            list.Add(New ListItem(dr("PrcCode").ToString(), dr("PrcCode").ToString()))
+                            ddl.Items.Add(New ListItem(dr("PrcName").ToString() & " (" & dr("PrcCode").ToString() & ")", dr("PrcCode").ToString()))
                         End While
                     End Using
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("載入部門別失敗: " & ex.Message)
+            ' 靜默處理，避免影響頁面載入
         End Try
     End Sub
 
     Private Sub LoadVatGroups()
-        ' 從 SAP OVTG 載入稅碼
-        Try
-            Using conn As New SqlConnection(sapConnStr)
-                conn.Open()
-                Dim sql As String = "SELECT Code, Name, Rate FROM OVTG WHERE Category = 'I' ORDER BY Code"
-                Using cmd As New SqlCommand(sql, conn)
-                    Using dr As SqlDataReader = cmd.ExecuteReader()
-                        ViewState("VatGroups") = New DataTable()
-                        Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
-                        dt.Load(dr)
-                    End Using
-                End Using
-            End Using
-        Catch ex As Exception
-            ShowError("載入稅碼失敗: " & ex.Message)
-        End Try
+        ' 硬編碼稅碼 (參照費用申請單)
+        ViewState("VatGroups") = New DataTable()
+        Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
+        dt.Columns.Add("Code", GetType(String))
+        dt.Columns.Add("Name", GetType(String))
+        dt.Columns.Add("Rate", GetType(Decimal))
+
+        dt.Rows.Add("1", "1-應稅 (5%)", 5D)
+        dt.Rows.Add("2", "2-零稅 (0%)", 0D)
+        dt.Rows.Add("3", "3-免稅 (0%)", 0D)
     End Sub
 #End Region
 
@@ -366,50 +390,56 @@ Partial Public Class PurchaseRequestForm
                 txtQuantity.Text = If(line.Quantity > 0, line.Quantity.ToString("N2"), "1")
             End If
 
-            ' 綁定單價
+            ' 綁定單價 (未稅)
             Dim txtPrice As TextBox = CType(e.Row.FindControl("txtPrice"), TextBox)
             If txtPrice IsNot Nothing Then
                 txtPrice.Text = line.Price.ToString("N2")
             End If
 
-            ' 綁定稅碼
+            ' 綁定含稅單價
+            Dim txtPriceAfVAT As TextBox = CType(e.Row.FindControl("txtPriceAfVAT"), TextBox)
+            If txtPriceAfVAT IsNot Nothing Then
+                txtPriceAfVAT.Text = line.PriceAfVAT.ToString("N2")
+            End If
+
+            ' 綁定稅碼 (顯示名稱，參照費用申請單)
             Dim ddlVatGroup As DropDownList = CType(e.Row.FindControl("ddlVatGroup"), DropDownList)
             If ddlVatGroup IsNot Nothing Then
                 ddlVatGroup.Items.Clear()
-                ddlVatGroup.Items.Add(New ListItem("", ""))
                 Dim dt As DataTable = CType(ViewState("VatGroups"), DataTable)
                 If dt IsNot Nothing Then
                     For Each dr As DataRow In dt.Rows
-                        ddlVatGroup.Items.Add(New ListItem(dr("Code").ToString(), dr("Code").ToString()))
+                        Dim item As New ListItem(dr("Name").ToString(), dr("Code").ToString())
+                        item.Attributes.Add("data-rate", dr("Rate").ToString())
+                        ddlVatGroup.Items.Add(item)
                     Next
                 End If
                 If Not String.IsNullOrEmpty(line.VatGroup) AndAlso ddlVatGroup.Items.FindByValue(line.VatGroup) IsNot Nothing Then
                     ddlVatGroup.SelectedValue = line.VatGroup
+                Else
+                    ' 預設選擇應稅
+                    If ddlVatGroup.Items.FindByValue("1") IsNot Nothing Then
+                        ddlVatGroup.SelectedValue = "1"
+                    End If
                 End If
             End If
 
             ' 綁定稅額
             Dim txtVatSum As TextBox = CType(e.Row.FindControl("txtVatSum"), TextBox)
             If txtVatSum IsNot Nothing Then
-                txtVatSum.Text = line.VatSum.ToString("N2")
+                txtVatSum.Text = line.VatSum.ToString("N0")
             End If
 
             ' 綁定含稅金額
             Dim txtGTotal As TextBox = CType(e.Row.FindControl("txtGTotal"), TextBox)
             If txtGTotal IsNot Nothing Then
-                txtGTotal.Text = line.GTotal.ToString("N2")
+                txtGTotal.Text = line.GTotal.ToString("N0")
             End If
 
-            ' 綁定倉庫
+            ' 綁定倉庫 (參照費用申請單模式 - 直接查詢填充)
             Dim ddlWhsCode As DropDownList = CType(e.Row.FindControl("ddlWhsCode"), DropDownList)
             If ddlWhsCode IsNot Nothing Then
-                ddlWhsCode.Items.Clear()
-                Dim whsList As List(Of ListItem) = CType(ViewState("Warehouses"), List(Of ListItem))
-                If whsList IsNot Nothing Then
-                    For Each item In whsList
-                        ddlWhsCode.Items.Add(New ListItem(item.Text, item.Value))
-                    Next
-                End If
+                LoadWarehouses(ddlWhsCode)
                 If Not String.IsNullOrEmpty(line.WhsCode) AndAlso ddlWhsCode.Items.FindByValue(line.WhsCode) IsNot Nothing Then
                     ddlWhsCode.SelectedValue = line.WhsCode
                 End If
@@ -421,31 +451,19 @@ Partial Public Class PurchaseRequestForm
                 txtShipDate.Text = line.ShipDate.Value.ToString("yyyy-MM-dd")
             End If
 
-            ' 綁定產品別
+            ' 綁定產品別 (參照費用申請單模式 - 直接查詢填充)
             Dim ddlCostingCode As DropDownList = CType(e.Row.FindControl("ddlCostingCode"), DropDownList)
             If ddlCostingCode IsNot Nothing Then
-                ddlCostingCode.Items.Clear()
-                Dim costList As List(Of ListItem) = CType(ViewState("CostingCode"), List(Of ListItem))
-                If costList IsNot Nothing Then
-                    For Each item In costList
-                        ddlCostingCode.Items.Add(New ListItem(item.Text, item.Value))
-                    Next
-                End If
+                LoadProducts(ddlCostingCode)
                 If Not String.IsNullOrEmpty(line.CostingCode) AndAlso ddlCostingCode.Items.FindByValue(line.CostingCode) IsNot Nothing Then
                     ddlCostingCode.SelectedValue = line.CostingCode
                 End If
             End If
 
-            ' 綁定部門別
+            ' 綁定部門別 (參照費用申請單模式 - 直接查詢填充)
             Dim ddlCostingCode2 As DropDownList = CType(e.Row.FindControl("ddlCostingCode2"), DropDownList)
             If ddlCostingCode2 IsNot Nothing Then
-                ddlCostingCode2.Items.Clear()
-                Dim costList2 As List(Of ListItem) = CType(ViewState("CostingCode2"), List(Of ListItem))
-                If costList2 IsNot Nothing Then
-                    For Each item In costList2
-                        ddlCostingCode2.Items.Add(New ListItem(item.Text, item.Value))
-                    Next
-                End If
+                LoadDepartments2(ddlCostingCode2)
                 If Not String.IsNullOrEmpty(line.CostingCode2) AndAlso ddlCostingCode2.Items.FindByValue(line.CostingCode2) IsNot Nothing Then
                     ddlCostingCode2.SelectedValue = line.CostingCode2
                 End If
@@ -462,9 +480,10 @@ Partial Public Class PurchaseRequestForm
             .Description = "",
             .Quantity = 1,
             .Price = 0,
+            .PriceAfVAT = 0,
             .LineTotal = 0,
-            .VatGroup = "",
-            .VatRate = 0,
+            .VatGroup = "1",  ' 預設應稅
+            .VatRate = 5,     ' 5%
             .VatSum = 0,
             .GTotal = 0,
             .WhsCode = "",
@@ -505,7 +524,11 @@ Partial Public Class PurchaseRequestForm
         BindGrid()
     End Sub
 
-    Private Sub SyncGridToList()
+    ''' <summary>
+    ''' 同步 GridView 資料到 Model (參照費用申請單 SyncGridDataToModel)
+    ''' </summary>
+    ''' <param name="readPriceAfVAT">是否從含稅單價反推</param>
+    Private Sub SyncGridToList(Optional readPriceAfVAT As Boolean = False)
         For i As Integer = 0 To gvPRDetail.Rows.Count - 1
             If i < CurrentLines.Count Then
                 Dim row As GridViewRow = gvPRDetail.Rows(i)
@@ -527,6 +550,13 @@ Partial Public Class PurchaseRequestForm
                     Decimal.TryParse(txtPrice.Text, line.Price)
                 End If
 
+                ' 讀取含稅單價
+                Dim txtPriceAfVAT As TextBox = CType(row.FindControl("txtPriceAfVAT"), TextBox)
+                Dim inputPriceAfVAT As Decimal = 0
+                If txtPriceAfVAT IsNot Nothing Then
+                    Decimal.TryParse(txtPriceAfVAT.Text, inputPriceAfVAT)
+                End If
+
                 Dim ddlVatGroup As DropDownList = CType(row.FindControl("ddlVatGroup"), DropDownList)
                 If ddlVatGroup IsNot Nothing Then
                     line.VatGroup = ddlVatGroup.SelectedValue
@@ -540,6 +570,13 @@ Partial Public Class PurchaseRequestForm
                             line.VatRate = 0
                         End If
                     End If
+                End If
+
+                ' 讀取使用者輸入的稅額
+                Dim txtVatSum As TextBox = CType(row.FindControl("txtVatSum"), TextBox)
+                Dim userVatSum As Decimal = 0
+                If txtVatSum IsNot Nothing Then
+                    Decimal.TryParse(txtVatSum.Text, userVatSum)
                 End If
 
                 Dim ddlWhsCode As DropDownList = CType(row.FindControl("ddlWhsCode"), DropDownList)
@@ -561,16 +598,70 @@ Partial Public Class PurchaseRequestForm
                 Dim ddlCostingCode2 As DropDownList = CType(row.FindControl("ddlCostingCode2"), DropDownList)
                 If ddlCostingCode2 IsNot Nothing Then line.CostingCode2 = ddlCostingCode2.SelectedValue
 
-                ' 計算金額
-                line.LineTotal = line.Quantity * line.Price
-                line.VatSum = Math.Round(line.LineTotal * line.VatRate / 100, 2)
-                line.GTotal = line.LineTotal + line.VatSum
+                ' ==========================================
+                ' 金額計算邏輯 (參照費用申請單)
+                ' ==========================================
+                If readPriceAfVAT AndAlso inputPriceAfVAT > 0 AndAlso line.Quantity > 0 Then
+                    ' 從含稅單價反推 (參照費用申請單 CalculateFromPriceAfterVat)
+                    Dim gTotal As Decimal = inputPriceAfVAT * line.Quantity
+                    If line.VatGroup = "1" Then
+                        ' 應稅：反推未稅金額
+                        line.LineTotal = Math.Round(gTotal / 1.05D, 0, MidpointRounding.AwayFromZero)
+                        line.VatSum = gTotal - line.LineTotal
+                    Else
+                        ' 零稅/免稅：含稅金額 = 未稅金額
+                        line.LineTotal = gTotal
+                        line.VatSum = 0
+                    End If
+                    line.GTotal = gTotal
+                    line.PriceAfVAT = inputPriceAfVAT
+                    ' 反推未稅單價
+                    line.Price = If(line.Quantity > 0, line.LineTotal / line.Quantity, 0)
+                Else
+                    ' 正常計算：從未稅單價計算
+                    line.LineTotal = line.Quantity * line.Price
+
+                    ' 稅額計算邏輯 (參照費用申請單)
+                    If line.VatGroup = "2" OrElse line.VatGroup = "3" Then
+                        ' 零稅或免稅
+                        line.VatSum = 0
+                    ElseIf userVatSum = 0 AndAlso line.LineTotal > 0 AndAlso line.VatGroup = "1" Then
+                        ' 使用者未輸入稅額，自動計算 (使用無條件捨去)
+                        line.VatSum = Math.Floor(line.LineTotal * 0.05D)
+                    Else
+                        ' 保留使用者輸入的稅額
+                        line.VatSum = userVatSum
+                    End If
+
+                    ' 計算含稅金額和含稅單價
+                    line.GTotal = line.LineTotal + line.VatSum
+                    line.PriceAfVAT = If(line.Quantity > 0, line.GTotal / line.Quantity, 0)
+                End If
             End If
         Next
     End Sub
 
+    ''' <summary>
+    ''' 數量或未稅單價變更 - 重新計算金額
+    ''' </summary>
     Protected Sub CalculateLineTotal(sender As Object, e As EventArgs)
-        SyncGridToList()
+        SyncGridToList(False)
+        BindGrid()
+    End Sub
+
+    ''' <summary>
+    ''' 含稅單價變更 - 從含稅單價反推未稅單價和稅額
+    ''' </summary>
+    Protected Sub CalculateFromPriceAfVAT(sender As Object, e As EventArgs)
+        SyncGridToList(True)
+        BindGrid()
+    End Sub
+
+    ''' <summary>
+    ''' 稅額變更 - 保留使用者輸入的稅額
+    ''' </summary>
+    Protected Sub CalculateVatSum(sender As Object, e As EventArgs)
+        SyncGridToList(False)
         BindGrid()
     End Sub
 
@@ -601,6 +692,7 @@ Partial Public Class PurchaseRequestForm
     End Sub
 
     Protected Sub btnDoSearchItem_Click(sender As Object, e As EventArgs)
+        gvItemSearch.PageIndex = 0  ' 重新搜尋時回到第一頁
         BindItemSearchGrid(txtItemSearchKeyword.Text.Trim())
         mpeItem.Show()
     End Sub
@@ -661,13 +753,26 @@ Partial Public Class PurchaseRequestForm
 
             Dim rowIndex As Integer = Convert.ToInt32(hfItemSearchRowIndex.Value)
             If rowIndex >= 0 AndAlso rowIndex < CurrentLines.Count Then
-                CurrentLines(rowIndex).ItemCode = itemCode
-                CurrentLines(rowIndex).Description = itemName
-                CurrentLines(rowIndex).Price = lastPurPrc
-                ' 重新計算金額
-                CurrentLines(rowIndex).LineTotal = CurrentLines(rowIndex).Quantity * CurrentLines(rowIndex).Price
-                CurrentLines(rowIndex).VatSum = Math.Round(CurrentLines(rowIndex).LineTotal * CurrentLines(rowIndex).VatRate / 100, 2)
-                CurrentLines(rowIndex).GTotal = CurrentLines(rowIndex).LineTotal + CurrentLines(rowIndex).VatSum
+                Dim line = CurrentLines(rowIndex)
+                line.ItemCode = itemCode
+                line.Description = itemName
+                line.Price = lastPurPrc
+
+                ' 確保稅碼有預設值
+                If String.IsNullOrEmpty(line.VatGroup) Then
+                    line.VatGroup = "1"  ' 預設應稅
+                    line.VatRate = 5
+                End If
+
+                ' 重新計算金額 (參照費用申請單邏輯)
+                line.LineTotal = line.Quantity * line.Price
+                If line.VatGroup = "1" Then
+                    line.VatSum = Math.Floor(line.LineTotal * 0.05D)
+                Else
+                    line.VatSum = 0
+                End If
+                line.GTotal = line.LineTotal + line.VatSum
+                line.PriceAfVAT = If(line.Quantity > 0, line.GTotal / line.Quantity, 0)
             End If
 
             mpeItem.Hide()
@@ -693,6 +798,7 @@ Partial Public Class PurchaseRequestForm
     End Sub
 
     Protected Sub btnDoSearchVendor_Click(sender As Object, e As EventArgs)
+        gvVendorSearch.PageIndex = 0  ' 重新搜尋時回到第一頁
         BindVendorSearchGrid(txtVendorSearchKeyword.Text.Trim())
         mpeVendor.Show()
     End Sub
@@ -754,11 +860,115 @@ Partial Public Class PurchaseRequestForm
     Protected Sub gvVendorSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
         If e.CommandName = "SelectVendor" Then
             Dim args() As String = e.CommandArgument.ToString().Split("|"c)
-            txtCardCode.Text = args(0)
-            txtCardName.Text = args(1)
+            Dim selectedCardCode As String = args(0)
+            Dim selectedCardName As String = args(1)
+
             mpeVendor.Hide()
+
+            ' 檢查是否有已輸入品號的明細
+            Dim hasItems As Boolean = CurrentLines.Any(Function(l) Not String.IsNullOrEmpty(l.ItemCode))
+
+            If hasItems Then
+                ' 有項目，詢問是否更新價格
+                PendingVendorCode = selectedCardCode
+                PendingVendorName = selectedCardName
+                mpePriceUpdate.Show()
+            Else
+                ' 沒有項目，直接設定供應商
+                txtCardCode.Text = selectedCardCode
+                txtCardName.Text = selectedCardName
+            End If
         End If
     End Sub
+
+    ''' <summary>
+    ''' 取消價格更新 - 保持現有價格，只設定供應商
+    ''' </summary>
+    Protected Sub btnPriceUpdateCancel_Click(sender As Object, e As EventArgs)
+        txtCardCode.Text = PendingVendorCode
+        txtCardName.Text = PendingVendorName
+        PendingVendorCode = ""
+        PendingVendorName = ""
+        mpePriceUpdate.Hide()
+    End Sub
+
+    ''' <summary>
+    ''' 確認價格更新 - 設定供應商並更新項目價格
+    ''' </summary>
+    Protected Sub btnPriceUpdateConfirm_Click(sender As Object, e As EventArgs)
+        txtCardCode.Text = PendingVendorCode
+        txtCardName.Text = PendingVendorName
+
+        ' 更新所有項目的價格
+        For Each line As PRLine In CurrentLines
+            If Not String.IsNullOrEmpty(line.ItemCode) Then
+                ' 從 OPOR/POR1 取得該供應商對該項目的最後採購價
+                Dim vendorPrice As Decimal = GetVendorLastPrice(PendingVendorCode, line.ItemCode)
+                line.Price = vendorPrice
+
+                ' 重新計算金額
+                line.LineTotal = line.Quantity * line.Price
+                If line.VatGroup = "1" Then
+                    line.VatSum = Math.Floor(line.LineTotal * 0.05D)
+                Else
+                    line.VatSum = 0
+                End If
+                line.GTotal = line.LineTotal + line.VatSum
+                line.PriceAfVAT = If(line.Quantity > 0, line.GTotal / line.Quantity, 0)
+            End If
+        Next
+
+        PendingVendorCode = ""
+        PendingVendorName = ""
+        mpePriceUpdate.Hide()
+        BindGrid()
+    End Sub
+
+    ''' <summary>
+    ''' 取得供應商對該項目的最後採購價
+    ''' 邏輯: 從 OPOR/POR1 找該供應商最後一次下單該項目的折扣後單價 (Price)
+    ''' 若找不到則使用該項目的最後採購價 (OITM.LastPurPrc)
+    ''' </summary>
+    Private Function GetVendorLastPrice(cardCode As String, itemCode As String) As Decimal
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+
+                ' 1. 先從 OPOR/POR1 找供應商最後一次採購該項目的價格
+                Dim sql As String = "SELECT TOP 1 T1.Price " &
+                                    "FROM OPOR T0 " &
+                                    "INNER JOIN POR1 T1 ON T0.DocEntry = T1.DocEntry " &
+                                    "WHERE T0.CardCode = @CardCode " &
+                                    "AND T1.ItemCode = @ItemCode " &
+                                    "AND T0.CANCELED = 'N' " &
+                                    "ORDER BY T0.DocDate DESC, T0.DocEntry DESC"
+
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@CardCode", cardCode)
+                    cmd.Parameters.AddWithValue("@ItemCode", itemCode)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return Convert.ToDecimal(result)
+                    End If
+                End Using
+
+                ' 2. 找不到供應商採購記錄，使用項目的最後採購價
+                sql = "SELECT LastPurPrc FROM OITM WHERE ItemCode = @ItemCode"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ItemCode", itemCode)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return Convert.ToDecimal(result)
+                    End If
+                End Using
+
+                Return 0
+            End Using
+        Catch ex As Exception
+            ' 發生錯誤時返回 0
+            Return 0
+        End Try
+    End Function
 #End Region
 
 #Region "幣別匯率"
@@ -1088,17 +1298,20 @@ Partial Public Class PurchaseRequestForm
                 cmd.Parameters.AddWithValue("@jID", jID)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     While dr.Read()
+                        Dim qty As Decimal = Convert.ToDecimal(dr("Quantity"))
+                        Dim gTotal As Decimal = Convert.ToDecimal(dr("GTotal"))
                         Dim line As New PRLine() With {
                             .LineNum = Convert.ToInt32(dr("LineNum")) + 1,
                             .ItemCode = dr("ItemCode").ToString(),
                             .Description = If(IsDBNull(dr("Dscription")), "", dr("Dscription").ToString()),
-                            .Quantity = Convert.ToDecimal(dr("Quantity")),
+                            .Quantity = qty,
                             .Price = Convert.ToDecimal(dr("Price")),
                             .LineTotal = Convert.ToDecimal(dr("LineTotal")),
                             .VatGroup = If(IsDBNull(dr("VatGroup")), "", dr("VatGroup").ToString()),
                             .VatRate = Convert.ToDecimal(dr("VatPrcnt")),
                             .VatSum = Convert.ToDecimal(dr("LineVat")),
-                            .GTotal = Convert.ToDecimal(dr("GTotal")),
+                            .GTotal = gTotal,
+                            .PriceAfVAT = If(qty > 0, gTotal / qty, 0),  ' 計算含稅單價
                             .WhsCode = If(IsDBNull(dr("WhsCode")), "", dr("WhsCode").ToString()),
                             .ShipDate = If(IsDBNull(dr("ShipDate")), Nothing, Convert.ToDateTime(dr("ShipDate"))),
                             .CostingCode = If(IsDBNull(dr("CostingCode")), "", dr("CostingCode").ToString()),
@@ -1216,6 +1429,32 @@ Partial Public Class PurchaseRequestForm
 
     Protected Sub btnNewDocument_Click(sender As Object, e As EventArgs)
         Response.Redirect("PurchaseRequestForm.aspx")
+    End Sub
+
+    ''' <summary>
+    ''' 需求日期變更事件 - 檢查是否為假日並自動順延
+    ''' </summary>
+    Protected Sub txtReqDate_TextChanged(sender As Object, e As EventArgs)
+        Try
+            lblReqDateHint.Visible = False
+
+            If String.IsNullOrEmpty(txtReqDate.Text) Then Return
+
+            Dim reqDate As DateTime = DateTime.Parse(txtReqDate.Text)
+
+            ' 檢查是否為假日
+            If HolidayHelper.IsHoliday(reqDate) Then
+                Dim holidayName As String = HolidayHelper.GetHolidayName(reqDate)
+                Dim nextWorkday As DateTime = HolidayHelper.GetNextWorkingDay(reqDate)
+
+                ' 自動調整到下一個工作日
+                txtReqDate.Text = nextWorkday.ToString("yyyy-MM-dd")
+                lblReqDateHint.Text = String.Format("(原 {0:MM/dd} 為{1}，已順延)", reqDate, holidayName)
+                lblReqDateHint.Visible = True
+            End If
+        Catch ex As Exception
+            ' 日期解析失敗不阻斷流程
+        End Try
     End Sub
 #End Region
 

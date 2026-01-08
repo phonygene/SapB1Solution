@@ -34,6 +34,7 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
     Protected WithEvents txtReqDate As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents lblReqDateHint As Global.System.Web.UI.WebControls.Label
     Protected WithEvents txtStatusDisplay As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents txtApprovalStatus As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents txtUPID As Global.System.Web.UI.WebControls.TextBox
@@ -89,5 +90,11 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents blWarnings As Global.System.Web.UI.WebControls.BulletedList
     Protected WithEvents btnValidationBack As Global.System.Web.UI.WebControls.Button
     Protected WithEvents btnValidationConfirm As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents btnPriceUpdateDummy As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents mpePriceUpdate As Global.AjaxControlToolkit.ModalPopupExtender
+    Protected WithEvents pnlPriceUpdate As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents btnPriceUpdateClose As Global.System.Web.UI.WebControls.LinkButton
+    Protected WithEvents btnPriceUpdateCancel As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents btnPriceUpdateConfirm As Global.System.Web.UI.WebControls.Button
 
 End Class

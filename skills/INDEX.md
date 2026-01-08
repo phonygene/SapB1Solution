@@ -14,6 +14,7 @@
 | SAP B1 整合（Service Layer、DI API） | `sap-checklist.md` | Session 管理、COM 物件釋放 |
 | UI 設計（顏色、樣式、元件） | `ui-design-system.md` | 設計規範、禁止事項、允許變更 |
 | 所有開發任務 | `general-checklist.md` | Git 規範、檔案編碼、控制項宣告 |
+| **工具執行失敗/重試** | `work-logs/insights/tool-errors.md` | 錯誤記錄與已知解決方案 |
 
 ---
 
@@ -22,11 +23,12 @@
 | 檔案 | 適用 Agent | 更新日期 |
 |------|-----------|----------|
 | `backend-checklist.md` | Backend | 2026-01-07 |
-| `general-checklist.md` | All | 2026-01-08 |
+| `general-checklist.md` | All | 2026-01-08 (錯誤處理規範) |
 | `sap-checklist.md` | Backend | 2026-01-07 |
 | `slash-command-standards.md` | All | 2026-01-07 |
 | `ui-checklist.md` | UI-UX | 2026-01-07 |
 | `ui-design-system.md` | UI-UX | 2026-01-07 |
+| `work-logs/insights/tool-errors.md` | All | 2026-01-08 (新建) |
 
 ---
 

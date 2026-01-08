@@ -1078,6 +1078,8 @@
                                                 </asp:TextBox>
                                                 <asp:Label ID="lblErrDocDueDate" runat="server" CssClass="error-text"
                                                     Visible="False"></asp:Label>
+                                                <asp:Label ID="lblDueDateHint" runat="server" CssClass="hint-text"
+                                                    ForeColor="#FF6600" Visible="False"></asp:Label>
                                             </div>
                                         </div>
                                         <div class="form-group">

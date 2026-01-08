@@ -52,6 +52,30 @@
 
 ---
 
+## ModalPopupExtender 開發規範
+
+> 多個彈窗容易發生事件混淆，必須嚴格遵守
+
+### 必須設置
+- [ ] 每個 ModalPopupExtender 必須有唯一的 `BehaviorID`
+- [ ] 對應的 Panel 必須有 `style="display:none"`
+- [ ] 每個彈窗內的控制項 ID 必須獨特（不同彈窗不能用同名 ID）
+
+### 事件綁定
+- [ ] 按鈕的 `OnClick` 事件必須明確指向對應的處理函數
+- [ ] 處理函數中必須呼叫正確的彈窗 `.Show()` 方法
+- [ ] 關閉按鈕的 `CancelControlID` 必須正確設置
+
+### 開發流程
+1. 參照現有實現（如 ExpenseClaimForm）
+2. 複製代碼後**必須逐行檢查**所有 ID 和事件綁定
+3. 開發完成後測試完整流程：開啟 → 輸入 → 搜尋 → 選取 → 關閉
+
+---
+
 ## 從錯誤中學習（持續新增）
 
-*（待累積）*
+### 2026-01-08: 搜尋彈窗事件混淆
+- **問題**: PurchaseRequestForm 品號搜尋按鈕觸發了供應商搜尋
+- **根因**: 複製代碼時沒有仔細檢查事件綁定，ModalPopupExtender 沒有 BehaviorID
+- **教訓**: 多個相似彈窗必須有獨特 BehaviorID，複製代碼後必須逐行檢查

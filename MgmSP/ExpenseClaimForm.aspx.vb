@@ -512,9 +512,12 @@ Partial Public Class ExpenseClaimForm
     ''' 根據付款條件計算到期日
     ''' SAP B1 OCTG 表：ExtraMonth=加月數, ExtraDays=加天數
     ''' 到期日 = 過帳日期 + ExtraMonth 月 + ExtraDays 天
+    ''' 如果到期日落在假日，自動順延到下一個工作日
     ''' </summary>
     Private Sub CalculateDueDate()
         Try
+            lblDueDateHint.Visible = False
+
             If String.IsNullOrEmpty(ddlGroupNum.SelectedValue) Then Return
             If String.IsNullOrEmpty(txtDocDate.Text) Then Return
 
@@ -532,9 +535,19 @@ Partial Public Class ExpenseClaimForm
                             Dim extraMonth As Integer = If(IsDBNull(dr("ExtraMonth")), 0, Convert.ToInt32(dr("ExtraMonth")))
                             Dim extraDays As Integer = If(IsDBNull(dr("ExtraDays")), 0, Convert.ToInt32(dr("ExtraDays")))
 
-                            ' 計算到期日：過帳日期 + 月數 + 天數
-                            Dim dueDate As DateTime = docDate.AddMonths(extraMonth).AddDays(extraDays)
+                            ' 計算到期日並自動跳過假日
+                            Dim wasAdjusted As Boolean = False
+                            Dim originalDueDate As DateTime = docDate.AddMonths(extraMonth).AddDays(extraDays)
+                            Dim dueDate As DateTime = HolidayHelper.CalculateDueDateSkipHoliday(docDate, extraMonth, extraDays, wasAdjusted)
+
                             txtDocDueDate.Text = dueDate.ToString("yyyy-MM-dd")
+
+                            ' 如果有順延，顯示提示
+                            If wasAdjusted Then
+                                Dim holidayName As String = HolidayHelper.GetHolidayName(originalDueDate)
+                                lblDueDateHint.Text = String.Format("(原 {0:MM/dd} 為{1}，已順延)", originalDueDate, holidayName)
+                                lblDueDateHint.Visible = True
+                            End If
                         End If
                     End Using
                 End Using
@@ -743,6 +756,7 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub btnDoSearchVendor_Click(sender As Object, e As EventArgs)
+        gvVendorSearch.PageIndex = 0  ' 重新搜尋時回到第一頁
         BindVendorSearchGrid(txtVendorSearchKeyword.Text.Trim())
         mpeVendor.Show()
     End Sub
@@ -916,6 +930,7 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     Protected Sub btnDoSearchAcct_Click(sender As Object, e As EventArgs)
+        gvAcctSearch.PageIndex = 0  ' 重新搜尋時回到第一頁
         BindAcctSearchGrid(txtAcctSearchKeyword.Text.Trim())
         mpeAcct.Show()
     End Sub

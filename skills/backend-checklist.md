@@ -51,8 +51,26 @@
 - **症狀**：按鈕點擊無反應
 - **解法**：在 Triggers 註冊 AsyncPostBackTrigger
 
+### [P004] ViewState 序列化失敗 (ListItem)
+- **症狀**：`SerializationException: 未將類型 'System.Web.UI.WebControls.ListItem' 標記為可序列化`
+- **原因**：`List(Of ListItem)` 無法序列化到 ViewState
+- **解法**：改用 `DataTable` 存儲下拉選單資料
+- **範例**：
+  ```vb
+  ' 錯誤做法
+  ViewState("Items") = New List(Of ListItem)()
+
+  ' 正確做法
+  Dim dt As New DataTable()
+  da.Fill(dt)
+  ViewState("Items") = dt
+  ```
+
 ---
 
 ## 從錯誤中學習（持續新增）
 
-*（待累積）*
+### 2026-01-08: ViewState 序列化問題
+- **檔案**：PurchaseRequestForm.aspx.vb
+- **問題**：LoadWarehouses/LoadCostingCodes 使用 `List(Of ListItem)` 存入 ViewState
+- **修正**：改用 DataTable，在 RowDataBound 中動態建立 ListItem

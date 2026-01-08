@@ -785,7 +785,10 @@
                             <div class="form-group">
                                 <label class="form-label">需求日期:</label>
                                 <div class="form-control">
-                                    <asp:TextBox ID="txtReqDate" runat="server" TextMode="Date"></asp:TextBox>
+                                    <asp:TextBox ID="txtReqDate" runat="server" TextMode="Date"
+                                        AutoPostBack="true" OnTextChanged="txtReqDate_TextChanged"></asp:TextBox>
+                                    <asp:Label ID="lblReqDateHint" runat="server" CssClass="hint-text"
+                                        ForeColor="#FF6600" Visible="False"></asp:Label>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -921,21 +924,30 @@
                                     <ItemStyle Width="90px" />
                                 </asp:TemplateField>
 
+                                <asp:TemplateField HeaderText="含稅單價">
+                                    <ItemTemplate>
+                                        <asp:TextBox ID="txtPriceAfVAT" runat="server" Width="80px"
+                                            style="text-align:right;" AutoPostBack="true"
+                                            OnTextChanged="CalculateFromPriceAfVAT" Text="0"></asp:TextBox>
+                                    </ItemTemplate>
+                                    <ItemStyle Width="90px" />
+                                </asp:TemplateField>
+
                                 <asp:TemplateField HeaderText="稅碼">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlVatGroup" runat="server"
-                                            Width="80px" AutoPostBack="true"
+                                            Width="100px" AutoPostBack="true"
                                             OnSelectedIndexChanged="CalculateLineTotal">
                                         </asp:DropDownList>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle Width="110px" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="稅額">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtVatSum" runat="server" Text="0"
-                                            Width="70px" style="text-align:right;" ReadOnly="true"
-                                            CssClass="readonly-field"></asp:TextBox>
+                                            Width="70px" style="text-align:right;" AutoPostBack="true"
+                                            OnTextChanged="CalculateVatSum"></asp:TextBox>
                                     </ItemTemplate>
                                     <ItemStyle Width="80px" />
                                 </asp:TemplateField>
@@ -1073,7 +1085,8 @@
 
                 <!-- Vendor Search Modal -->
                 <asp:Button ID="btnDummy" runat="server" style="display:none" />
-                <ajaxToolkit:ModalPopupExtender ID="mpeVendor" runat="server" TargetControlID="btnDummy"
+                <ajaxToolkit:ModalPopupExtender ID="mpeVendor" runat="server"
+                    BehaviorID="mpeVendorBehavior" TargetControlID="btnDummy"
                     PopupControlID="pnlVendorSearch" BackgroundCssClass="modalBackground"
                     CancelControlID="btnCloseVendor" />
                 <asp:Panel ID="pnlVendorSearch" runat="server" CssClass="modalPopup" style="display:none;">
@@ -1125,7 +1138,7 @@
                 <!-- Item Search Modal -->
                 <asp:Button ID="btnItemDummy" runat="server" style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpeItem" runat="server"
-                    TargetControlID="btnItemDummy"
+                    BehaviorID="mpeItemBehavior" TargetControlID="btnItemDummy"
                     PopupControlID="pnlItemSearch" BackgroundCssClass="modalBackground"
                     CancelControlID="btnCloseItem" />
                 <asp:Panel ID="pnlItemSearch" runat="server" CssClass="modalPopup" style="display:none;">
@@ -1161,7 +1174,7 @@
                                     <ItemTemplate>
                                         <asp:LinkButton ID="lbtnSelectItem" runat="server"
                                             CommandName="SelectItem"
-                                            CommandArgument='<%# Eval("ItemCode") + "|" + Eval("ItemName") + "|" + Eval("LastPurPrc") %>'
+                                            CommandArgument='<%# Eval("ItemCode").ToString() & "|" & Eval("ItemName").ToString() & "|" & If(Eval("LastPurPrc") Is DBNull.Value, "0", Eval("LastPurPrc").ToString()) %>'
                                             CssClass="btn btn-success btn-icon">選取</asp:LinkButton>
                                     </ItemTemplate>
                                     <ItemStyle HorizontalAlign="Center" Width="70px" />
@@ -1172,6 +1185,35 @@
                             </Columns>
                             <PagerStyle HorizontalAlign="Center" CssClass="gridview" />
                         </asp:GridView>
+                    </div>
+                </asp:Panel>
+
+                <!-- 供應商價格更新確認彈窗 -->
+                <asp:Button ID="btnPriceUpdateDummy" runat="server" Style="display:none" />
+                <ajaxToolkit:ModalPopupExtender ID="mpePriceUpdate" runat="server"
+                    BehaviorID="mpePriceUpdateBehavior" TargetControlID="btnPriceUpdateDummy"
+                    PopupControlID="pnlPriceUpdate" BackgroundCssClass="modalBackground"
+                    DropShadow="false" />
+                <asp:Panel ID="pnlPriceUpdate" runat="server" CssClass="modalPopup"
+                    Style="display:none; width:450px;">
+                    <div class="modalHeader">
+                        <span>更新採購價格</span>
+                        <asp:LinkButton ID="btnPriceUpdateClose" runat="server" ForeColor="White"
+                            Font-Bold="true" Style="text-decoration:none;"
+                            OnClick="btnPriceUpdateCancel_Click">✕</asp:LinkButton>
+                    </div>
+                    <div class="modalBody" style="padding:20px;">
+                        <p>已選擇供應商：<asp:Label ID="lblSelectedVendor" runat="server" Font-Bold="true"></asp:Label></p>
+                        <p>是否根據此供應商的歷史採購記錄更新明細的單價？</p>
+                        <p style="color:#666; font-size:12px;">
+                            (系統將查詢對此供應商最近一次採購該品項的價格，若無記錄則使用品項的最後採購價)
+                        </p>
+                    </div>
+                    <div class="modalFooter">
+                        <asp:Button ID="btnPriceUpdateCancel" runat="server" Text="否，保持現有價格"
+                            CssClass="btn btn-secondary" OnClick="btnPriceUpdateCancel_Click" />
+                        <asp:Button ID="btnPriceUpdateConfirm" runat="server" Text="是，更新價格"
+                            CssClass="btn btn-primary" OnClick="btnPriceUpdateConfirm_Click" />
                     </div>
                 </asp:Panel>
 

@@ -101,6 +101,46 @@ $utf8Bom = New-Object System.Text.UTF8Encoding $true
 
 ---
 
+## 工具錯誤處理規範（絕對遵守）
+
+> **重複犯同樣的錯誤是最大的浪費。遇到錯誤必須記錄，避免自己和其他 Agent 重蹈覆轍。**
+
+### 錯誤記錄觸發條件
+
+以下情況**必須**記錄到 `work-logs/insights/tool-errors.md`：
+
+1. **重試 2 次以上仍失敗**的工具執行
+2. **Exit code 非 0** 且錯誤訊息不明顯
+3. **路徑/環境相關**的錯誤（這類錯誤會重複發生）
+4. **第一次遇到**的新類型錯誤
+
+### 記錄內容
+
+```markdown
+### YYYY-MM-DD HH:MM | {工具名稱} | {錯誤類型}
+- **命令/操作**: `實際執行的命令`
+- **錯誤訊息**: (貼上錯誤內容)
+- **根因分析**: 為什麼失敗
+- **解決方案**: 如何解決
+- **狀態**: 已解決 / 待分析 / 已記錄到 skills
+```
+
+### 解決錯誤後
+
+1. **立即更新** `tool-errors.md` 的解決方案
+2. **如果是通用問題**：同步更新到對應的 `skills/*.md`
+3. **更新索引**：在 `tool-errors.md` 的「常見錯誤模式索引」新增條目
+
+### 執行任務前（建議）
+
+遇到以下類型的操作時，**先查閱** `work-logs/insights/tool-errors.md`：
+- MSBuild / 編譯
+- 檔案編碼操作
+- Windows 路徑操作
+- 外部工具呼叫
+
+---
+
 ## 工作流程規範（絕對遵守）
 
 > **這不是建議，是強制規定。任何技術工作開始前必須先確認流程。**
@@ -203,6 +243,41 @@ $utf8Bom = New-Object System.Text.UTF8Encoding $true
 
 ---
 
+## Windows 環境下的 Bash 執行規範
+
+> Claude Code 的 Bash 工具在 Windows 上使用 Git Bash (Unix shell)，需遵循以下規則
+
+### MSBuild 執行（編譯專案）
+
+**正確寫法**：
+```bash
+"/c/Program Files (x86)/Microsoft Visual Studio/2019/Professional/MSBuild/Current/Bin/MSBuild.exe" \
+  "C:/Projects/SapB1Solution/MgmSP/MgmSP.vbproj" \
+  -t:Build \
+  -p:Configuration=Debug \
+  -verbosity:minimal
+```
+
+**常見錯誤**：
+
+| 錯誤 | 說明 |
+|------|------|
+| `2019/Community/...` | ❌ 本機是 `2019/Professional/...` |
+| `/t:Build` | ❌ Git Bash 會把 `/` 解析為路徑，應使用 `-t:Build` |
+| `C:\Program Files\...` | ❌ 需用 `/c/Program Files/...` 或引號包裹 |
+
+**可用的 MSBuild 路徑（本機）**：
+- VS 2019: `/c/Program Files (x86)/Microsoft Visual Studio/2019/Professional/MSBuild/Current/Bin/MSBuild.exe`
+- VS 2022: `/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/MSBuild.exe`
+
+### 執行 Windows 程式的通用規則
+
+1. **路徑格式**：使用 `/c/...` 或用雙引號包裹 `"C:/..."`
+2. **參數前綴**：使用 `-` 而非 `/`（避免被解析為路徑）
+3. **空格路徑**：整個路徑用雙引號包裹
+
+---
+
 ## 從錯誤中學習（持續新增）
 
 > 每次犯錯就新增一條
@@ -223,6 +298,16 @@ $utf8Bom = New-Object System.Text.UTF8Encoding $true
 - **根因**: 釋放修飾鍵的代碼分散在多處，且有遺漏（typewrite 後無釋放）
 - **解法**: 建立 `_release_modifiers()` 統一函數，在所有按鍵操作後調用
 - **教訓**: 應用「紅綠燈原則」—發現防呆需求時，盤點所有同類位置統一實作
+
+### 2026-01-08: MSBuild 執行失敗
+- **問題**: Agent 使用錯誤的 VS 路徑 (`Community` 而非 `Professional`) 和參數格式 (`/t:` 而非 `-t:`)
+- **根因**:
+  1. Agent 假設 VS 安裝版本，未先驗證實際路徑
+  2. 不了解 Git Bash 會將 `/` 解析為路徑
+- **解法**: 在 general-checklist.md 新增「Windows 環境下的 Bash 執行規範」區塊
+- **教訓**:
+  1. Windows 路徑和參數在 Git Bash 中需要特殊處理
+  2. 外部工具路徑應先驗證，不要假設
 
 ### 2026-01-07: UTF-8 BOM 問題再次發生
 - **問題**: 新建的 PurchaseRequestForm.aspx 缺少 BOM，導致中文變亂碼、頁面剖析失敗
