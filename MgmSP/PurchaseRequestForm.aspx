@@ -906,6 +906,13 @@
                                     <ItemStyle Width="190px" />
                                 </asp:TemplateField>
 
+                                <asp:TemplateField HeaderText="摘要">
+                                    <ItemTemplate>
+                                        <asp:TextBox ID="txtLineText" runat="server" Width="150px"></asp:TextBox>
+                                    </ItemTemplate>
+                                    <ItemStyle Width="160px" />
+                                </asp:TemplateField>
+
                                 <asp:TemplateField HeaderText="數量">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtQuantity" runat="server" Width="70px"

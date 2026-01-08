@@ -16,6 +16,7 @@ Partial Public Class PurchaseRequestForm
         Public Property LineNum As Integer
         Public Property ItemCode As String
         Public Property Description As String
+        Public Property LineText As String ' 明細摘要
         Public Property Quantity As Decimal
         Public Property Price As Decimal
         Public Property LineTotal As Decimal ' 未稅金額
@@ -384,6 +385,12 @@ Partial Public Class PurchaseRequestForm
                 txtDescription.Text = line.Description
             End If
 
+            ' 綁定摘要
+            Dim txtLineText As TextBox = CType(e.Row.FindControl("txtLineText"), TextBox)
+            If txtLineText IsNot Nothing Then
+                txtLineText.Text = If(line.LineText, "")
+            End If
+
             ' 綁定數量
             Dim txtQuantity As TextBox = CType(e.Row.FindControl("txtQuantity"), TextBox)
             If txtQuantity IsNot Nothing Then
@@ -539,6 +546,9 @@ Partial Public Class PurchaseRequestForm
 
                 Dim txtDescription As TextBox = CType(row.FindControl("txtDescription"), TextBox)
                 If txtDescription IsNot Nothing Then line.Description = txtDescription.Text.Trim()
+
+                Dim txtLineText As TextBox = CType(row.FindControl("txtLineText"), TextBox)
+                If txtLineText IsNot Nothing Then line.LineText = txtLineText.Text.Trim()
 
                 Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
                 If txtQuantity IsNot Nothing Then
@@ -1120,11 +1130,21 @@ Partial Public Class PurchaseRequestForm
                     Dim jID As Integer = currentJID
 
                     If jID = 0 Then
-                        ' 新增
-                        Dim insertSql As String = "INSERT INTO jOPRQ (CardCode, CardName, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
-                                                   "VALUES (@CardCode, @CardName, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); SELECT SCOPE_IDENTITY();"
+                        ' 新增 - 先從 OJID 取得全域唯一的 jID
+                        Dim ojidSql As String = "INSERT INTO OJID (jUser) VALUES (@jUser); SELECT SCOPE_IDENTITY();"
+                        Using cmd As New SqlCommand(ojidSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jUser", currentUserId)
+                            jID = Convert.ToInt32(cmd.ExecuteScalar())
+                        End Using
+
+                        ' 使用 IDENTITY_INSERT 插入指定的 jID
+                        Dim insertSql As String = "SET IDENTITY_INSERT jOPRQ ON; " &
+                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
+                                                   "VALUES (@jID, @CardCode, @CardName, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); " &
+                                                   "SET IDENTITY_INSERT jOPRQ OFF;"
 
                         Using cmd As New SqlCommand(insertSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", jID)
                             cmd.Parameters.AddWithValue("@CardCode", If(String.IsNullOrEmpty(txtCardCode.Text), DBNull.Value, txtCardCode.Text))
                             cmd.Parameters.AddWithValue("@CardName", If(String.IsNullOrEmpty(txtCardName.Text), DBNull.Value, txtCardName.Text))
                             cmd.Parameters.AddWithValue("@ReqName", txtReqName.Text)
@@ -1138,8 +1158,7 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@Comments", If(String.IsNullOrEmpty(txtRemarks.Text), DBNull.Value, txtRemarks.Text))
                             cmd.Parameters.AddWithValue("@U_PID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
                             cmd.Parameters.AddWithValue("@CreateBy", currentUserId)
-
-                            jID = Convert.ToInt32(cmd.ExecuteScalar())
+                            cmd.ExecuteNonQuery()
                         End Using
                     Else
                         ' 更新
@@ -1175,14 +1194,15 @@ Partial Public Class PurchaseRequestForm
                         Dim line = CurrentLines(i)
                         If String.IsNullOrEmpty(line.ItemCode) Then Continue For
 
-                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, Quantity, Price, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
-                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @Quantity, @Price, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
+                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, U_Linetext, Quantity, Price, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
+                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @U_Linetext, @Quantity, @Price, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
 
                         Using cmd As New SqlCommand(insertLineSql, conn, trans)
                             cmd.Parameters.AddWithValue("@jID", jID)
                             cmd.Parameters.AddWithValue("@LineNum", i)
                             cmd.Parameters.AddWithValue("@ItemCode", line.ItemCode)
                             cmd.Parameters.AddWithValue("@Dscription", If(String.IsNullOrEmpty(line.Description), DBNull.Value, line.Description))
+                            cmd.Parameters.AddWithValue("@U_Linetext", If(String.IsNullOrEmpty(line.LineText), DBNull.Value, line.LineText))
                             cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
                             cmd.Parameters.AddWithValue("@Price", line.Price)
                             cmd.Parameters.AddWithValue("@LineTotal", line.LineTotal)
@@ -1304,6 +1324,7 @@ Partial Public Class PurchaseRequestForm
                             .LineNum = Convert.ToInt32(dr("LineNum")) + 1,
                             .ItemCode = dr("ItemCode").ToString(),
                             .Description = If(IsDBNull(dr("Dscription")), "", dr("Dscription").ToString()),
+                            .LineText = If(IsDBNull(dr("U_Linetext")), "", dr("U_Linetext").ToString()),
                             .Quantity = qty,
                             .Price = Convert.ToDecimal(dr("Price")),
                             .LineTotal = Convert.ToDecimal(dr("LineTotal")),
