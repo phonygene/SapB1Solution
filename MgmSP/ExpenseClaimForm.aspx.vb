@@ -2655,18 +2655,27 @@ Partial Public Class ExpenseClaimForm
 
                         ' 1. jOPCH (Header)
                         If currentJID = 0 Then
-                            ' Insert
-                            Dim sqlH As String = "INSERT INTO jOPCH (CardCode, CardName, NumAtCard, InvNum, DeliveryAddrID, AddressName, Address, " &
+                            ' 先從 OJID 取得全域唯一的 jID
+                            Dim ojidSql As String = "INSERT INTO OJID (jUser, DocType) VALUES (@jUser, 'jOPCH'); SELECT SCOPE_IDENTITY();"
+                            Using cmd As New SqlCommand(ojidSql, conn, trans)
+                                cmd.Parameters.AddWithValue("@jUser", currentUserId)
+                                jID = Convert.ToInt32(cmd.ExecuteScalar())
+                            End Using
+
+                            ' 使用 IDENTITY_INSERT 插入指定的 jID
+                            Dim sqlH As String = "SET IDENTITY_INSERT jOPCH ON; " &
+                                               "INSERT INTO jOPCH (jID, CardCode, CardName, NumAtCard, InvNum, DeliveryAddrID, AddressName, Address, " &
                                                "DocDate, DocDueDate, TaxDate, DocCurrency, DocRate, DocTotal, VatSum, " &
                                                "GroupNum, PymntGroup, Comments, ApprovalStatus, CreateBy, CreateDate, U_PID, SlpCode) " &
-                                               "VALUES (@CardCode, @CardName, @NumAtCard, @InvNum, @DeliveryAddrID, @AddressName, @Address, " &
+                                               "VALUES (@jID, @CardCode, @CardName, @NumAtCard, @InvNum, @DeliveryAddrID, @AddressName, @Address, " &
                                                "@DocDate, @DocDueDate, @TaxDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, " &
                                                "@GroupNum, @PymntGroup, @Comments, @Status, @User, GETDATE(), @UPID, @SlpCode); " &
-                                               "SELECT SCOPE_IDENTITY();"
+                                               "SET IDENTITY_INSERT jOPCH OFF;"
 
                             Using cmd As New SqlCommand(sqlH, conn, trans)
+                                cmd.Parameters.AddWithValue("@jID", jID)
                                 SetHeaderParameters(cmd, status)
-                                jID = Convert.ToInt32(cmd.ExecuteScalar())
+                                cmd.ExecuteNonQuery()
                             End Using
                             ' 注意：DocEntry/DocNum 欄位不在此設定，留給 SAP 回寫
                             currentJID = jID

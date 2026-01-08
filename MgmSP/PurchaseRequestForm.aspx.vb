@@ -1131,7 +1131,7 @@ Partial Public Class PurchaseRequestForm
 
                     If jID = 0 Then
                         ' 新增 - 先從 OJID 取得全域唯一的 jID
-                        Dim ojidSql As String = "INSERT INTO OJID (jUser) VALUES (@jUser); SELECT SCOPE_IDENTITY();"
+                        Dim ojidSql As String = "INSERT INTO OJID (jUser, DocType) VALUES (@jUser, 'jOPRQ'); SELECT SCOPE_IDENTITY();"
                         Using cmd As New SqlCommand(ojidSql, conn, trans)
                             cmd.Parameters.AddWithValue("@jUser", currentUserId)
                             jID = Convert.ToInt32(cmd.ExecuteScalar())
