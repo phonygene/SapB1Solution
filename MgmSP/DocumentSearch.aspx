@@ -50,10 +50,11 @@
         }
 
         /* 狀態標籤 - 對應資料庫 ApprovalStatus 值 */
-        .status-P { background-color: var(--bg-secondary); color: var(--text-secondary); }
-        .status-W { background-color: var(--status-warning-bg); color: var(--warning); }
-        .status-A { background-color: var(--status-success-bg); color: var(--success); }
-        .status-R { background-color: var(--status-danger-bg); color: var(--danger); }
+        /* 設計原則：淺色背景 + 深色文字，確保高對比度 */
+        .status-P { background-color: var(--bg-secondary); color: var(--text-primary); }
+        .status-W { background-color: #FEF3C7; color: #92600A; }  /* 淡黃背景 + 深褐文字 */
+        .status-A { background-color: #D1FAE5; color: #166534; }  /* 淡綠背景 + 深綠文字 */
+        .status-R { background-color: #FEE2E2; color: #991B1B; }  /* 淡紅背景 + 深紅文字 */
 
         /* jID 連結 - 使用主題主色 */
         .link-jid {
