@@ -18,9 +18,4 @@ Partial Public Class WebForm1
     '''</summary>
     Protected WithEvents form1 As Global.System.Web.UI.HtmlControls.HtmlForm
 
-    '''<summary>
-    '''lblUserName 控制項。
-    '''</summary>
-    Protected WithEvents lblUserName As Global.System.Web.UI.WebControls.Label
-
 End Class

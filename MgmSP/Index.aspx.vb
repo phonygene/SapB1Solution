@@ -5,14 +5,8 @@
         Dim timeout As Integer
         Dim act As String
 
-        ' 設定用戶顯示資訊
-        If Not IsPostBack Then
-            If Session("s_name") IsNot Nothing AndAlso Session("s_name").ToString() <> "" Then
-                lblUserName.Text = Session("s_name").ToString()
-            ElseIf Session("s_id") IsNot Nothing Then
-                lblUserName.Text = Session("s_id").ToString()
-            End If
-        End If
+        ' 用戶顯示資訊已移至 MySite1.Master
+        ' 此頁面為公開登入頁，不需要顯示用戶資訊
 
         timeout = Request.QueryString("timeout")
         act = Request.QueryString("act")
