@@ -130,7 +130,7 @@ Partial Public Class DocumentSearch
 
             Dim docType As String = ddlDocType.SelectedValue
             Dim tableName As String = GetTableName(docType)
-            Dim whereClause As String = BuildWhereClause(docType)
+            Dim whereClause As String = BuildWhereClause()
             Dim orderClause As String = BuildOrderClause()
 
             Using conn As New SqlConnection(connStr)
