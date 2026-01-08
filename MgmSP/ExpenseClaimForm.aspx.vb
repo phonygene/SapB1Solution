@@ -2224,9 +2224,10 @@ Partial Public Class ExpenseClaimForm
         ' 如果需要警告（字軌不在當年度表中）
         If needWarning AndAlso Not String.IsNullOrEmpty(prefix) Then
             ' 使用 JavaScript confirm 彈窗
+            Dim rocYear As Integer = DateTime.Now.Year - 1911
             Dim script As String = String.Format(
-                "if(!confirm('發票字軌 {0} 不在114年度發票字軌表中，是否仍要使用此字軌？')) {{ document.getElementById('{1}').value = ''; }}",
-                prefix, txt.ClientID)
+                "if(!confirm('發票字軌 {0} 不在{2}年度發票字軌表中，是否仍要使用此字軌？')) {{ document.getElementById('{1}').value = ''; }}",
+                prefix, txt.ClientID, rocYear)
             ScriptManager.RegisterStartupScript(Me.Page, Me.GetType(), "invWarning_" & txt.ClientID, script, True)
         End If
 
@@ -2267,64 +2268,49 @@ Partial Public Class ExpenseClaimForm
 
     ''' <summary>
     ''' 根據發票字軌取得對應的憑證類型代碼
-    ''' 114年度發票字軌對照表
+    ''' 從 jInvTrack 資料表查詢當年度字軌
     ''' </summary>
     Private Function GetFormCodeByPrefix(prefix As String, ByRef needWarning As Boolean) As String
         needWarning = False
-        
-        ' 114年度 甲種統一發票字軌 (三聯式手開) -> 21
-        Dim typeA As String() = {
-            "HT", "HU", "KT", "KU", "MT", "MU", 
-            "PT", "PU", "RT", "RU", "TT", "TU"
-        }
-        
-        ' 114年度 乙種統一發票字軌 (二聯式手開) -> 22
-        Dim typeB As String() = {
-            "HV", "HW", "HX", "KV", "KW", "KX", 
-            "MV", "MW", "MX", "PV", "PW", "PX", 
-            "RV", "RW", "RX", "TV", "TW", "TX"
-        }
-        
-        ' 114年度 丙種統一發票字軌 (收銀機) -> 22
-        Dim typeC As String() = {
-            "HY", "KY", "MY", "PY", "RY", "TY"
-        }
-        
-        ' 114年度 丁種統一發票字軌 (電子發票) -> 25
-        ' 期別1-2月: HZ, JA-JV, JW-KS
-        ' 期別3-4月: KZ, LA-LV, LW-MS
-        ' 期別5-6月: MZ, NA-NV, NW-PS
-        ' 期別7-8月: PZ, QA-QV, QW-RS
-        ' 期別9-10月: RZ, SA-SV, SW-TS
-        ' 期別11-12月: TZ, UA-UV, UW-VS
-        Dim typeD As String() = {
-            "HZ", "JA", "JB", "JC", "JD", "JE", "JF", "JG", "JH", "JJ", "JK", "JL", "JM", "JN", "JP", "JQ", "JR", "JS", "JT", "JU", "JV",
-            "JW", "JX", "JY", "JZ", "KA", "KB", "KC", "KD", "KE", "KF", "KG", "KH", "KJ", "KK", "KL", "KM", "KN", "KP", "KQ", "KR", "KS",
-            "KZ", "LA", "LB", "LC", "LD", "LE", "LF", "LG", "LH", "LJ", "LK", "LL", "LM", "LN", "LP", "LQ", "LR", "LS", "LT", "LU", "LV",
-            "LW", "LX", "LY", "LZ", "MA", "MB", "MC", "MD", "ME", "MF", "MG", "MH", "MJ", "MK", "ML", "MM", "MN", "MP", "MQ", "MR", "MS",
-            "MZ", "NA", "NB", "NC", "ND", "NE", "NF", "NG", "NH", "NJ", "NK", "NL", "NM", "NN", "NP", "NQ", "NR", "NS", "NT", "NU", "NV",
-            "NW", "NX", "NY", "NZ", "PA", "PB", "PC", "PD", "PE", "PF", "PG", "PH", "PJ", "PK", "PL", "PM", "PN", "PP", "PQ", "PR", "PS",
-            "PZ", "QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH", "QJ", "QK", "QL", "QM", "QN", "QP", "QQ", "QR", "QS", "QT", "QU", "QV",
-            "QW", "QX", "QY", "QZ", "RA", "RB", "RC", "RD", "RE", "RF", "RG", "RH", "RJ", "RK", "RL", "RM", "RN", "RP", "RQ", "RR", "RS",
-            "RZ", "SA", "SB", "SC", "SD", "SE", "SF", "SG", "SH", "SJ", "SK", "SL", "SM", "SN", "SP", "SQ", "SR", "SS", "ST", "SU", "SV",
-            "SW", "SX", "SY", "SZ", "TA", "TB", "TC", "TD", "TE", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TP", "TQ", "TR", "TS",
-            "TZ", "UA", "UB", "UC", "UD", "UE", "UF", "UG", "UH", "UJ", "UK", "UL", "UM", "UN", "UP", "UQ", "UR", "US", "UT", "UU", "UV",
-            "UW", "UX", "UY", "UZ", "VA", "VB", "VC", "VD", "VE", "VF", "VG", "VH", "VJ", "VK", "VL", "VM", "VN", "VP", "VQ", "VR", "VS"
-        }
 
-        
-        ' 檢查各類型
-        If typeA.Contains(prefix) Then
-            Return "21" ' 甲種 -> 三聯式統一發票
-        ElseIf typeB.Contains(prefix) OrElse typeC.Contains(prefix) Then
-            Return "22" ' 乙種/丙種 -> 二聯式/收銀機發票
-        ElseIf typeD.Contains(prefix) Then
-            Return "25" ' 丁種 -> 電子發票
-        Else
-            ' 不在114年度字軌表中
-            needWarning = True
-            Return "99" ' 其他
-        End If
+        ' 取得當前民國年
+        Dim rocYear As Integer = DateTime.Now.Year - 1911
+
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                ' 查詢字軌類型（優先查當年度，若無則查前一年度）
+                Dim sql As String = "SELECT TOP 1 InvType FROM jInvTrack " &
+                                   "WHERE TrackCode = @TrackCode AND Year IN (@Year, @PrevYear) " &
+                                   "ORDER BY Year DESC"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@TrackCode", prefix)
+                    cmd.Parameters.AddWithValue("@Year", rocYear)
+                    cmd.Parameters.AddWithValue("@PrevYear", rocYear - 1)
+
+                    Dim result As Object = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Dim invType As String = result.ToString()
+                        Select Case invType
+                            Case "甲"
+                                Return "21" ' 三聯式統一發票
+                            Case "乙", "丙"
+                                Return "22" ' 二聯式/收銀機發票
+                            Case "丁"
+                                Return "25" ' 電子發票
+                            Case Else
+                                Return "99"
+                        End Select
+                    End If
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 查詢失敗時不阻斷流程
+        End Try
+
+        ' 查無資料，顯示警告
+        needWarning = True
+        Return "99"
     End Function
 
 #End Region
