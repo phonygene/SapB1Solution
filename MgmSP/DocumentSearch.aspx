@@ -50,10 +50,11 @@
         }
 
         /* 狀態標籤 - 對應資料庫 ApprovalStatus 值 */
-        .status-P { background-color: var(--bg-secondary); color: var(--text-secondary); }
-        .status-W { background-color: var(--status-warning-bg); color: var(--warning); }
-        .status-A { background-color: var(--status-success-bg); color: var(--success); }
-        .status-R { background-color: var(--status-danger-bg); color: var(--danger); }
+        /* 設計原則：深色/飽和背景 + 白色文字 */
+        .status-P { background-color: #64748B; color: #FFFFFF; }  /* 草稿 - 灰 */
+        .status-W { background-color: #D97706; color: #FFFFFF; }  /* 待審 - 琥珀 */
+        .status-A { background-color: #059669; color: #FFFFFF; }  /* 核准 - 翠綠 */
+        .status-R { background-color: #DC2626; color: #FFFFFF; }  /* 退回 - 紅 */
 
         /* jID 連結 - 使用主題主色 */
         .link-jid {

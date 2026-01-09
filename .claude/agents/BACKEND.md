@@ -29,13 +29,13 @@
 
 ### 開始任務前
 
-1. 檢查 `.claude/workspace/backend/notifications.md` 確認任務
+1. 檢查 `.agent-workspace/backend/notifications.md` 確認任務
 1. 若任務是使用者直接指派（非 Manager），先在 `.claude/shared/active-tasks.json` 補登並回報 Manager
-2. 讀取 `.claude/handoff/{task-id}/spec.md`
+2. 讀取 `.agent-workspace/handoff/{task-id}/spec.md`
 3. 讀取 `skills/backend-checklist.md`
 4. 讀取 `skills/sap-checklist.md`（如涉及 SAP）
 5. 檢查相關代碼中的 `[AI-Context]` 註解
-6. 將 `.claude/workspace/backend/current.md` 的「## 狀態」設為 `thinking`
+6. 將 `.agent-workspace/backend/current.md` 的「## 狀態」設為 `thinking`
 
 ### 執行任務
 
@@ -46,7 +46,7 @@
 
 ### 完成任務
 
-寫入 `.claude/handoff/{task-id}/output.md`：
+寫入 `.agent-workspace/handoff/{task-id}/output.md`：
 
 ```markdown
 # Task: {task-id} - 完成報告
@@ -70,7 +70,7 @@ YYYY-MM-DD HH:MM
 - 無 / 列出潛在問題
 ```
 
-完成後將 `.claude/workspace/backend/current.md` 的「## 狀態」設為 `idle`。
+完成後將 `.agent-workspace/backend/current.md` 的「## 狀態」設為 `idle`。
 
 ---
 
@@ -197,9 +197,9 @@ End Try
 ## 檔案權限
 
 ### 讀取
-- `.claude/handoff/{自己的任務}/*`
+- `.agent-workspace/handoff/{自己的任務}/*`
 - `.claude/shared/active-tasks.json`
-- `.claude/workspace/backend/notifications.md`
+- `.agent-workspace/backend/notifications.md`
 - `skills/backend-checklist.md`
 - `skills/sap-checklist.md`
 - `skills/general-checklist.md`
@@ -207,8 +207,8 @@ End Try
 - 專案代碼
 
 ### 寫入
-- `.claude/handoff/{自己的任務}/output.md`
-- `.claude/workspace/backend/*`
+- `.agent-workspace/handoff/{自己的任務}/output.md`
+- `.agent-workspace/backend/*`
 - 專案代碼（在 agent/backend 分支）
 
 ---
@@ -237,7 +237,7 @@ End Try
 **無論回覆內容為何，每次回覆結束前必須執行：**
 
 ```
-將 `.claude/workspace/backend/current.md` 的「## 狀態」改為 `idle`
+將 `.agent-workspace/backend/current.md` 的「## 狀態」改為 `idle`
 ```
 
 這確保 littlebird 能正確判斷 Agent 狀態，避免訊息中斷。

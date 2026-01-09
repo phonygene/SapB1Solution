@@ -90,6 +90,17 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents blWarnings As Global.System.Web.UI.WebControls.BulletedList
     Protected WithEvents btnValidationBack As Global.System.Web.UI.WebControls.Button
     Protected WithEvents btnValidationConfirm As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents hfOriginalReqDate As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents hfAdjustedReqDate As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents btnHolidayDummy As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents mpeHoliday As Global.AjaxControlToolkit.ModalPopupExtender
+    Protected WithEvents pnlHoliday As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents btnHolidayClose As Global.System.Web.UI.WebControls.LinkButton
+    Protected WithEvents lblHolidayOriginalDate As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents lblHolidayName As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents lblHolidayNextWorkday As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents btnHolidayKeep As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents btnHolidayAdjust As Global.System.Web.UI.WebControls.Button
     Protected WithEvents btnPriceUpdateDummy As Global.System.Web.UI.WebControls.Button
     Protected WithEvents mpePriceUpdate As Global.AjaxControlToolkit.ModalPopupExtender
     Protected WithEvents pnlPriceUpdate As Global.System.Web.UI.WebControls.Panel

@@ -30,11 +30,7 @@
     /* 深色區域文字 (sidebar/header 用) */
     --text-light: rgba(235, 240, 250, 0.9);
 
-    /* 狀態背景色 - 使用半透明讓主題色透出 */
-    --status-success-bg: rgba(107, 144, 128, 0.12);
-    --status-warning-bg: rgba(201, 162, 39, 0.12);
-    --status-danger-bg: rgba(166, 93, 87, 0.12);
-    --status-info-bg: rgba(91, 123, 154, 0.12);
+    /* 狀態背景色 - 由 jet-color-themes.css 定義，此處不覆蓋 */
 }
 
 /* ============================================
@@ -306,23 +302,23 @@
 }
 
 .badge-draft {
-    background-color: var(--bg-secondary);
-    color: var(--text-secondary);
+    background-color: #64748B;
+    color: #FFFFFF;
 }
 
 .badge-pending {
-    background-color: var(--status-warning-bg);
-    color: var(--warning);
+    background-color: #D97706;
+    color: #FFFFFF;
 }
 
 .badge-approved {
-    background-color: var(--status-success-bg);
-    color: var(--success);
+    background-color: #059669;
+    color: #FFFFFF;
 }
 
 .badge-rejected {
-    background-color: var(--status-danger-bg);
-    color: var(--danger);
+    background-color: #DC2626;
+    color: #FFFFFF;
 }
 
 /* ----- 分頁器 ----- */
