@@ -222,7 +222,7 @@ Partial Public Class ExpenseClaimForm
             If Not IsPostBack Then
                 InitializeDropDowns()
 
-                ' 檢查使用者＊費用部門是否已設定
+                ' 檢查使用者必填欄位是否已設定
                 CheckUserRequiredFields()
 
                 If copyFromId > 0 Then
@@ -271,8 +271,8 @@ Partial Public Class ExpenseClaimForm
     ''' </summary>
     Private Sub CheckUserRequiredFields()
         Dim userId As String = currentUserId
-        If String.IsNullOrEmpty(userId) Then
-            userId = TryCast(Session("userid"), String)
+        If String.IsNullOrEmpty(userId) AndAlso Session("s_id") IsNot Nothing Then
+            userId = Session("s_id").ToString()
         End If
         If String.IsNullOrEmpty(userId) Then Return
 
@@ -293,8 +293,6 @@ Partial Public Class ExpenseClaimForm
             End If
 
             mpeExpDept.Show()
-        Else
-            SetHeaderExpDept()
         End If
     End Sub
 
@@ -326,8 +324,8 @@ Partial Public Class ExpenseClaimForm
     ''' </summary>
     Protected Sub btnExpDeptConfirm_Click(sender As Object, e As EventArgs)
         Dim userId As String = currentUserId
-        If String.IsNullOrEmpty(userId) Then
-            userId = TryCast(Session("userid"), String)
+        If String.IsNullOrEmpty(userId) AndAlso Session("s_id") IsNot Nothing Then
+            userId = Session("s_id").ToString()
         End If
         If String.IsNullOrEmpty(userId) Then Return
 
@@ -350,10 +348,10 @@ Partial Public Class ExpenseClaimForm
         )
 
         If success Then
-            SetHeaderExpDept()
             mpeExpDept.Hide()
+            ShowSuccess("必填資訊設定成功！")
         Else
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alert", "alert('儲存失敗，請重試');", True)
+            ShowError("儲存失敗，請重試")
             mpeExpDept.Show()
         End If
     End Sub
@@ -415,7 +413,7 @@ Partial Public Class ExpenseClaimForm
             ' MDR 預設不加空行，由使用者手動新增
         End If
         BindMDRGrid()
-
+        
         BindAttachmentGrid()
     End Sub
 
@@ -1442,7 +1440,7 @@ Partial Public Class ExpenseClaimForm
     End Function
 
     ''' <summary>
-    ''' 根據費用項目代碼和使用者＊費用部門，從 EPI1 查詢對應的會計科目
+    ''' 根據費用項目代碼和使用者費用部門，從 EPI1 查詢對應的會計科目
     ''' 邏輯:
     ''' 1. 先檢查該費用項目是否有 ExpClass='公' 的科目（公共費用，不分部門）
     ''' 2. 若有，直接使用「公」的科目

@@ -342,11 +342,12 @@
                         <asp:Label ID="lblExpDeptError" runat="server" CssClass="field-error" Visible="false"></asp:Label>
                     </div>
 
-                    <!-- 員工編號 -->
+                    <!-- ＊工號 -->
                     <div class="form-row">
-                        <label>員工編號</label>
+                        <label>＊工號 <span class="required">*</span></label>
                         <asp:DropDownList ID="ddlEmpSeries" runat="server">
                         </asp:DropDownList>
+                        <asp:Label ID="lblEmpSeriesError" runat="server" CssClass="field-error" Visible="false"></asp:Label>
                         <div class="field-hint">SAP 員工系列編號</div>
                     </div>
                 </div>

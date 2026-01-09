@@ -1739,7 +1739,9 @@
                                         </div>
                                     </div>
                                     <div class="form-group">
-                                        <label class="form-label" style="width:100px;">＊費用部門:</label>
+                                        <label class="form-label" style="width:100px;">
+                                            <span class="required">*</span>費用部門:
+                                        </label>
                                         <div class="form-control">
                                             <asp:DropDownList ID="ddlExpDeptSelect" runat="server" Width="100%">
                                             </asp:DropDownList>

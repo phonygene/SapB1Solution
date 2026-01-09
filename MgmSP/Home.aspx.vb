@@ -54,11 +54,11 @@ Partial Public Class Home
 
         Dim profile = UserProfileHelper.GetUserProfile(userId)
         If profile IsNot Nothing AndAlso Not String.IsNullOrEmpty(profile.UserName) Then
-            lblUserDisplay.Text = profile.UserName
             lblUserName.Text = profile.UserName
+            lblUserDisplay.Text = profile.UserName
         Else
-            lblUserDisplay.Text = userId
             lblUserName.Text = userId
+            lblUserDisplay.Text = userId
         End If
     End Sub
 
@@ -96,7 +96,7 @@ Partial Public Class Home
     ''' </summary>
     Private Sub LoadEmpSeriesDropDown()
         ddlEmpSeries.Items.Clear()
-        ddlEmpSeries.Items.Add(New ListItem("- 請選擇 -", ""))
+        ddlEmpSeries.Items.Add(New ListItem("-- 請選擇 --", ""))
         Try
             Using conn As New SqlConnection(sapConnStr)
                 conn.Open()
@@ -164,26 +164,14 @@ Partial Public Class Home
     ''' 儲存帳號設定
     ''' </summary>
     Protected Sub btnSaveSettings_Click(sender As Object, e As EventArgs)
+        ' 前端驗證
+        If Not ValidateForm() Then
+            mpeUserSettings.Show()
+            Return
+        End If
+
         Dim userId As String = GetCurrentUserId()
         If String.IsNullOrEmpty(userId) Then Return
-
-        If String.IsNullOrEmpty(txtUserName.Text.Trim()) Then
-            ShowMessage("請輸入姓名", False)
-            mpeUserSettings.Show()
-            Return
-        End If
-
-        If String.IsNullOrEmpty(ddlExpDept.SelectedValue) Then
-            ShowMessage("請選擇費用部門", False)
-            mpeUserSettings.Show()
-            Return
-        End If
-
-        If Not String.IsNullOrEmpty(txtEmail.Text.Trim()) AndAlso Not IsValidEmail(txtEmail.Text.Trim()) Then
-            ShowMessage("Email 格式不正確", False)
-            mpeUserSettings.Show()
-            Return
-        End If
 
         Dim model As New UserProfileModel()
         model.UserName = txtUserName.Text.Trim()
@@ -192,11 +180,10 @@ Partial Public Class Home
         model.EmpSeries = ddlEmpSeries.SelectedValue
 
         Dim success As Boolean = UpdateUserSettings(userId, model)
-
         If success Then
             ShowMessage("設定已儲存", True)
-            lblUserDisplay.Text = model.UserName
             lblUserName.Text = model.UserName
+            lblUserDisplay.Text = model.UserName
         Else
             ShowMessage("儲存失敗，請重試", False)
         End If
@@ -269,6 +256,13 @@ Partial Public Class Home
             isValid = False
         End If
 
+        ' 驗證＊工號
+        If String.IsNullOrEmpty(ddlEmpSeries.SelectedValue) Then
+            lblEmpSeriesError.Text = "請選擇＊工號"
+            lblEmpSeriesError.Visible = True
+            isValid = False
+        End If
+
         Return isValid
     End Function
 
@@ -279,6 +273,7 @@ Partial Public Class Home
         lblNameError.Visible = False
         lblEmailError.Visible = False
         lblExpDeptError.Visible = False
+        lblEmpSeriesError.Visible = False
     End Sub
 
     ''' <summary>
