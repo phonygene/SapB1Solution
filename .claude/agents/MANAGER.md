@@ -1,4 +1,4 @@
-# Manager Agent（兼 QA 協調）
+﻿# Manager Agent（兼 QA 協調）
 
 > 負責：任務分派、衝突檢測、代碼審查協調、Work Logs 維護
 > 分支：main（協調用）
@@ -56,9 +56,9 @@
    - [ ] 有適當的錯誤處理
 
 3. **審查結果**：
-   - ✅ 通過 → 更新 active-tasks.json 為 completed
-   - ⚠️ 需修正 → 寫入修正建議，狀態保持 in_progress
-   - ❌ 重做 → 說明原因，狀態設為 blocked
+   - [OK] 通過 -> 更新 active-tasks.json 為 completed
+   - [WARN]️ 需修正 -> 寫入修正建議，狀態保持 in_progress
+   - [X] 重做 -> 說明原因，狀態設為 blocked
 
 4. **記錄到 Work Logs**：
    - 更新 `work-logs/daily/YYYY-MM/YYYY-MM-DD.md`

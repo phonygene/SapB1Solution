@@ -1,4 +1,4 @@
-# 多 Agent 協作架構：最終實踐規格
+﻿# 多 Agent 協作架構：最終實踐規格
 
 > **版本**：1.4
 > **日期**：2026-01-02
@@ -37,45 +37,45 @@
 ### 1.2 核心架構圖（2+1 變體）
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    2+1 變體架構                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│                         ┌───────────────┐                        │
-│                         │     User      │                        │
-│                         └───────┬───────┘                        │
-│                                 │                                │
-│                                 ▼                                │
-│                    ┌────────────────────────┐                    │
-│                    │    Manager + QA        │                    │
-│                    │    ────────────────    │                    │
-│                    │  • 任務分派與協調       │                    │
-│                    │  • 衝突檢測            │                    │
-│                    │  • 代碼審查協調         │   ← main branch    │
-│                    │  • Work Logs 維護       │                    │
-│                    │  • Skills 更新          │                    │
-│                    └────────────┬───────────┘                    │
-│                                 │                                │
-│               ┌─────────────────┴─────────────────┐              │
-│               │                                   │              │
-│               ▼                                   ▼              │
-│    ┌─────────────────────┐           ┌─────────────────────┐    │
-│    │      Backend        │           │       UI-UX         │    │
-│    │    ───────────      │           │     ─────────       │    │
-│    │  • VB.NET 邏輯      │           │  • ASPX 介面        │    │
-│    │  • SAP B1 整合      │           │  • CSS 樣式         │    │
-│    │  • 資料庫查詢        │           │  • 響應式設計       │    │
-│    │                     │           │                     │    │
-│    │  ← agent/backend    │           │  ← agent/ui-ux      │    │
-│    └─────────────────────┘           └─────────────────────┘    │
-│                                                                  │
-│    ═══════════════════════════════════════════════════════════  │
-│                                                                  │
-│    Token 節省：                                                  │
-│    • Backend 不載入：色彩系統、CSS 架構、設計風格                 │
-│    • UI-UX 不載入：SAP COM 物件、稅務計算、資料庫結構             │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                    2+1 變體架構                                  |
++-----------------------------------------------------------------+
+|                                                                  |
+|                         +---------------+                        |
+|                         |     User      |                        |
+|                         +-------+-------+                        |
+|                                 |                                |
+|                                 ▼                                |
+|                    +------------------------+                    |
+|                    |    Manager + QA        |                    |
+|                    |    ----------------    |                    |
+|                    |  * 任務分派與協調       |                    |
+|                    |  * 衝突檢測            |                    |
+|                    |  * 代碼審查協調         |   <- main branch    |
+|                    |  * Work Logs 維護       |                    |
+|                    |  * Skills 更新          |                    |
+|                    +------------+-----------+                    |
+|                                 |                                |
+|               +-----------------+-----------------+              |
+|               |                                   |              |
+|               ▼                                   ▼              |
+|    +---------------------+           +---------------------+    |
+|    |      Backend        |           |       UI-UX         |    |
+|    |    -----------      |           |     ---------       |    |
+|    |  * VB.NET 邏輯      |           |  * ASPX 介面        |    |
+|    |  * SAP B1 整合      |           |  * CSS 樣式         |    |
+|    |  * 資料庫查詢        |           |  * 響應式設計       |    |
+|    |                     |           |                     |    |
+|    |  <- agent/backend    |           |  <- agent/ui-ux      |    |
+|    +---------------------+           +---------------------+    |
+|                                                                  |
+|    -----------------------------------------------------------  |
+|                                                                  |
+|    Token 節省：                                                  |
+|    * Backend 不載入：色彩系統、CSS 架構、設計風格                 |
+|    * UI-UX 不載入：SAP COM 物件、稅務計算、資料庫結構             |
+|                                                                  |
++-----------------------------------------------------------------+
 ```
 
 ### 1.3 為什麼是 2+1 而非 3+1
@@ -133,20 +133,20 @@
 
 ```
 work-logs/
-├── daily/                          # 每日原始紀錄
-│   └── YYYY-MM/
-│       └── YYYY-MM-DD.md
-│
-├── monthly/                        # 月度彙整
-│   └── YYYY-MM.md
-│
-├── yearly/                         # 年度彙整
-│   └── YYYY.md
-│
-└── insights/                       # 反思與優化
-    ├── prompt-changelog.md         # Prompt 修改紀錄
-    ├── patterns.md                 # 問題模式庫
-    └── tools-evaluated.md          # 工具評估紀錄
++-- daily/                          # 每日原始紀錄
+|   +-- YYYY-MM/
+|       +-- YYYY-MM-DD.md
+|
++-- monthly/                        # 月度彙整
+|   +-- YYYY-MM.md
+|
++-- yearly/                         # 年度彙整
+|   +-- YYYY.md
+|
++-- insights/                       # 反思與優化
+    +-- prompt-changelog.md         # Prompt 修改紀錄
+    +-- patterns.md                 # 問題模式庫
+    +-- tools-evaluated.md          # 工具評估紀錄
 ```
 
 ### 3.2 每日紀錄格式
@@ -311,26 +311,26 @@ Protected WithEvents ddlExpenseType As DropDownList
 ### 5.2 推送機制流程
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     推送機制運作流程                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   Manager                              Backend/UI-UX             │
-│   ───────                              ──────────────            │
-│       │                                     │                    │
-│       │ 1. 寫入 spec.md                     │                    │
-│       │    echo >> notifications.md ──────► │ ← inotifywait      │
-│       │                                     │    監聽到變更       │
-│       │                                     │                    │
-│       │                                     │ 2. 執行任務        │
-│       │                                     │                    │
-│       │ ◄────────────────────────────────── │ 3. 寫入 output.md  │
-│       │    inotifywait 監聽到               │                    │
-│       │                                     │                    │
-│       │ 4. 審查 & 更新狀態                   │                    │
-│       ▼                                     ▼                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                     推送機制運作流程                              |
++-----------------------------------------------------------------+
+|                                                                  |
+|   Manager                              Backend/UI-UX             |
+|   -------                              --------------            |
+|       |                                     |                    |
+|       | 1. 寫入 spec.md                     |                    |
+|       |    echo >> notifications.md ------► | <- inotifywait      |
+|       |                                     |    監聽到變更       |
+|       |                                     |                    |
+|       |                                     | 2. 執行任務        |
+|       |                                     |                    |
+|       | ◄---------------------------------- | 3. 寫入 output.md  |
+|       |    inotifywait 監聽到               |                    |
+|       |                                     |                    |
+|       | 4. 審查 & 更新狀態                   |                    |
+|       ▼                                     ▼                    |
+|                                                                  |
++-----------------------------------------------------------------+
 ```
 
 ### 5.3 監聽工具
@@ -339,7 +339,7 @@ Protected WithEvents ddlExpenseType As DropDownList
 |------|------|------|
 | Linux/WSL | `inotifywait` | `apt-get install inotify-tools` |
 | macOS | `fswatch` | `brew install fswatch` |
-| Windows | PowerShell FileSystemWatcher 或 WSL | — |
+| Windows | PowerShell FileSystemWatcher 或 WSL | -- |
 
 ### 5.4 Agent 狀態機（避免輸入中斷）
 
@@ -402,8 +402,8 @@ done &
 ### 收到新任務時
 1. 分析任務涉及的檔案
 2. 判斷耦合度：
-   - 高耦合（同頁面）→ 指派給單一 Agent
-   - 低耦合（不同模組）→ 可並行指派
+   - 高耦合（同頁面）-> 指派給單一 Agent
+   - 低耦合（不同模組）-> 可並行指派
 3. 建立 `handoff/{task-id}/spec.md`
 4. 注入相關 skills
 5. 更新 `active-tasks.json`
@@ -580,59 +580,59 @@ done &
 
 ```
 /your-project/
-│
-├── .claude/
-│   ├── shared/                      # Layer 1: 全局狀態
-│   │   ├── project-status.md
-│   │   ├── active-tasks.json
-│   │   └── blocked.json
-│   │
-│   ├── handoff/                     # Layer 2: 任務交接
-│   │   └── {task-id}/
-│   │       ├── spec.md
-│   │       └── output.md            # ← 完成時寫入，觸發 Manager
-│   │
-│   ├── workspace/                   # Layer 3: 私有工作區
-│   │   ├── backend/
-│   │   │   ├── current.md
-│   │   │   ├── notes.md
-│   │   │   └── notifications.md     # ← Manager 推送通知
-│   │   └── ui-ux/
-│   │       ├── current.md
-│   │       ├── notes.md
-│   │       └── notifications.md     # ← Manager 推送通知
-│   │   └── manager/
-│   │       └── current.md            # ← 狀態機（idle/thinking）
-│   │
-│   ├── agents/                      # Agent 配置（2+1）
-│   │   ├── MANAGER.md               # 兼 QA 協調
-│   │   ├── BACKEND.md
-│   │   └── UI-UX.md
-│   │
-│   └── commands/                    # 自定義指令
-│       └── reflect.md               # 手動觸發反思
-│
-├── skills/                          # 動態累積的經驗
-│   ├── general-checklist.md
-│   ├── backend-checklist.md
-│   ├── ui-checklist.md
-│   ├── sap-checklist.md
-│   └── examples/
-│
-├── work-logs/                       # 結構化工作紀錄
-│   ├── daily/
-│   │   └── YYYY-MM/
-│   │       └── YYYY-MM-DD.md
-│   ├── monthly/
-│   │   └── YYYY-MM.md
-│   ├── yearly/
-│   │   └── YYYY.md
-│   └── insights/
-│       ├── prompt-changelog.md
-│       ├── patterns.md
-│       └── tools-evaluated.md
-│
-└── (專案代碼...)
+|
++-- .claude/
+|   +-- shared/                      # Layer 1: 全局狀態
+|   |   +-- project-status.md
+|   |   +-- active-tasks.json
+|   |   +-- blocked.json
+|   |
+|   +-- handoff/                     # Layer 2: 任務交接
+|   |   +-- {task-id}/
+|   |       +-- spec.md
+|   |       +-- output.md            # <- 完成時寫入，觸發 Manager
+|   |
+|   +-- workspace/                   # Layer 3: 私有工作區
+|   |   +-- backend/
+|   |   |   +-- current.md
+|   |   |   +-- notes.md
+|   |   |   +-- notifications.md     # <- Manager 推送通知
+|   |   +-- ui-ux/
+|   |       +-- current.md
+|   |       +-- notes.md
+|   |       +-- notifications.md     # <- Manager 推送通知
+|   |   +-- manager/
+|   |       +-- current.md            # <- 狀態機（idle/thinking）
+|   |
+|   +-- agents/                      # Agent 配置（2+1）
+|   |   +-- MANAGER.md               # 兼 QA 協調
+|   |   +-- BACKEND.md
+|   |   +-- UI-UX.md
+|   |
+|   +-- commands/                    # 自定義指令
+|       +-- reflect.md               # 手動觸發反思
+|
++-- skills/                          # 動態累積的經驗
+|   +-- general-checklist.md
+|   +-- backend-checklist.md
+|   +-- ui-checklist.md
+|   +-- sap-checklist.md
+|   +-- examples/
+|
++-- work-logs/                       # 結構化工作紀錄
+|   +-- daily/
+|   |   +-- YYYY-MM/
+|   |       +-- YYYY-MM-DD.md
+|   +-- monthly/
+|   |   +-- YYYY-MM.md
+|   +-- yearly/
+|   |   +-- YYYY.md
+|   +-- insights/
+|       +-- prompt-changelog.md
+|       +-- patterns.md
+|       +-- tools-evaluated.md
+|
++-- (專案代碼...)
 ```
 
 ---
@@ -718,10 +718,10 @@ done &
 - Line 234: SAP 欄位 U_MaxAmount 對應
 
 ## 測試結果
-- 輸入 -100 → 顯示錯誤 ✓
-- 輸入 0 → 顯示錯誤 ✓
-- 輸入 999999999 → 顯示錯誤 ✓
-- 輸入 1000 → 通過 ✓
+- 輸入 -100 -> 顯示錯誤 [OK]
+- 輸入 0 -> 顯示錯誤 [OK]
+- 輸入 999999999 -> 顯示錯誤 [OK]
+- 輸入 1000 -> 通過 [OK]
 
 ## 風險/備註
 - 無
@@ -807,21 +807,21 @@ claude
 |------|------|
 | **Agent 架構** | 2+1 變體（Backend, UI-UX + Manager/QA） |
 | **狀態追蹤** | Git 紀錄 + `.claude/shared/` |
-| **工作紀錄** | 結構化 Work Logs（daily → monthly → yearly + insights） |
+| **工作紀錄** | 結構化 Work Logs（daily -> monthly -> yearly + insights） |
 | **經驗累積** | skills/ 動態累積 + [AI-Context] 註解 |
 | **反思機制** | `/reflect` 手動觸發 |
 | **衝突處理** | fileConflicts 作為警告，用 Git merge 解決 |
 
 ### 執行優先順序
 
-1. ✅ 確認架構設計
-2. ✅ 建立 .claude/ 目錄結構
-3. ⏳ 建立 Git Worktrees
-4. ✅ 配置 Agent 定義
-5. ✅ 配置自定義指令
-6. ✅ 初始化 skills/
-7. ⏳ 按需在代碼中加 [AI-Context] 註解
-8. ⏳ 從實踐中累積經驗
+1. [OK] 確認架構設計
+2. [OK] 建立 .claude/ 目錄結構
+3. [PENDING] 建立 Git Worktrees
+4. [OK] 配置 Agent 定義
+5. [OK] 配置自定義指令
+6. [OK] 初始化 skills/
+7. [PENDING] 按需在代碼中加 [AI-Context] 註解
+8. [PENDING] 從實踐中累積經驗
 
 ---
 

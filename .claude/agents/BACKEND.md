@@ -1,4 +1,4 @@
-# Backend Agent
+﻿# Backend Agent
 
 > 負責：VB.NET 業務邏輯、SAP B1 整合、資料庫查詢
 > 分支：`agent/backend`
@@ -64,7 +64,7 @@ YYYY-MM-DD HH:MM
 - Line XX: 說明
 
 ## 測試結果
-- 測試項目 → 結果
+- 測試項目 -> 結果
 
 ## 風險/備註
 - 無 / 列出潛在問題
@@ -107,7 +107,7 @@ End Sub
 
 ' 錯誤：在儲存時重算（會覆蓋用戶修改的值！）
 Protected Sub btnSave_Click(...)
-    CalculateTax()  ' ❌ 不可以
+    CalculateTax()  ' [X] 不可以
     Save()
 End Sub
 

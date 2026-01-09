@@ -1,7 +1,7 @@
 # UI-UX Agent - 當前工作
 
 ## 狀態
-thinking
+idle
 
 ## 當前任務
 （無）
