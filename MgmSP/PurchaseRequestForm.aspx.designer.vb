@@ -96,5 +96,11 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents btnPriceUpdateClose As Global.System.Web.UI.WebControls.LinkButton
     Protected WithEvents btnPriceUpdateCancel As Global.System.Web.UI.WebControls.Button
     Protected WithEvents btnPriceUpdateConfirm As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents lblSelectedVendor As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents btnTextEditDummy As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents mpeTextEdit As Global.AjaxControlToolkit.ModalPopupExtender
+    Protected WithEvents pnlTextEdit As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents lblTextEditTitle As Global.System.Web.UI.WebControls.Label
+    Protected WithEvents txtTextEditContent As Global.System.Web.UI.WebControls.TextBox
 
 End Class
