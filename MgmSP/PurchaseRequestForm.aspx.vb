@@ -1175,8 +1175,8 @@ Partial Public Class PurchaseRequestForm
                         Dim line = CurrentLines(i)
                         If String.IsNullOrEmpty(line.ItemCode) Then Continue For
 
-                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, Quantity, Price, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
-                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @Quantity, @Price, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
+                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, Quantity, Price, PriceAfVAT, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
+                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @Quantity, @Price, @PriceAfVAT, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
 
                         Using cmd As New SqlCommand(insertLineSql, conn, trans)
                             cmd.Parameters.AddWithValue("@jID", jID)
@@ -1185,6 +1185,7 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@Dscription", If(String.IsNullOrEmpty(line.Description), DBNull.Value, line.Description))
                             cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
                             cmd.Parameters.AddWithValue("@Price", line.Price)
+                            cmd.Parameters.AddWithValue("@PriceAfVAT", line.PriceAfVAT)
                             cmd.Parameters.AddWithValue("@LineTotal", line.LineTotal)
                             cmd.Parameters.AddWithValue("@GTotal", line.GTotal)
                             cmd.Parameters.AddWithValue("@VatGroup", If(String.IsNullOrEmpty(line.VatGroup), DBNull.Value, line.VatGroup))
@@ -1311,7 +1312,7 @@ Partial Public Class PurchaseRequestForm
                             .VatRate = Convert.ToDecimal(dr("VatPrcnt")),
                             .VatSum = Convert.ToDecimal(dr("LineVat")),
                             .GTotal = gTotal,
-                            .PriceAfVAT = If(qty > 0, gTotal / qty, 0),  ' 計算含稅單價
+                            .PriceAfVAT = Convert.ToDecimal(dr("PriceAfVAT")),
                             .WhsCode = If(IsDBNull(dr("WhsCode")), "", dr("WhsCode").ToString()),
                             .ShipDate = If(IsDBNull(dr("ShipDate")), Nothing, Convert.ToDateTime(dr("ShipDate"))),
                             .CostingCode = If(IsDBNull(dr("CostingCode")), "", dr("CostingCode").ToString()),
