@@ -1312,7 +1312,7 @@ Partial Public Class PurchaseRequestForm
                             .VatRate = Convert.ToDecimal(dr("VatPrcnt")),
                             .VatSum = Convert.ToDecimal(dr("LineVat")),
                             .GTotal = gTotal,
-                            .PriceAfVAT = Convert.ToDecimal(dr("PriceAfVAT")),
+                            .PriceAfVAT = If(IsDBNull(dr("PriceAfVAT")), If(qty > 0, gTotal / qty, 0D), Convert.ToDecimal(dr("PriceAfVAT"))),
                             .WhsCode = If(IsDBNull(dr("WhsCode")), "", dr("WhsCode").ToString()),
                             .ShipDate = If(IsDBNull(dr("ShipDate")), Nothing, Convert.ToDateTime(dr("ShipDate"))),
                             .CostingCode = If(IsDBNull(dr("CostingCode")), "", dr("CostingCode").ToString()),
