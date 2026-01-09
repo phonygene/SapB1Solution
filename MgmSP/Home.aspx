@@ -334,9 +334,9 @@
                         <asp:Label ID="lblEmailError" runat="server" CssClass="field-error" Visible="false"></asp:Label>
                     </div>
 
-                    <!-- 費用部門 -->
+                    <!-- ＊費用部門 -->
                     <div class="form-row">
-                        <label>費用部門 <span class="required">*</span></label>
+                        <label>＊費用部門 <span class="required">*</span></label>
                         <asp:DropDownList ID="ddlExpDept" runat="server">
                         </asp:DropDownList>
                         <asp:Label ID="lblExpDeptError" runat="server" CssClass="field-error" Visible="false"></asp:Label>

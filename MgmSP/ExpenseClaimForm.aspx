@@ -1717,7 +1717,7 @@
                                 </div>
                             </asp:Panel>
 
-                            <!-- 費用部門選擇彈窗 -->
+                            <!-- ＊費用部門選擇彈窗 -->
                             <asp:Button ID="btnExpDeptDummy" runat="server" Style="display:none" />
                             <ajaxToolkit:ModalPopupExtender ID="mpeExpDept" runat="server"
                                 BehaviorID="mpeExpDeptBehavior" TargetControlID="btnExpDeptDummy"
@@ -1725,12 +1725,21 @@
                                 DropShadow="false" />
                             <asp:Panel ID="pnlExpDept" runat="server" CssClass="modalPopup" Style="display:none; width:400px;">
                                 <div class="modalHeader" style="background: linear-gradient(135deg, #5B7B9A 0%, #6B8BA9 100%);">
-                                    <span>選擇費用部門</span>
+                                    <span>設定必填資訊</span>
                                 </div>
                                 <div class="modalBody">
-                                    <p style="margin-bottom:15px; color: var(--text-secondary);">您尚未設定費用部門，請選擇您所屬的費用部門：</p>
+                                    <p style="margin-bottom:15px; color: var(--text-secondary);">請完成以下必填資訊設定：</p>
                                     <div class="form-group">
-                                        <label class="form-label" style="width:100px;">費用部門:</label>
+                                        <label class="form-label" style="width:100px;">
+                                            <span class="required">*</span>工號:
+                                        </label>
+                                        <div class="form-control">
+                                            <asp:TextBox ID="txtEmpSeriesPopup" runat="server"
+                                                placeholder="請輸入您的工號"></asp:TextBox>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" style="width:100px;">＊費用部門:</label>
                                         <div class="form-control">
                                             <asp:DropDownList ID="ddlExpDeptSelect" runat="server" Width="100%">
                                             </asp:DropDownList>
@@ -1816,4 +1825,3 @@
         </body>
 
         </html>
-

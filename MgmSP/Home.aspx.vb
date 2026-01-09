@@ -16,24 +16,9 @@ Partial Public Class Home
             masterPage.SetThemeClass("theme-dark")
         End If
 
-        ' 設定用戶顯示資訊 - 顯示用戶ID（首字母大寫）
         If Not IsPostBack Then
-            If Session("s_id") IsNot Nothing AndAlso Session("s_id").ToString() <> "" Then
-                Dim userId As String = Session("s_id").ToString()
-                ' 首字母大寫
-                If userId.Length > 0 Then
-                    Dim displayName As String = userId.Substring(0, 1).ToUpper() & userId.Substring(1).ToLower()
-                    lblUserName.Text = displayName
-                    lblUserDisplay.Text = displayName
-                Else
-                    lblUserName.Text = userId
-                    lblUserDisplay.Text = userId
-                End If
-            End If
-
-            ' 初始化下拉選單
-            LoadExpDeptDropDown()
-            LoadEmpSeriesDropDown()
+            LoadUserDisplay()
+            LoadDropDownLists()
         End If
 
         timeout = Request.QueryString("timeout")
@@ -52,17 +37,47 @@ Partial Public Class Home
         End If
     End Sub
 
+    Private Function GetCurrentUserId() As String
+        Dim userId As String = TryCast(Session("userid"), String)
+        If String.IsNullOrEmpty(userId) AndAlso Session("s_id") IsNot Nothing Then
+            userId = Session("s_id").ToString()
+        End If
+        Return userId
+    End Function
+
+    Private Sub LoadUserDisplay()
+        Dim userId As String = GetCurrentUserId()
+        If String.IsNullOrEmpty(userId) Then
+            Response.Redirect("~/usermgm/login.aspx")
+            Return
+        End If
+
+        Dim profile = UserProfileHelper.GetUserProfile(userId)
+        If profile IsNot Nothing AndAlso Not String.IsNullOrEmpty(profile.UserName) Then
+            lblUserDisplay.Text = profile.UserName
+            lblUserName.Text = profile.UserName
+        Else
+            lblUserDisplay.Text = userId
+            lblUserName.Text = userId
+        End If
+    End Sub
+
+    Private Sub LoadDropDownLists()
+        LoadExpDeptDropDown()
+        LoadEmpSeriesDropDown()
+    End Sub
+
 #Region "下拉選單初始化"
     ''' <summary>
-    ''' 載入費用部門下拉選單
+    ''' 載入＊費用部門下拉選單
     ''' </summary>
     Private Sub LoadExpDeptDropDown()
         ddlExpDept.Items.Clear()
-        ddlExpDept.Items.Add(New ListItem("- 請選擇 -", ""))
+        ddlExpDept.Items.Add(New ListItem("-- 請選擇 --", ""))
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "SELECT EDeptID, EDeptName FROM jDEPT ORDER BY EDeptID"
+                Dim sql As String = "SELECT EDeptID, EDeptName FROM jDEPT ORDER BY EDeptName"
                 Using cmd As New SqlCommand(sql, conn)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         While dr.Read()
@@ -108,7 +123,7 @@ Partial Public Class Home
     ''' </summary>
     Protected Sub lnkUserSettings_Click(sender As Object, e As EventArgs)
         ' 載入使用者資料
-        LoadUserProfile()
+        LoadUserSettingsForm()
         ' 清除訊息
         pnlMessage.Visible = False
         ClearErrors()
@@ -119,106 +134,96 @@ Partial Public Class Home
     ''' <summary>
     ''' 載入使用者資料到 Modal
     ''' </summary>
-    Private Sub LoadUserProfile()
-        If Session("s_id") Is Nothing Then Return
+    Private Sub LoadUserSettingsForm()
+        Dim userId As String = GetCurrentUserId()
+        If String.IsNullOrEmpty(userId) Then Return
 
-        Dim userId As String = Session("s_id").ToString()
-        txtUserId.Text = userId
+        Dim profile = UserProfileHelper.GetUserProfile(userId)
+        If profile IsNot Nothing Then
+            txtUserId.Text = profile.UserId
+            txtUserName.Text = profile.UserName
+            txtEmail.Text = profile.Email
 
-        Try
-            Using conn As New SqlConnection(connStr)
-                conn.Open()
-                Dim sql As String = "SELECT name, email, expDEPT, EmpSeries FROM [User] WHERE id = @UserId"
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@UserId", userId)
-                    Using dr As SqlDataReader = cmd.ExecuteReader()
-                        If dr.Read() Then
-                            txtUserName.Text = If(IsDBNull(dr("name")), "", dr("name").ToString())
-                            txtEmail.Text = If(IsDBNull(dr("email")), "", dr("email").ToString())
+            If Not String.IsNullOrEmpty(profile.ExpDept) Then
+                If ddlExpDept.Items.FindByValue(profile.ExpDept) IsNot Nothing Then
+                    ddlExpDept.SelectedValue = profile.ExpDept
+                End If
+            End If
 
-                            ' 設定費用部門
-                            Dim expDept As String = If(IsDBNull(dr("expDEPT")), "", dr("expDEPT").ToString())
-                            If ddlExpDept.Items.FindByValue(expDept) IsNot Nothing Then
-                                ddlExpDept.SelectedValue = expDept
-                            End If
+            If Not String.IsNullOrEmpty(profile.EmpSeries) Then
+                If ddlEmpSeries.Items.FindByValue(profile.EmpSeries) IsNot Nothing Then
+                    ddlEmpSeries.SelectedValue = profile.EmpSeries
+                End If
+            End If
+        End If
 
-                            ' 設定員工編號 (如果欄位存在)
-                            Try
-                                Dim empSeries As String = If(IsDBNull(dr("EmpSeries")), "", dr("EmpSeries").ToString())
-                                If ddlEmpSeries.Items.FindByValue(empSeries) IsNot Nothing Then
-                                    ddlEmpSeries.SelectedValue = empSeries
-                                End If
-                            Catch
-                                ' 欄位不存在，忽略
-                            End Try
-                        End If
-                    End Using
-                End Using
-            End Using
-        Catch ex As Exception
-            ShowMessage("載入資料失敗: " & ex.Message, False)
-        End Try
+        pnlMessage.Visible = False
     End Sub
 
     ''' <summary>
     ''' 儲存帳號設定
     ''' </summary>
     Protected Sub btnSaveSettings_Click(sender As Object, e As EventArgs)
-        ' 前端驗證
-        If Not ValidateForm() Then
+        Dim userId As String = GetCurrentUserId()
+        If String.IsNullOrEmpty(userId) Then Return
+
+        If String.IsNullOrEmpty(txtUserName.Text.Trim()) Then
+            ShowMessage("請輸入姓名", False)
             mpeUserSettings.Show()
             Return
         End If
 
-        If Session("s_id") Is Nothing Then Return
-        Dim userId As String = Session("s_id").ToString()
+        If String.IsNullOrEmpty(ddlExpDept.SelectedValue) Then
+            ShowMessage("請選擇費用部門", False)
+            mpeUserSettings.Show()
+            Return
+        End If
+
+        If Not String.IsNullOrEmpty(txtEmail.Text.Trim()) AndAlso Not IsValidEmail(txtEmail.Text.Trim()) Then
+            ShowMessage("Email 格式不正確", False)
+            mpeUserSettings.Show()
+            Return
+        End If
+
+        Dim model As New UserProfileModel()
+        model.UserName = txtUserName.Text.Trim()
+        model.Email = txtEmail.Text.Trim()
+        model.ExpDept = ddlExpDept.SelectedValue
+        model.EmpSeries = ddlEmpSeries.SelectedValue
+
+        Dim success As Boolean = UpdateUserSettings(userId, model)
+
+        If success Then
+            ShowMessage("設定已儲存", True)
+            lblUserDisplay.Text = model.UserName
+            lblUserName.Text = model.UserName
+        Else
+            ShowMessage("儲存失敗，請重試", False)
+        End If
+
+        mpeUserSettings.Show()
+    End Sub
+
+    Private Function UpdateUserSettings(userId As String, model As UserProfileModel) As Boolean
+        If String.IsNullOrEmpty(userId) OrElse model Is Nothing Then Return False
 
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-
-                ' 檢查 EmpSeries 欄位是否存在
-                Dim hasEmpSeries As Boolean = False
-                Try
-                    Dim checkSql As String = "SELECT COL_LENGTH('User', 'EmpSeries')"
-                    Using checkCmd As New SqlCommand(checkSql, conn)
-                        Dim result = checkCmd.ExecuteScalar()
-                        hasEmpSeries = (result IsNot Nothing AndAlso Not IsDBNull(result))
-                    End Using
-                Catch
-                    hasEmpSeries = False
-                End Try
-
-                ' 建立更新 SQL
-                Dim sql As String
-                If hasEmpSeries Then
-                    sql = "UPDATE [User] SET name = @Name, email = @Email, expDEPT = @ExpDept, EmpSeries = @EmpSeries WHERE id = @UserId"
-                Else
-                    sql = "UPDATE [User] SET name = @Name, email = @Email, expDEPT = @ExpDept WHERE id = @UserId"
-                End If
-
+                Dim sql As String = "UPDATE [User] SET name = @Name, email = @Email, expDEPT = @ExpDept, EmpSeries = @EmpSeries WHERE id = @UserId"
                 Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Name", model.UserName)
+                    cmd.Parameters.AddWithValue("@Email", If(String.IsNullOrEmpty(model.Email), DBNull.Value, model.Email))
+                    cmd.Parameters.AddWithValue("@ExpDept", If(String.IsNullOrEmpty(model.ExpDept), DBNull.Value, model.ExpDept))
+                    cmd.Parameters.AddWithValue("@EmpSeries", If(String.IsNullOrEmpty(model.EmpSeries), DBNull.Value, model.EmpSeries))
                     cmd.Parameters.AddWithValue("@UserId", userId)
-                    cmd.Parameters.AddWithValue("@Name", txtUserName.Text.Trim())
-                    cmd.Parameters.AddWithValue("@Email", If(String.IsNullOrEmpty(txtEmail.Text.Trim()), DBNull.Value, txtEmail.Text.Trim()))
-                    cmd.Parameters.AddWithValue("@ExpDept", If(String.IsNullOrEmpty(ddlExpDept.SelectedValue), DBNull.Value, ddlExpDept.SelectedValue))
-
-                    If hasEmpSeries Then
-                        cmd.Parameters.AddWithValue("@EmpSeries", If(String.IsNullOrEmpty(ddlEmpSeries.SelectedValue), DBNull.Value, ddlEmpSeries.SelectedValue))
-                    End If
-
-                    cmd.ExecuteNonQuery()
+                    Return cmd.ExecuteNonQuery() > 0
                 End Using
             End Using
-
-            ShowMessage("儲存成功！", True)
-            mpeUserSettings.Show()
-
         Catch ex As Exception
-            ShowMessage("儲存失敗: " & ex.Message, False)
-            mpeUserSettings.Show()
+            Return False
         End Try
-    End Sub
+    End Function
 
     ''' <summary>
     ''' 取消 - 關閉 Modal
@@ -257,9 +262,9 @@ Partial Public Class Home
             End If
         End If
 
-        ' 驗證費用部門
+        ' 驗證＊費用部門
         If String.IsNullOrEmpty(ddlExpDept.SelectedValue) Then
-            lblExpDeptError.Text = "請選擇費用部門"
+            lblExpDeptError.Text = "請選擇＊費用部門"
             lblExpDeptError.Visible = True
             isValid = False
         End If

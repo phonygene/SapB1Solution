@@ -222,8 +222,8 @@ Partial Public Class ExpenseClaimForm
             If Not IsPostBack Then
                 InitializeDropDowns()
 
-                ' 檢查使用者費用部門是否已設定
-                CheckUserExpDept()
+                ' 檢查使用者＊費用部門是否已設定
+                CheckUserRequiredFields()
 
                 If copyFromId > 0 Then
                     LoadDocument(copyFromId)
@@ -267,46 +267,39 @@ Partial Public Class ExpenseClaimForm
     End Sub
 
     ''' <summary>
-    ''' 檢查使用者費用部門是否已設定，若未設定則彈出選擇視窗
+    ''' 檢查使用者必填欄位（費用部門/工號），若未設定則彈出設定視窗
     ''' </summary>
-    Private Sub CheckUserExpDept()
-        Dim userExpDept As String = ""
-
-        ' 取得使用者目前的 expDept
-        Using conn As New SqlConnection(connStr)
-            conn.Open()
-            Dim sql As String = "SELECT expDEPT FROM [User] WHERE id = @UserId"
-            Using cmd As New SqlCommand(sql, conn)
-                cmd.Parameters.AddWithValue("@UserId", currentUserId)
-                Dim result = cmd.ExecuteScalar()
-                If result IsNot Nothing AndAlso Not IsDBNull(result) Then
-                    userExpDept = result.ToString().Trim()
-                End If
-            End Using
-        End Using
-
-        ' 檢查 expDept 是否存在於 jDEPT 中
-        Dim isValidDept As Boolean = False
-        If Not String.IsNullOrEmpty(userExpDept) Then
-            Using conn As New SqlConnection(connStr)
-                conn.Open()
-                Dim sql As String = "SELECT COUNT(*) FROM jDEPT WHERE EDeptID = @EDeptID"
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@EDeptID", userExpDept)
-                    isValidDept = (Convert.ToInt32(cmd.ExecuteScalar()) > 0)
-                End Using
-            End Using
+    Private Sub CheckUserRequiredFields()
+        Dim userId As String = currentUserId
+        If String.IsNullOrEmpty(userId) Then
+            userId = TryCast(Session("userid"), String)
         End If
+        If String.IsNullOrEmpty(userId) Then Return
 
-        ' 若未設定或不存在，載入部門選項並顯示彈窗
-        If Not isValidDept Then
+        Dim result = UserProfileHelper.CheckRequiredFields(userId)
+        If Not result.IsComplete Then
             LoadExpDeptDropDown()
+
+            Dim profile = UserProfileHelper.GetUserProfile(userId)
+            If profile IsNot Nothing Then
+                If Not String.IsNullOrEmpty(profile.ExpDept) Then
+                    If ddlExpDeptSelect.Items.FindByValue(profile.ExpDept) IsNot Nothing Then
+                        ddlExpDeptSelect.SelectedValue = profile.ExpDept
+                    End If
+                End If
+                If Not String.IsNullOrEmpty(profile.EmpSeries) Then
+                    txtEmpSeriesPopup.Text = profile.EmpSeries
+                End If
+            End If
+
             mpeExpDept.Show()
+        Else
+            SetHeaderExpDept()
         End If
     End Sub
 
     ''' <summary>
-    ''' 載入費用部門下拉選單
+    ''' 載入＊費用部門下拉選單
     ''' </summary>
     Private Sub LoadExpDeptDropDown()
         ddlExpDeptSelect.Items.Clear()
@@ -324,39 +317,45 @@ Partial Public Class ExpenseClaimForm
                 End Using
             End Using
         Catch ex As Exception
-            ShowError("載入費用部門失敗: " & ex.Message)
+            ShowError("載入＊費用部門失敗: " & ex.Message)
         End Try
     End Sub
 
     ''' <summary>
-    ''' 費用部門選擇確認按鈕事件
+    ''' ＊費用部門選擇確認按鈕事件
     ''' </summary>
     Protected Sub btnExpDeptConfirm_Click(sender As Object, e As EventArgs)
+        Dim userId As String = currentUserId
+        If String.IsNullOrEmpty(userId) Then
+            userId = TryCast(Session("userid"), String)
+        End If
+        If String.IsNullOrEmpty(userId) Then Return
+
         If String.IsNullOrEmpty(ddlExpDeptSelect.SelectedValue) Then
-            ' 若未選擇，重新顯示彈窗
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alert", "alert('請選擇費用部門');", True)
             mpeExpDept.Show()
             Return
         End If
 
-        ' 更新使用者的 expDept
-        Try
-            Using conn As New SqlConnection(connStr)
-                conn.Open()
-                Dim sql As String = "UPDATE [User] SET expDEPT = @ExpDept WHERE id = @UserId"
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@ExpDept", ddlExpDeptSelect.SelectedValue)
-                    cmd.Parameters.AddWithValue("@UserId", currentUserId)
-                    cmd.ExecuteNonQuery()
-                End Using
-            End Using
-
-            mpeExpDept.Hide()
-            lblMessage.Text = "費用部門設定成功！"
-            lblMessage.ForeColor = System.Drawing.Color.Green
-        Catch ex As Exception
-            ShowError("更新費用部門失敗: " & ex.Message)
+        If String.IsNullOrEmpty(txtEmpSeriesPopup.Text.Trim()) Then
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alert", "alert('請輸入工號');", True)
             mpeExpDept.Show()
-        End Try
+            Return
+        End If
+
+        Dim success As Boolean = UserProfileHelper.UpdateExpDeptAndEmpSeries(
+            userId,
+            ddlExpDeptSelect.SelectedValue,
+            txtEmpSeriesPopup.Text.Trim()
+        )
+
+        If success Then
+            SetHeaderExpDept()
+            mpeExpDept.Hide()
+        Else
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alert", "alert('儲存失敗，請重試');", True)
+            mpeExpDept.Show()
+        End If
     End Sub
 
     Private Sub SetDefaultValues()
@@ -416,7 +415,7 @@ Partial Public Class ExpenseClaimForm
             ' MDR 預設不加空行，由使用者手動新增
         End If
         BindMDRGrid()
-        
+
         BindAttachmentGrid()
     End Sub
 
@@ -1443,7 +1442,7 @@ Partial Public Class ExpenseClaimForm
     End Function
 
     ''' <summary>
-    ''' 根據費用項目代碼和使用者費用部門，從 EPI1 查詢對應的會計科目
+    ''' 根據費用項目代碼和使用者＊費用部門，從 EPI1 查詢對應的會計科目
     ''' 邏輯:
     ''' 1. 先檢查該費用項目是否有 ExpClass='公' 的科目（公共費用，不分部門）
     ''' 2. 若有，直接使用「公」的科目

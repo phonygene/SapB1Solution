@@ -146,7 +146,14 @@
     <Content Include="cnc\cncitems.aspx" />
     <Content Include="cnc\cncmain.aspx" />
     <Content Include="commcode\ShowData.aspx" />
+    <Content Include="css\components.css" />
+    <Content Include="css\jet-color-themes.css" />
     <Content Include="Default.aspx" />
+    <Content Include="docs\DB_Compare_And_Restore.sql" />
+    <Content Include="docs\DB_Migration_jID_Fix.sql" />
+    <Content Include="docs\DB_Restore_Clean.sql" />
+    <Content Include="docs\DB_Restore_Simple.sql" />
+    <Content Include="docs\holiday-import.sql" />
     <Content Include="DocumentSearch.aspx" />
     <Content Include="DownloadHandler.ashx" />
     <Content Include="ExpenseClaimForm.aspx" />
@@ -229,6 +236,7 @@
       <DependentUpon>ShowData.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="commcode\UserProfileHelper.vb" />
     <Compile Include="commcode\UserVendorTaxId.vb" />
     <Compile Include="commcode\HolidayHelper.vb" />
     <Compile Include="Default.aspx.vb">
@@ -238,6 +246,10 @@
     <Compile Include="Default.aspx.designer.vb">
       <DependentUpon>Default.aspx</DependentUpon>
     </Compile>
+    <Compile Include="docs\MDR_Invoice_Import.vb" />
+    <Compile Include="docs\SAP_AP_Invoice_Import.vb" />
+    <Compile Include="docs\SAP_AP_Invoice_Import_ServiceLayer.vb" />
+    <Compile Include="docs\SAP_AP_Invoice_Import_ServiceLayer_VBA.bas" />
     <Compile Include="DocumentSearch.aspx.designer.vb">
       <DependentUpon>DocumentSearch.aspx</DependentUpon>
     </Compile>
@@ -622,6 +634,7 @@
     <Content Include="jFonts\msjhbd.ttc" />
     <Content Include="jFonts\msjhl.ttc" />
     <Content Include="CrystalReport\ExpenseClaim.rpt" />
+    <Content Include="docs\CrystalReports_Setup_Note.md" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>
