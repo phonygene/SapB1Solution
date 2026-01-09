@@ -9,6 +9,9 @@ _archive/
 *.log
 .aider*
 
+# uploads (attachments)
+MgmSP/Uploads/
+
 # shopfloor/Claude_TMP 暫存開發檔（只保留 SqlQuery）
 shopfloor/Claude_TMP/dNet/
 shopfloor/Claude_TMP/etc/
