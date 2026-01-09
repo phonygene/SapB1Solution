@@ -272,6 +272,116 @@
             padding: 6px 8px;
         }
 
+        /* 自適應欄位 - 根據內容自動調整寬度 */
+        .gridview .auto-width-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .auto-width-cell input[type="text"],
+        .gridview .auto-width-cell select {
+            width: auto !important;
+            min-width: 60px;
+        }
+
+        /* 項目代碼欄位 - 自適應 */
+        .gridview .item-code-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .item-code-cell input[type="text"] {
+            width: auto !important;
+            min-width: 100px;
+        }
+
+        /* 數量欄位 - 自適應 */
+        .gridview .quantity-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .quantity-cell input[type="text"] {
+            width: auto !important;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* 金額欄位 - 自適應 */
+        .gridview .amount-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .amount-cell input[type="text"] {
+            width: auto !important;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        /* 下拉選單欄位 - 自適應 */
+        .gridview .select-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .select-cell select {
+            width: auto !important;
+            min-width: 70px;
+        }
+
+        /* 日期欄位 - 自適應 */
+        .gridview .date-cell {
+            white-space: nowrap;
+        }
+
+        .gridview .date-cell input[type="date"] {
+            width: auto !important;
+            min-width: 130px;
+        }
+
+        /* 可編輯欄位 - 雙擊展開提示 */
+        .expandable-field {
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .expandable-field:hover {
+            background-color: #FFFEF5;
+            box-shadow: 0 0 0 2px var(--gold-accent);
+        }
+
+        /* 雙擊提示容器 */
+        .expandable-hint {
+            position: relative;
+            display: inline-block;
+        }
+
+        .expandable-hint::after {
+            content: "雙擊展開";
+            position: absolute;
+            bottom: -16px;
+            left: 0;
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .expandable-hint:hover::after {
+            opacity: 1;
+        }
+
+        /* 文字展開彈窗 */
+        .textEditModal {
+            width: 500px;
+        }
+
+        .textEditModal textarea {
+            width: 100%;
+            min-height: 150px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
         /* Status Badges */
         .badge {
             padding: 5px 12px;
@@ -668,6 +778,126 @@
                 }
             }
         }
+
+        // ========================================
+        // 雙擊展開編輯功能
+        // ========================================
+        var currentEditTarget = null;
+        var currentEditRowIndex = -1;
+
+        // 開啟文字編輯彈窗
+        function openTextEditModal(targetId, title, rowIndex) {
+            var targetElement = document.getElementById(targetId);
+            if (!targetElement) return;
+
+            currentEditTarget = targetElement;
+            currentEditRowIndex = rowIndex;
+
+            // 設定彈窗標題
+            var titleSpan = document.getElementById('<%= lblTextEditTitle.ClientID %>');
+            if (titleSpan) {
+                titleSpan.innerText = title;
+            }
+
+            // 設定文字內容
+            var textarea = document.getElementById('<%= txtTextEditContent.ClientID %>');
+            if (textarea) {
+                textarea.value = targetElement.value || '';
+            }
+
+            // 顯示彈窗
+            var behavior = $find('mpeTextEditBehavior');
+            if (behavior) {
+                behavior.show();
+            }
+        }
+
+        // 確認編輯
+        function confirmTextEdit() {
+            if (!currentEditTarget) return;
+
+            var textarea = document.getElementById('<%= txtTextEditContent.ClientID %>');
+            if (textarea) {
+                var newValue = textarea.value;
+                var oldValue = currentEditTarget.value || '';
+
+                currentEditTarget.value = newValue;
+
+                // 標記該欄位已被編輯（用於項目說明的 Dscription/U_LineText 邏輯）
+                if (currentEditTarget.id.indexOf('txtDescription') >= 0 && newValue !== oldValue) {
+                    // 找到對應的隱藏欄位標記為已編輯
+                    var row = currentEditTarget.closest('tr');
+                    if (row) {
+                        var hiddenEdited = row.querySelector('[id*="hfDescriptionEdited"]');
+                        if (hiddenEdited) {
+                            hiddenEdited.value = 'true';
+                        }
+                    }
+                }
+
+                // 觸發 onchange 事件
+                if (currentEditTarget.onchange) {
+                    currentEditTarget.onchange();
+                }
+            }
+
+            closeTextEditModal();
+        }
+
+        // 關閉彈窗
+        function closeTextEditModal() {
+            currentEditTarget = null;
+            currentEditRowIndex = -1;
+
+            var behavior = $find('mpeTextEditBehavior');
+            if (behavior) {
+                behavior.hide();
+            }
+        }
+
+        // 為可展開欄位綁定雙擊事件
+        function bindExpandableFields() {
+            // 項目說明欄位
+            var descriptionFields = document.querySelectorAll('[id*="txtDescription"]');
+            descriptionFields.forEach(function(field, index) {
+                if (!field.hasAttribute('data-expandable-bound')) {
+                    field.setAttribute('data-expandable-bound', 'true');
+                    field.classList.add('expandable-field');
+                    field.addEventListener('dblclick', function() {
+                        openTextEditModal(field.id, '編輯項目說明 - 第 ' + (index + 1) + ' 行', index);
+                    });
+                }
+            });
+
+            // 表頭備註欄位
+            var remarksField = document.getElementById('<%= txtRemarks.ClientID %>');
+            if (remarksField && !remarksField.hasAttribute('data-expandable-bound')) {
+                remarksField.setAttribute('data-expandable-bound', 'true');
+                remarksField.classList.add('expandable-field');
+                remarksField.addEventListener('dblclick', function() {
+                    openTextEditModal(remarksField.id, '編輯備註', -1);
+                });
+            }
+        }
+
+        // 頁面載入後綁定事件
+        function initExpandableFields() {
+            bindExpandableFields();
+
+            // UpdatePanel 更新後重新綁定
+            if (typeof (Sys) !== 'undefined' && Sys.WebForms && Sys.WebForms.PageRequestManager) {
+                var prm = Sys.WebForms.PageRequestManager.getInstance();
+                prm.add_endRequest(function() {
+                    bindExpandableFields();
+                });
+            }
+        }
+
+        if (window.addEventListener) {
+            window.addEventListener('load', initExpandableFields);
+        } else if (window.attachEvent) {
+            window.attachEvent('onload', initExpandableFields);
+        }
     </script>
 </head>
 
@@ -889,107 +1119,110 @@
                                 <asp:TemplateField HeaderText="品號">
                                     <ItemTemplate>
                                         <div style="display:flex; align-items:center; gap:4px;">
-                                            <asp:TextBox ID="txtItemCode" runat="server" Width="100px"></asp:TextBox>
+                                            <asp:TextBox ID="txtItemCode" runat="server"></asp:TextBox>
                                             <asp:Button ID="btnSearchItem" runat="server" Text="🔍"
                                                 CssClass="btn btn-secondary btn-icon"
                                                 CommandName="SearchItem"
                                                 CommandArgument='<%# Container.DataItemIndex %>' />
                                         </div>
                                     </ItemTemplate>
-                                    <ItemStyle Width="140px" />
+                                    <ItemStyle CssClass="item-code-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="品名/說明">
                                     <ItemTemplate>
-                                        <asp:TextBox ID="txtDescription" runat="server" Width="180px"></asp:TextBox>
+                                        <asp:TextBox ID="txtDescription" runat="server" Width="180px"
+                                            CssClass="expandable-field" title="雙擊展開編輯"></asp:TextBox>
+                                        <asp:HiddenField ID="hfOriginalDescription" runat="server" />
+                                        <asp:HiddenField ID="hfDescriptionEdited" runat="server" Value="false" />
                                     </ItemTemplate>
                                     <ItemStyle Width="190px" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="數量">
                                     <ItemTemplate>
-                                        <asp:TextBox ID="txtQuantity" runat="server" Width="70px"
+                                        <asp:TextBox ID="txtQuantity" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
                                             OnTextChanged="CalculateLineTotal" Text="1"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="80px" />
+                                    <ItemStyle CssClass="quantity-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="單價">
                                     <ItemTemplate>
-                                        <asp:TextBox ID="txtPrice" runat="server" Width="80px"
+                                        <asp:TextBox ID="txtPrice" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
                                             OnTextChanged="CalculateLineTotal" Text="0"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="含稅單價">
                                     <ItemTemplate>
-                                        <asp:TextBox ID="txtPriceAfVAT" runat="server" Width="80px"
+                                        <asp:TextBox ID="txtPriceAfVAT" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
                                             OnTextChanged="CalculateFromPriceAfVAT" Text="0"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="稅碼">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlVatGroup" runat="server"
-                                            Width="100px" AutoPostBack="true"
+                                            AutoPostBack="true"
                                             OnSelectedIndexChanged="CalculateLineTotal">
                                         </asp:DropDownList>
                                     </ItemTemplate>
-                                    <ItemStyle Width="110px" />
+                                    <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="稅額">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtVatSum" runat="server" Text="0"
-                                            Width="70px" style="text-align:right;" AutoPostBack="true"
+                                            style="text-align:right;" AutoPostBack="true"
                                             OnTextChanged="CalculateVatSum"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="80px" />
+                                    <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="含稅金額">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtGTotal" runat="server"
-                                            Width="90px" style="text-align:right;" ReadOnly="true"
+                                            style="text-align:right;" ReadOnly="true"
                                             CssClass="readonly-field"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="100px" />
+                                    <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="倉庫">
                                     <ItemTemplate>
-                                        <asp:DropDownList ID="ddlWhsCode" runat="server" Width="80px">
+                                        <asp:DropDownList ID="ddlWhsCode" runat="server">
                                         </asp:DropDownList>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="交期">
                                     <ItemTemplate>
-                                        <asp:TextBox ID="txtShipDate" runat="server" TextMode="Date" Width="120px"></asp:TextBox>
+                                        <asp:TextBox ID="txtShipDate" runat="server" TextMode="Date"></asp:TextBox>
                                     </ItemTemplate>
-                                    <ItemStyle Width="130px" />
+                                    <ItemStyle CssClass="date-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="產品">
                                     <ItemTemplate>
-                                        <asp:DropDownList ID="ddlCostingCode" runat="server" Width="80px">
+                                        <asp:DropDownList ID="ddlCostingCode" runat="server">
                                         </asp:DropDownList>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="部門">
                                     <ItemTemplate>
-                                        <asp:DropDownList ID="ddlCostingCode2" runat="server" Width="80px">
+                                        <asp:DropDownList ID="ddlCostingCode2" runat="server">
                                         </asp:DropDownList>
                                     </ItemTemplate>
-                                    <ItemStyle Width="90px" />
+                                    <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
                             </Columns>
                             <EmptyDataTemplate>
@@ -1019,7 +1252,7 @@
                                     <label class="form-label">備註:</label>
                                     <div class="form-control">
                                         <asp:TextBox ID="txtRemarks" runat="server" TextMode="MultiLine"
-                                            Height="50px"></asp:TextBox>
+                                            Height="50px" CssClass="expandable-field" title="雙擊展開編輯"></asp:TextBox>
                                     </div>
                                 </div>
                             </div>
@@ -1253,6 +1486,33 @@
                         <asp:Button ID="btnValidationConfirm" runat="server" Text="確定仍要新增"
                             CssClass="btn btn-warning" OnClick="btnValidationConfirm_Click"
                             Visible="false" />
+                    </div>
+                </asp:Panel>
+
+                <!-- 文字編輯彈窗 (雙擊展開編輯) -->
+                <asp:Button ID="btnTextEditDummy" runat="server" Style="display:none" />
+                <ajaxToolkit:ModalPopupExtender ID="mpeTextEdit" runat="server"
+                    BehaviorID="mpeTextEditBehavior" TargetControlID="btnTextEditDummy"
+                    PopupControlID="pnlTextEdit" BackgroundCssClass="modalBackground"
+                    DropShadow="false" />
+                <asp:Panel ID="pnlTextEdit" runat="server" CssClass="modalPopup textEditModal"
+                    Style="display:none;">
+                    <div class="modalHeader">
+                        <asp:Label ID="lblTextEditTitle" runat="server" Text="編輯文字"></asp:Label>
+                        <a href="javascript:void(0);" onclick="closeTextEditModal();"
+                            style="color:white; text-decoration:none; font-weight:bold;">✕</a>
+                    </div>
+                    <div class="modalBody">
+                        <asp:TextBox ID="txtTextEditContent" runat="server" TextMode="MultiLine"
+                            Rows="8" Width="100%" MaxLength="254"
+                            style="min-height:150px; resize:vertical; font-family:inherit; font-size:14px; line-height:1.6;"></asp:TextBox>
+                        <div style="margin-top:8px; color:var(--text-muted); font-size:12px;">
+                            提示：最多可輸入 254 個字元
+                        </div>
+                    </div>
+                    <div class="modalFooter">
+                        <button type="button" class="btn btn-secondary" onclick="closeTextEditModal();">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmTextEdit();">確定</button>
                     </div>
                 </asp:Panel>
             </ContentTemplate>

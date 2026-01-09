@@ -31,6 +31,9 @@ Partial Public Class PurchaseRequestForm
         ' 顯示用
         Public Property Currency As String
         Public Property Rate As Decimal
+        ' 說明欄位追蹤 (用於 Dscription/U_Linetext 邏輯)
+        Public Property OriginalDescription As String  ' 原始品名 (來自品號搜尋)
+        Public Property DescriptionEdited As Boolean   ' 使用者是否編輯過說明
     End Class
 
     <Serializable()>
@@ -384,6 +387,17 @@ Partial Public Class PurchaseRequestForm
                 txtDescription.Text = line.Description
             End If
 
+            ' 綁定原始說明和編輯標記 (用於 Dscription/U_Linetext 邏輯)
+            Dim hfOriginalDescription As HiddenField = CType(e.Row.FindControl("hfOriginalDescription"), HiddenField)
+            If hfOriginalDescription IsNot Nothing Then
+                hfOriginalDescription.Value = If(String.IsNullOrEmpty(line.OriginalDescription), line.Description, line.OriginalDescription)
+            End If
+
+            Dim hfDescriptionEdited As HiddenField = CType(e.Row.FindControl("hfDescriptionEdited"), HiddenField)
+            If hfDescriptionEdited IsNot Nothing Then
+                hfDescriptionEdited.Value = line.DescriptionEdited.ToString().ToLower()
+            End If
+
             ' 綁定數量
             Dim txtQuantity As TextBox = CType(e.Row.FindControl("txtQuantity"), TextBox)
             If txtQuantity IsNot Nothing Then
@@ -539,6 +553,17 @@ Partial Public Class PurchaseRequestForm
 
                 Dim txtDescription As TextBox = CType(row.FindControl("txtDescription"), TextBox)
                 If txtDescription IsNot Nothing Then line.Description = txtDescription.Text.Trim()
+
+                ' 讀取原始說明和編輯標記
+                Dim hfOriginalDescription As HiddenField = CType(row.FindControl("hfOriginalDescription"), HiddenField)
+                If hfOriginalDescription IsNot Nothing AndAlso Not String.IsNullOrEmpty(hfOriginalDescription.Value) Then
+                    line.OriginalDescription = hfOriginalDescription.Value
+                End If
+
+                Dim hfDescriptionEdited As HiddenField = CType(row.FindControl("hfDescriptionEdited"), HiddenField)
+                If hfDescriptionEdited IsNot Nothing Then
+                    line.DescriptionEdited = (hfDescriptionEdited.Value.ToLower() = "true")
+                End If
 
                 Dim txtQuantity As TextBox = CType(row.FindControl("txtQuantity"), TextBox)
                 If txtQuantity IsNot Nothing Then
@@ -756,6 +781,8 @@ Partial Public Class PurchaseRequestForm
                 Dim line = CurrentLines(rowIndex)
                 line.ItemCode = itemCode
                 line.Description = itemName
+                line.OriginalDescription = itemName  ' 記錄原始品名
+                line.DescriptionEdited = False       ' 重置編輯標記
                 line.Price = lastPurPrc
 
                 ' 確保稅碼有預設值
@@ -1175,14 +1202,31 @@ Partial Public Class PurchaseRequestForm
                         Dim line = CurrentLines(i)
                         If String.IsNullOrEmpty(line.ItemCode) Then Continue For
 
-                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, Quantity, Price, PriceAfVAT, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
-                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @Quantity, @Price, @PriceAfVAT, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
+                        ' Dscription/U_Linetext 邏輯:
+                        ' - 如果使用者沒有編輯過說明欄位，Dscription = Description
+                        ' - 如果使用者編輯過說明欄位，Dscription = OriginalDescription，U_Linetext = Description
+                        Dim dscriptionValue As String = ""
+                        Dim uLinetextValue As String = ""
+
+                        If line.DescriptionEdited AndAlso Not String.IsNullOrEmpty(line.OriginalDescription) Then
+                            ' 使用者有編輯：原始品名存 Dscription，編輯後的值存 U_Linetext
+                            dscriptionValue = line.OriginalDescription
+                            uLinetextValue = line.Description
+                        Else
+                            ' 使用者沒有編輯：直接存 Dscription
+                            dscriptionValue = line.Description
+                            uLinetextValue = ""
+                        End If
+
+                        Dim insertLineSql As String = "INSERT INTO jPRQ1 (jID, LineNum, ItemCode, Dscription, U_Linetext, Quantity, Price, PriceAfVAT, LineTotal, GTotal, VatGroup, VatPrcnt, LineVat, WhsCode, ShipDate, CostingCode, CostingCode2, Currency, Rate, LineStatus, CreateDate, CreateBy) " &
+                                                       "VALUES (@jID, @LineNum, @ItemCode, @Dscription, @U_Linetext, @Quantity, @Price, @PriceAfVAT, @LineTotal, @GTotal, @VatGroup, @VatPrcnt, @LineVat, @WhsCode, @ShipDate, @CostingCode, @CostingCode2, @Currency, @Rate, 'O', GETDATE(), @CreateBy)"
 
                         Using cmd As New SqlCommand(insertLineSql, conn, trans)
                             cmd.Parameters.AddWithValue("@jID", jID)
                             cmd.Parameters.AddWithValue("@LineNum", i)
                             cmd.Parameters.AddWithValue("@ItemCode", line.ItemCode)
-                            cmd.Parameters.AddWithValue("@Dscription", If(String.IsNullOrEmpty(line.Description), DBNull.Value, line.Description))
+                            cmd.Parameters.AddWithValue("@Dscription", If(String.IsNullOrEmpty(dscriptionValue), DBNull.Value, dscriptionValue))
+                            cmd.Parameters.AddWithValue("@U_Linetext", If(String.IsNullOrEmpty(uLinetextValue), DBNull.Value, uLinetextValue))
                             cmd.Parameters.AddWithValue("@Quantity", line.Quantity)
                             cmd.Parameters.AddWithValue("@Price", line.Price)
                             cmd.Parameters.AddWithValue("@PriceAfVAT", line.PriceAfVAT)
@@ -1301,10 +1345,34 @@ Partial Public Class PurchaseRequestForm
                     While dr.Read()
                         Dim qty As Decimal = Convert.ToDecimal(dr("Quantity"))
                         Dim gTotal As Decimal = Convert.ToDecimal(dr("GTotal"))
+
+                        ' 處理 Dscription/U_Linetext 邏輯
+                        Dim dscription As String = If(IsDBNull(dr("Dscription")), "", dr("Dscription").ToString())
+                        Dim uLinetext As String = ""
+                        Dim descriptionEdited As Boolean = False
+
+                        ' 嘗試讀取 U_Linetext (可能不存在)
+                        Try
+                            If dr.GetOrdinal("U_Linetext") >= 0 Then
+                                uLinetext = If(IsDBNull(dr("U_Linetext")), "", dr("U_Linetext").ToString())
+                            End If
+                        Catch
+                            ' 欄位不存在，忽略
+                        End Try
+
+                        ' 如果 U_Linetext 有值，表示使用者有編輯過
+                        Dim displayDescription As String = dscription
+                        If Not String.IsNullOrEmpty(uLinetext) Then
+                            displayDescription = uLinetext  ' 顯示使用者編輯的值
+                            descriptionEdited = True
+                        End If
+
                         Dim line As New PRLine() With {
                             .LineNum = Convert.ToInt32(dr("LineNum")) + 1,
                             .ItemCode = dr("ItemCode").ToString(),
-                            .Description = If(IsDBNull(dr("Dscription")), "", dr("Dscription").ToString()),
+                            .Description = displayDescription,
+                            .OriginalDescription = dscription,
+                            .DescriptionEdited = descriptionEdited,
                             .Quantity = qty,
                             .Price = Convert.ToDecimal(dr("Price")),
                             .LineTotal = Convert.ToDecimal(dr("LineTotal")),
