@@ -20,7 +20,7 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents hfRateDate As Global.System.Web.UI.WebControls.HiddenField
     Protected WithEvents lblDocNum As Global.System.Web.UI.WebControls.Label
     Protected WithEvents lblDocStatus As Global.System.Web.UI.WebControls.Label
-    Protected WithEvents txtReqName As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents ddlReqName As Global.System.Web.UI.WebControls.DropDownList
     Protected WithEvents ddlReqDept As Global.System.Web.UI.WebControls.DropDownList
     Protected WithEvents txtCardCode As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents btnSearchCardCode As Global.System.Web.UI.WebControls.Button

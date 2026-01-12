@@ -351,7 +351,7 @@
                         <asp:TemplateField HeaderText="jID">
                             <ItemTemplate>
                                 <asp:HyperLink ID="hlJID" runat="server" CssClass="link-jid"
-                                    NavigateUrl='<%# "ExpenseClaimForm.aspx?DocEntry=" & Eval("jID") %>'
+                                    NavigateUrl='<%# GetDocumentUrl(Eval("jID")) %>'
                                     Text='<%# Eval("jID") %>'></asp:HyperLink>
                             </ItemTemplate>
                             <ItemStyle HorizontalAlign="Center" Width="60px" />

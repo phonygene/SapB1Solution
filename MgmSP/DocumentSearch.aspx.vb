@@ -470,6 +470,18 @@ Partial Public Class DocumentSearch
         If text.Length <= maxLen Then Return text
         Return text.Substring(0, maxLen) & "..."
     End Function
+
+    ''' <summary>
+    ''' 根據單據類型產生正確的連結 URL
+    ''' </summary>
+    Public Function GetDocumentUrl(jID As Object) As String
+        Dim docType As String = ddlDocType.SelectedValue
+        If docType = "PurchaseRequest" Then
+            Return "PurchaseRequestForm.aspx?jID=" & jID.ToString()
+        Else
+            Return "ExpenseClaimForm.aspx?DocEntry=" & jID.ToString()
+        End If
+    End Function
 #End Region
 
 End Class

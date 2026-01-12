@@ -945,7 +945,7 @@
                             <div class="form-group">
                                 <label class="form-label"><span class="required">*</span>請購人:</label>
                                 <div class="form-control">
-                                    <asp:TextBox ID="txtReqName" runat="server" ReadOnly="true" CssClass="readonly-field"></asp:TextBox>
+                                    <asp:DropDownList ID="ddlReqName" runat="server"></asp:DropDownList>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -1139,7 +1139,7 @@
                                     <ItemStyle Width="190px" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="摘要">
+                                <asp:TemplateField HeaderText="摘要" Visible="false">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtLineText" runat="server" Width="150px"></asp:TextBox>
                                     </ItemTemplate>

@@ -160,7 +160,10 @@ Partial Public Class PurchaseRequestForm
 
     Private Sub SetDefaultValues()
         lblDocNum.Text = "[新單據]"
-        txtReqName.Text = currentUserId
+        ' 嘗試在請購人下拉選單中選擇當前使用者
+        If ddlReqName.Items.FindByValue(currentUserId) IsNot Nothing Then
+            ddlReqName.SelectedValue = currentUserId
+        End If
         txtOwner.Text = currentUserId
         lblDocStatus.Text = "新增中"
         lblDocStatus.CssClass = "badge status-W"
@@ -188,9 +191,35 @@ Partial Public Class PurchaseRequestForm
     Private Sub InitializeDropDowns()
         LoadCurrencies()
         LoadDepartments()
+        LoadReqName()
         ' LoadWarehouses, LoadProducts, LoadDepartments2 改為在 RowDataBound 中呼叫 (參照費用申請單模式)
         LoadPurchasers()
         LoadVatGroups()
+    End Sub
+
+    ''' <summary>
+    ''' 載入請購人下拉選單（從 SAP OHEM）
+    ''' </summary>
+    Private Sub LoadReqName()
+        ddlReqName.Items.Clear()
+        ddlReqName.Items.Add(New ListItem("-- 請選擇 --", ""))
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT Code, lastName + firstName AS EmpName FROM OHEM WHERE Active = 'Y' ORDER BY Code"
+                Using cmd As New SqlCommand(sql, conn)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        While dr.Read()
+                            Dim code As String = dr("Code").ToString()
+                            Dim empName As String = If(IsDBNull(dr("EmpName")), "", dr("EmpName").ToString())
+                            ddlReqName.Items.Add(New ListItem(code & " - " & empName, code))
+                        End While
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 靜默處理
+        End Try
     End Sub
 
     Private Sub InitializeGridViews()
@@ -1146,15 +1175,38 @@ Partial Public Class PurchaseRequestForm
                 Try
                     Dim jID As Integer = currentJID
 
+                    ' 取得請購人資訊 (ReqCode 和 ReqName)
+                    Dim reqCode As String = ddlReqName.SelectedValue
+                    Dim reqName As String = ""
+                    If ddlReqName.SelectedIndex > 0 Then
+                        ' 從 "Code - Name" 格式中提取名稱
+                        Dim selectedText As String = ddlReqName.SelectedItem.Text
+                        Dim dashPos As Integer = selectedText.IndexOf(" - ")
+                        If dashPos > 0 AndAlso dashPos + 3 < selectedText.Length Then
+                            reqName = selectedText.Substring(dashPos + 3)
+                        End If
+                    End If
+
                     If jID = 0 Then
-                        ' 新增
-                        Dim insertSql As String = "INSERT INTO jOPRQ (CardCode, CardName, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
-                                                   "VALUES (@CardCode, @CardName, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); SELECT SCOPE_IDENTITY();"
+                        ' 新增 - 先從 OJID 取得全域唯一的 jID
+                        Dim ojidSql As String = "INSERT INTO OJID (jUser, DocType) VALUES (@jUser, 'jOPRQ'); SELECT SCOPE_IDENTITY();"
+                        Using cmd As New SqlCommand(ojidSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jUser", currentUserId)
+                            jID = Convert.ToInt32(cmd.ExecuteScalar())
+                        End Using
+
+                        ' 使用從 OJID 取得的 jID 插入 jOPRQ（需開啟 IDENTITY_INSERT）
+                        Dim insertSql As String = "SET IDENTITY_INSERT jOPRQ ON; " &
+                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqCode, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
+                                                   "VALUES (@jID, @CardCode, @CardName, @ReqCode, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); " &
+                                                   "SET IDENTITY_INSERT jOPRQ OFF;"
 
                         Using cmd As New SqlCommand(insertSql, conn, trans)
+                            cmd.Parameters.AddWithValue("@jID", jID)
                             cmd.Parameters.AddWithValue("@CardCode", If(String.IsNullOrEmpty(txtCardCode.Text), DBNull.Value, txtCardCode.Text))
                             cmd.Parameters.AddWithValue("@CardName", If(String.IsNullOrEmpty(txtCardName.Text), DBNull.Value, txtCardName.Text))
-                            cmd.Parameters.AddWithValue("@ReqName", txtReqName.Text)
+                            cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
+                            cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
                             cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
                             cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
@@ -1165,18 +1217,19 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@Comments", If(String.IsNullOrEmpty(txtRemarks.Text), DBNull.Value, txtRemarks.Text))
                             cmd.Parameters.AddWithValue("@U_PID", If(String.IsNullOrEmpty(txtUPID.Text), DBNull.Value, txtUPID.Text))
                             cmd.Parameters.AddWithValue("@CreateBy", currentUserId)
-
-                            jID = Convert.ToInt32(cmd.ExecuteScalar())
+                            cmd.ExecuteNonQuery()
                         End Using
                     Else
                         ' 更新
-                        Dim updateSql As String = "UPDATE jOPRQ SET CardCode=@CardCode, CardName=@CardName, ReqDept=@ReqDept, DocDate=@DocDate, ReqDate=@ReqDate, " &
+                        Dim updateSql As String = "UPDATE jOPRQ SET CardCode=@CardCode, CardName=@CardName, ReqCode=@ReqCode, ReqName=@ReqName, ReqDept=@ReqDept, DocDate=@DocDate, ReqDate=@ReqDate, " &
                                                    "DocCurrency=@DocCurrency, DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, Comments=@Comments, U_PID=@U_PID, UpdateDate=GETDATE(), UpdateBy=@UpdateBy WHERE jID=@jID"
 
                         Using cmd As New SqlCommand(updateSql, conn, trans)
                             cmd.Parameters.AddWithValue("@jID", jID)
                             cmd.Parameters.AddWithValue("@CardCode", If(String.IsNullOrEmpty(txtCardCode.Text), DBNull.Value, txtCardCode.Text))
                             cmd.Parameters.AddWithValue("@CardName", If(String.IsNullOrEmpty(txtCardName.Text), DBNull.Value, txtCardName.Text))
+                            cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
+                            cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
                             cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
                             cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
@@ -1274,7 +1327,20 @@ Partial Public Class PurchaseRequestForm
                         lblDocNum.Text = "PR-" & jID.ToString("D6")
                         txtCardCode.Text = If(IsDBNull(dr("CardCode")), "", dr("CardCode").ToString())
                         txtCardName.Text = If(IsDBNull(dr("CardName")), "", dr("CardName").ToString())
-                        txtReqName.Text = dr("ReqName").ToString()
+
+                        ' 讀取請購人 (優先使用 ReqCode，若欄位不存在則使用 ReqName)
+                        Dim reqCode As String = ""
+                        Try
+                            If Not IsDBNull(dr("ReqCode")) Then
+                                reqCode = dr("ReqCode").ToString()
+                            End If
+                        Catch
+                            ' ReqCode 欄位可能不存在於舊資料
+                        End Try
+
+                        If Not String.IsNullOrEmpty(reqCode) AndAlso ddlReqName.Items.FindByValue(reqCode) IsNot Nothing Then
+                            ddlReqName.SelectedValue = reqCode
+                        End If
 
                         If Not IsDBNull(dr("ReqDept")) AndAlso ddlReqDept.Items.FindByValue(dr("ReqDept").ToString()) IsNot Nothing Then
                             ddlReqDept.SelectedValue = dr("ReqDept").ToString()
@@ -1332,6 +1398,8 @@ Partial Public Class PurchaseRequestForm
                         btnDelete.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
                         btnUpdate.Visible = (approvalStatus = "Pending")
                         btnSubmit.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
+                        btnExportPDF.Visible = True      ' 已儲存的單據可匯出 PDF
+                        btnNewDocument.Visible = True    ' 已儲存的單據可新增新單據
                     End If
                 End Using
             End Using
@@ -1490,10 +1558,18 @@ Partial Public Class PurchaseRequestForm
         btnSubmit_Click(sender, e)
     End Sub
 
+    ''' <summary>
+    ''' 匯出 PDF - 使用 Crystal Report 將請購單匯出為 PDF 格式
+    ''' </summary>
     Protected Sub btnExportPDF_Click(sender As Object, e As EventArgs)
-        ' TODO: 實作 PDF 匯出
-        lblMessage.Text = "PDF 匯出功能開發中..."
-        lblMessage.ForeColor = Drawing.Color.Blue
+        Dim jID As String = txtJID.Text.Trim()
+        If Not String.IsNullOrEmpty(jID) Then
+            ' 使用 Crystal Report Handler 產生 PDF (在新視窗開啟)
+            Dim script As String = String.Format("window.open('PurchaseRequestReport.ashx?jID={0}', '_blank');", HttpUtility.UrlEncode(jID))
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenPDF", script, True)
+        Else
+            ShowError("無法匯出：尚未儲存的單據或缺少平台單號")
+        End If
     End Sub
 
     Protected Sub btnNewDocument_Click(sender As Object, e As EventArgs)
@@ -1524,6 +1600,28 @@ Partial Public Class PurchaseRequestForm
         Catch ex As Exception
             ' 日期解析失敗不阻斷流程
         End Try
+    End Sub
+
+    ''' <summary>
+    ''' 假日彈窗 - 維持原日期
+    ''' </summary>
+    Protected Sub btnHolidayKeep_Click(sender As Object, e As EventArgs)
+        mpeHoliday.Hide()
+    End Sub
+
+    ''' <summary>
+    ''' 假日彈窗 - 順延到下一個工作日
+    ''' </summary>
+    Protected Sub btnHolidayAdjust_Click(sender As Object, e As EventArgs)
+        Try
+            Dim nextWorkday As String = lblHolidayNextWorkday.Text
+            If Not String.IsNullOrEmpty(nextWorkday) Then
+                txtReqDate.Text = nextWorkday
+            End If
+        Catch ex As Exception
+            ' 忽略錯誤
+        End Try
+        mpeHoliday.Hide()
     End Sub
 #End Region
 
