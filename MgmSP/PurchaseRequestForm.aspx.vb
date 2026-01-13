@@ -1,3 +1,4 @@
+Imports System.Data
 Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Web.Configuration
@@ -1208,8 +1209,9 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
                             cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
-                            cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
-                            cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
+                            ' 使用 SqlDbType.Date 避免 SqlDateTime 溢位
+                            cmd.Parameters.Add("@DocDate", SqlDbType.Date).Value = DateTime.Parse(txtDocDate.Text)
+                            cmd.Parameters.Add("@ReqDate", SqlDbType.Date).Value = If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text))
                             cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
                             cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
                             cmd.Parameters.AddWithValue("@DocTotal", Decimal.Parse(lblDocTotalWithTax.Text))
@@ -1231,8 +1233,9 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
                             cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
-                            cmd.Parameters.AddWithValue("@DocDate", DateTime.Parse(txtDocDate.Text))
-                            cmd.Parameters.AddWithValue("@ReqDate", If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text)))
+                            ' 使用 SqlDbType.Date 避免 SqlDateTime 溢位
+                            cmd.Parameters.Add("@DocDate", SqlDbType.Date).Value = DateTime.Parse(txtDocDate.Text)
+                            cmd.Parameters.Add("@ReqDate", SqlDbType.Date).Value = If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text))
                             cmd.Parameters.AddWithValue("@DocCurrency", ddlDocCurrency.SelectedValue)
                             cmd.Parameters.AddWithValue("@DocRate", Decimal.Parse(txtDocRate.Text))
                             cmd.Parameters.AddWithValue("@DocTotal", Decimal.Parse(lblDocTotalWithTax.Text))
@@ -1289,7 +1292,12 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@VatPrcnt", line.VatRate)
                             cmd.Parameters.AddWithValue("@LineVat", line.VatSum)
                             cmd.Parameters.AddWithValue("@WhsCode", If(String.IsNullOrEmpty(line.WhsCode), DBNull.Value, line.WhsCode))
-                            cmd.Parameters.AddWithValue("@ShipDate", If(line.ShipDate.HasValue, line.ShipDate.Value, DBNull.Value))
+                            ' 使用 SqlDbType.Date 避免 SqlDateTime 溢位，並檢查有效日期
+                            If line.ShipDate.HasValue AndAlso line.ShipDate.Value > New DateTime(1753, 1, 1) Then
+                                cmd.Parameters.Add("@ShipDate", SqlDbType.Date).Value = line.ShipDate.Value
+                            Else
+                                cmd.Parameters.Add("@ShipDate", SqlDbType.Date).Value = DBNull.Value
+                            End If
                             cmd.Parameters.AddWithValue("@CostingCode", If(String.IsNullOrEmpty(line.CostingCode), DBNull.Value, line.CostingCode))
                             cmd.Parameters.AddWithValue("@CostingCode2", If(String.IsNullOrEmpty(line.CostingCode2), DBNull.Value, line.CostingCode2))
                             cmd.Parameters.AddWithValue("@Currency", ddlDocCurrency.SelectedValue)
