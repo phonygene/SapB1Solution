@@ -32,25 +32,24 @@ Public Class DownloadHandler
             End If
 
             ' 從資料庫取得附件資訊
+            ' 支援費用申請單 (DocEntry 關聯) 和 請購單 (jID 關聯)
             Dim filePath As String = ""
             Dim fileName As String = ""
-            Dim docEntry As Integer = 0
 
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "SELECT a.FilePath, a.FileName, a.DocEntry, h.CreateBy " &
+                ' 先嘗試用 jID 查詢（請購單等使用 jID 關聯的單據）
+                Dim sql As String = "SELECT a.FilePath, a.FileName, a.jID, a.DocEntry " &
                                     "FROM jAttach a " &
-                                    "INNER JOIN jOPCH h ON a.DocEntry = h.DocEntry " &
                                     "WHERE a.ID = @ID AND (a.IsDeleted = 0 OR a.IsDeleted IS NULL)"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@ID", attachId)
                     Using dr As SqlDataReader = cmd.ExecuteReader()
                         If dr.Read() Then
-                            filePath = dr("FilePath").ToString()
+                            filePath = If(IsDBNull(dr("FilePath")), "", dr("FilePath").ToString())
                             fileName = If(IsDBNull(dr("FileName")), "", dr("FileName").ToString())
-                            docEntry = Convert.ToInt32(dr("DocEntry"))
                             ' 可選：檢查使用者是否有權限查看此附件
-                            ' Dim createBy As String = dr("CreateBy").ToString()
+                            ' 可透過 jID 或 DocEntry 與對應的主表關聯檢查
                         Else
                             context.Response.StatusCode = 404
                             context.Response.Write("找不到附件")

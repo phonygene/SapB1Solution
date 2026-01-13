@@ -45,6 +45,7 @@ Partial Public Class PurchaseRequestForm
         Public Property UploadDate As DateTime
         Public Property UploadTime As String
         Public Property Uploader As String
+        Public Property IsNew As Boolean = False  ' 標記是否為新上傳（尚未寫入資料庫）
     End Class
 #End Region
 
@@ -1075,6 +1076,27 @@ Partial Public Class PurchaseRequestForm
 #End Region
 
 #Region "附件上傳"
+    ''' <summary>
+    ''' 取得附件儲存資料夾路徑
+    ''' </summary>
+    Private Function GetAttachmentFolder() As String
+        Return Server.MapPath("~/Uploads/PR/")
+    End Function
+
+    ''' <summary>
+    ''' 取得附件相對路徑（用於資料庫儲存）
+    ''' </summary>
+    Private Function GetAttachmentRelativePath(fileName As String) As String
+        Return "Uploads/PR/" & fileName
+    End Function
+
+    ''' <summary>
+    ''' 取得附件絕對路徑
+    ''' </summary>
+    Private Function GetAttachmentAbsolutePath(relativePath As String) As String
+        Return Server.MapPath("~/" & relativePath)
+    End Function
+
     Protected Sub btnUpload_Click(sender As Object, e As EventArgs)
         If Not fileUpload.HasFile Then
             ShowError("請選擇要上傳的檔案")
@@ -1082,7 +1104,7 @@ Partial Public Class PurchaseRequestForm
         End If
 
         Try
-            Dim uploadFolder As String = Server.MapPath("~/Uploads/PR/")
+            Dim uploadFolder As String = GetAttachmentFolder()
             If Not Directory.Exists(uploadFolder) Then
                 Directory.CreateDirectory(uploadFolder)
             End If
@@ -1090,16 +1112,18 @@ Partial Public Class PurchaseRequestForm
             For Each uploadedFile As HttpPostedFile In fileUpload.PostedFiles
                 Dim fileName As String = Path.GetFileName(uploadedFile.FileName)
                 Dim uniqueName As String = DateTime.Now.ToString("yyyyMMddHHmmss") & "_" & fileName
-                Dim filePath As String = Path.Combine(uploadFolder, uniqueName)
-                uploadedFile.SaveAs(filePath)
+                Dim absolutePath As String = Path.Combine(uploadFolder, uniqueName)
+                Dim relativePath As String = GetAttachmentRelativePath(uniqueName)
+                uploadedFile.SaveAs(absolutePath)
 
                 Dim attachment As New AttachmentItem() With {
-                    .ID = CurrentAttachments.Count + 1,
+                    .ID = 0,  ' 新上傳的附件 ID 為 0，儲存後會更新
                     .FileName = fileName,
-                    .FilePath = filePath,
+                    .FilePath = relativePath,  ' 使用相對路徑
                     .UploadDate = DateTime.Now,
                     .UploadTime = DateTime.Now.ToString("HH:mm:ss"),
-                    .Uploader = currentUserId
+                    .Uploader = currentUserId,
+                    .IsNew = True  ' 標記為新上傳
                 }
                 CurrentAttachments.Add(attachment)
             Next
@@ -1112,18 +1136,85 @@ Partial Public Class PurchaseRequestForm
         End Try
     End Sub
 
+    ''' <summary>
+    ''' 附件刪除 - 使用 Soft Delete 機制
+    ''' </summary>
     Protected Sub gvAttachments_RowCommand(sender As Object, e As GridViewCommandEventArgs)
         If e.CommandName = "DeleteFile" Then
             Dim index As Integer = Convert.ToInt32(e.CommandArgument)
             If index >= 0 AndAlso index < CurrentAttachments.Count Then
-                ' 刪除實體檔案
-                If File.Exists(CurrentAttachments(index).FilePath) Then
-                    File.Delete(CurrentAttachments(index).FilePath)
-                End If
-                CurrentAttachments.RemoveAt(index)
-                BindAttachmentGrid()
+                Dim item = CurrentAttachments(index)
+
+                Try
+                    If item.IsNew Then
+                        ' 新上傳的附件（尚未寫入資料庫），直接刪除檔案
+                        Dim absolutePath As String = GetAttachmentAbsolutePath(item.FilePath)
+                        If File.Exists(absolutePath) Then
+                            File.Delete(absolutePath)
+                        End If
+                    Else
+                        ' 已存在資料庫的附件，使用 Soft Delete
+                        Using conn As New SqlConnection(connStr)
+                            conn.Open()
+                            Dim sql As String = "UPDATE jAttach SET IsDeleted=1, DeletedDate=GETDATE(), DeletedBy=@UserId WHERE ID=@ID"
+                            Using cmd As New SqlCommand(sql, conn)
+                                cmd.Parameters.AddWithValue("@ID", item.ID)
+                                cmd.Parameters.AddWithValue("@UserId", currentUserId)
+                                cmd.ExecuteNonQuery()
+                            End Using
+                        End Using
+                    End If
+
+                    CurrentAttachments.RemoveAt(index)
+                    BindAttachmentGrid()
+                Catch ex As Exception
+                    ShowError("刪除附件失敗: " & ex.Message)
+                End Try
             End If
         End If
+    End Sub
+
+    ''' <summary>
+    ''' 保存新附件到 jAttach 表
+    ''' </summary>
+    Private Sub SaveAttachments(jID As Integer, conn As SqlConnection, trans As SqlTransaction)
+        ' 取得目前最大的 LineNum
+        Dim maxLineNum As Integer = 0
+        Using cmd As New SqlCommand("SELECT ISNULL(MAX(LineNum), -1) FROM jAttach WHERE jID = @jID AND IsDeleted = 0", conn, trans)
+            cmd.Parameters.AddWithValue("@jID", jID)
+            Dim result = cmd.ExecuteScalar()
+            If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                maxLineNum = Convert.ToInt32(result) + 1
+            End If
+        End Using
+
+        ' 只保存新上傳的附件 (IsNew = True)
+        For Each attachment As AttachmentItem In CurrentAttachments
+            If attachment.IsNew Then
+                Dim insertSql As String = "INSERT INTO jAttach (jID, LineNum, FilePath, FileName, Uploader, UploadDate, UploadTime, IsDeleted) " &
+                                          "VALUES (@jID, @LineNum, @FilePath, @FileName, @Uploader, @UploadDate, @UploadTime, 0); " &
+                                          "SELECT SCOPE_IDENTITY();"
+
+                Using cmd As New SqlCommand(insertSql, conn, trans)
+                    cmd.Parameters.AddWithValue("@jID", jID)
+                    cmd.Parameters.AddWithValue("@LineNum", maxLineNum)
+                    cmd.Parameters.AddWithValue("@FilePath", attachment.FilePath)
+                    cmd.Parameters.AddWithValue("@FileName", attachment.FileName)
+                    cmd.Parameters.AddWithValue("@Uploader", attachment.Uploader)
+                    cmd.Parameters.Add("@UploadDate", SqlDbType.Date).Value = attachment.UploadDate.Date
+                    cmd.Parameters.AddWithValue("@UploadTime", attachment.UploadTime)
+
+                    ' 取得新插入的 ID
+                    Dim newId = cmd.ExecuteScalar()
+                    If newId IsNot Nothing AndAlso Not IsDBNull(newId) Then
+                        attachment.ID = Convert.ToInt32(newId)
+                        attachment.IsNew = False  ' 標記為已儲存
+                    End If
+                End Using
+
+                maxLineNum += 1
+            End If
+        Next
     End Sub
 #End Region
 
@@ -1307,6 +1398,9 @@ Partial Public Class PurchaseRequestForm
                         End Using
                     Next
 
+                    ' 保存新附件到 jAttach 表
+                    SaveAttachments(jID, conn, trans)
+
                     trans.Commit()
                     txtJID.Text = jID.ToString()
                     currentJID = jID
@@ -1468,7 +1562,39 @@ Partial Public Class PurchaseRequestForm
             End Using
 
             BindGrid()
+
+            ' 載入附件
+            LoadAttachments(jID, conn)
+
             BindAttachmentGrid()
+        End Using
+    End Sub
+
+    ''' <summary>
+    ''' 從 jAttach 表載入附件
+    ''' </summary>
+    Private Sub LoadAttachments(jID As Integer, conn As SqlConnection)
+        CurrentAttachments.Clear()
+
+        Dim sql As String = "SELECT ID, LineNum, FilePath, FileName, Uploader, UploadDate, UploadTime " &
+                            "FROM jAttach WHERE jID = @jID AND IsDeleted = 0 ORDER BY LineNum"
+
+        Using cmd As New SqlCommand(sql, conn)
+            cmd.Parameters.AddWithValue("@jID", jID)
+            Using dr As SqlDataReader = cmd.ExecuteReader()
+                While dr.Read()
+                    Dim attachment As New AttachmentItem() With {
+                        .ID = Convert.ToInt32(dr("ID")),
+                        .FileName = If(IsDBNull(dr("FileName")), "", dr("FileName").ToString()),
+                        .FilePath = If(IsDBNull(dr("FilePath")), "", dr("FilePath").ToString()),
+                        .UploadDate = If(IsDBNull(dr("UploadDate")), DateTime.MinValue, Convert.ToDateTime(dr("UploadDate"))),
+                        .UploadTime = If(IsDBNull(dr("UploadTime")), "", dr("UploadTime").ToString()),
+                        .Uploader = If(IsDBNull(dr("Uploader")), "", dr("Uploader").ToString()),
+                        .IsNew = False  ' 從資料庫載入的附件標記為非新增
+                    }
+                    CurrentAttachments.Add(attachment)
+                End While
+            End Using
         End Using
     End Sub
 #End Region
