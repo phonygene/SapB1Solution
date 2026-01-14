@@ -1,4 +1,4 @@
-Imports System.Data
+﻿Imports System.Data
 Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Web.Configuration
@@ -56,7 +56,10 @@ Partial Public Class PurchaseRequestForm
 
     Private currentUserId As String = ""
     Private currentJID As Integer = 0
-    Private canApprove As Boolean = False
+    Private isPuUser As Boolean = False  ' PU_App 權限（與費用申請單的 isApUser 對應）
+    '
+    ' SAP DI API Company 物件
+    Public oCompany As New SAPbobsCOM.Company
 #End Region
 
 #Region "屬性 (ViewState)"
@@ -154,7 +157,7 @@ Partial Public Class PurchaseRequestForm
                 cmd.Parameters.AddWithValue("@UserId", currentUserId)
                 Using dr As SqlDataReader = cmd.ExecuteReader()
                     If dr.Read() Then
-                        canApprove = (Convert.ToInt32(If(IsDBNull(dr("PU_App")), 0, dr("PU_App"))) = 1)
+                        isPuUser = (Convert.ToInt32(If(IsDBNull(dr("PU_App")), 0, dr("PU_App"))) = 1)
                     End If
                 End Using
             End Using
@@ -178,10 +181,11 @@ Partial Public Class PurchaseRequestForm
         End If
         txtDocRate.Text = "1.0"
 
+        ' 審核區塊：一般使用者隱藏審核按鈕，只有 PU_App 權限者可見
         txtApprovalComments.ReadOnly = True
-        btnApprove.Visible = True
+        btnApprove.Visible = False
         btnApprove.Enabled = False
-        btnReject.Visible = True
+        btnReject.Visible = False
         btnReject.Enabled = False
 
         btnDelete.Visible = False
@@ -1220,8 +1224,7 @@ Partial Public Class PurchaseRequestForm
             Next
 
             BindAttachmentGrid()
-            lblMessage.Text = "附件上傳成功"
-            lblMessage.ForeColor = Drawing.Color.Green
+            ShowSuccess("附件上傳成功")
         Catch ex As Exception
             ShowError("附件上傳失敗: " & ex.Message)
         End Try
@@ -1341,8 +1344,7 @@ Partial Public Class PurchaseRequestForm
 
         Try
             SaveDocument()
-            lblMessage.Text = "請購單儲存成功！單號: " & txtJID.Text
-            lblMessage.ForeColor = Drawing.Color.Green
+            ShowSuccess("請購單儲存成功！單號: " & txtJID.Text)
 
             ' 重新載入
             Response.Redirect("PurchaseRequestForm.aspx?jID=" & txtJID.Text)
@@ -1564,19 +1566,51 @@ Partial Public Class PurchaseRequestForm
                                 txtStatusDisplay.Text = "已退回"
                         End Select
 
-                        ' 審核區塊
-                        If canApprove AndAlso approvalStatus = "Pending" Then
-                            txtApprovalComments.ReadOnly = False
+                        ' 審核區塊：對一般使用者隱藏審核按鈕，只有 PU_App 權限者可見
+                        ' 1. 審核意見欄位：PU_App 權限者可編輯
+                        txtApprovalComments.ReadOnly = Not isPuUser
+
+                        ' 2. 審核按鈕：只有 PU_App 權限者可見，且僅在 Pending 狀態可操作
+                        btnApprove.Visible = isPuUser
+                        btnReject.Visible = isPuUser
+
+                        If isPuUser AndAlso approvalStatus = "Pending" Then
                             btnApprove.Enabled = True
                             btnReject.Enabled = True
                         Else
-                            txtApprovalComments.ReadOnly = True
                             btnApprove.Enabled = False
                             btnReject.Enabled = False
                         End If
 
                         If Not IsDBNull(dr("ApprovalComments")) Then
                             txtApprovalComments.Text = dr("ApprovalComments").ToString()
+                        End If
+
+                        ' SAP 單號顯示
+                        If Not IsDBNull(dr("DocNum")) Then
+                            txtSapDocNum.Text = dr("DocNum").ToString()
+                        Else
+                            txtSapDocNum.Text = ""
+                        End If
+
+                        ' SAP 過帳狀態
+                        If Not IsDBNull(dr("B1PostStatus")) Then
+                            Dim postStatus As String = dr("B1PostStatus").ToString()
+                            Select Case postStatus
+                                Case "Y"
+                                    lblSapPostStatus.Text = "(已過帳)"
+                                    lblSapPostStatus.ForeColor = Drawing.Color.Green
+                                Case "E"
+                                    lblSapPostStatus.Text = "(過帳失敗)"
+                                    lblSapPostStatus.ForeColor = Drawing.Color.Red
+                                    If Not IsDBNull(dr("B1ErrMsg")) Then
+                                        lblSapPostStatus.ToolTip = dr("B1ErrMsg").ToString()
+                                    End If
+                                Case Else
+                                    lblSapPostStatus.Text = ""
+                            End Select
+                        Else
+                            lblSapPostStatus.Text = ""
                         End If
 
                         ' 按鈕狀態
@@ -1699,8 +1733,9 @@ Partial Public Class PurchaseRequestForm
                 End Using
             End Using
 
-            lblMessage.Text = "請購單已核准！"
-            lblMessage.ForeColor = Drawing.Color.Green
+            ' 2. 拋轉到 SAP 請購單
+            CreatePurchaseRequestInSAP(currentJID)
+
             Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
         Catch ex As Exception
             ShowError("核准失敗: " & ex.Message)
@@ -1723,14 +1758,334 @@ Partial Public Class PurchaseRequestForm
                 End Using
             End Using
 
-            lblMessage.Text = "請購單已退回！"
-            lblMessage.ForeColor = Drawing.Color.Orange
+            ShowWarning("請購單已退回！")
             Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
         Catch ex As Exception
             ShowError("退回失敗: " & ex.Message)
         End Try
     End Sub
 #End Region
+
+
+#Region "SAP Integration"
+    ''' <summary>
+    ''' 初始化 SAP 連線
+    ''' </summary>
+    Private Function InitSAPConnection() As Integer
+        Dim destIP As String = ConfigurationManager.AppSettings("SapServer")
+        Dim dbName As String = ConfigurationManager.AppSettings("SapCompanyDB")
+        Dim sapUser As String = ConfigurationManager.AppSettings("SapUserName")
+        Dim sapPwd As String = ConfigurationManager.AppSettings("SapPassword")
+        Dim dbUser As String = ConfigurationManager.AppSettings("SapDbUserName")
+        Dim dbPwd As String = ConfigurationManager.AppSettings("SapDbPassword")
+
+        oCompany.Server = destIP
+        oCompany.CompanyDB = dbName
+        oCompany.UserName = sapUser
+        oCompany.Password = sapPwd
+        oCompany.UseTrusted = False
+        oCompany.DbUserName = If(String.IsNullOrEmpty(dbUser), "sa", dbUser)
+        oCompany.DbPassword = If(String.IsNullOrEmpty(dbPwd), "", dbPwd)
+        oCompany.language = SAPbobsCOM.BoSuppLangs.ln_English
+        oCompany.DbServerType = SAPbobsCOM.BoDataServerTypes.dst_MSSQL2019
+
+        Return oCompany.Connect()
+    End Function
+
+    ''' <summary>
+    ''' 關閉 SAP 連線
+    ''' </summary>
+    Private Sub CloseSAPConnection()
+        If oCompany IsNot Nothing AndAlso oCompany.Connected Then
+            oCompany.Disconnect()
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 建立 SAP 請購單 (Purchase Request)
+    ''' </summary>
+    Private Sub CreatePurchaseRequestInSAP(jID As Integer)
+        Dim oPR As SAPbobsCOM.Documents = Nothing
+        Dim sapDocEntry As Integer = 0
+        Dim errMsg As String = ""
+
+        Try
+            ' 0. 雙重檢查：確保尚未成功寫入 SAP
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Using cmd As New SqlCommand("SELECT B1PostStatus FROM jOPRQ WHERE jID=@jID", conn)
+                    cmd.Parameters.AddWithValue("@jID", jID)
+                    Dim status = cmd.ExecuteScalar()
+                    If status IsNot Nothing AndAlso status.ToString() = "Y" Then
+                        ShowWarning("此單據已成功寫入 SAP，跳過重複寫入")
+                        Return
+                    End If
+                End Using
+            End Using
+
+            ' 1. 初始化 SAP 連線
+            If String.IsNullOrEmpty(ConfigurationManager.AppSettings("SapServer")) OrElse
+               String.IsNullOrEmpty(ConfigurationManager.AppSettings("SapCompanyDB")) Then
+                Throw New Exception("Web.config 中缺少 SAP 連線設定 (SapServer/SapCompanyDB)")
+            End If
+
+            Dim connResult As Integer = InitSAPConnection()
+            If connResult <> 0 Then
+                Dim connErrCode As Integer
+                Dim connErrMsg As String = ""
+                oCompany.GetLastError(connErrCode, connErrMsg)
+                Throw New Exception("SAP 連線失敗 [" & connErrCode & "]: " & connErrMsg)
+            End If
+
+            ' 2. 建立請購單物件
+            oPR = oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseRequest)
+
+            ' 記錄文件幣別和匯率
+            Dim docCurrency As String = "TWD"
+            Dim docRate As Double = 1.0
+
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+
+                ' 讀取表頭
+                Dim sqlH As String = "SELECT * FROM jOPRQ WHERE jID=@jID"
+                Using cmdH As New SqlCommand(sqlH, conn)
+                    cmdH.Parameters.AddWithValue("@jID", jID)
+                    Using drH As SqlDataReader = cmdH.ExecuteReader()
+                        If Not drH.Read() Then
+                            Throw New Exception("找不到請購單: jID=" & jID)
+                        End If
+
+                        ' 供應商代碼 (選填)
+                        If Not IsDBNull(drH("CardCode")) AndAlso drH("CardCode").ToString() <> "" Then
+                            oPR.CardCode = drH("CardCode").ToString()
+                        End If
+
+                        ' 文件日期
+                        oPR.DocDate = Convert.ToDateTime(drH("DocDate"))
+
+                        ' 需求日期
+                        If Not IsDBNull(drH("ReqDate")) Then
+                            oPR.DocDueDate = Convert.ToDateTime(drH("ReqDate"))
+                        End If
+
+                        ' 幣別
+                        If Not IsDBNull(drH("DocCurrency")) Then
+                            docCurrency = drH("DocCurrency").ToString()
+                            oPR.DocCurrency = docCurrency
+                        End If
+
+                        ' 匯率
+                        If Not IsDBNull(drH("DocRate")) Then
+                            docRate = Convert.ToDouble(drH("DocRate"))
+                            If docCurrency <> "TWD" AndAlso docCurrency <> "NTD" Then
+                                oPR.DocRate = docRate
+                            End If
+                        End If
+
+                        ' 備註
+                        If Not IsDBNull(drH("Comments")) Then
+                            oPR.Comments = drH("Comments").ToString()
+                        End If
+
+                        ' 請購人代碼 -> Requester (員工代碼)
+                        If Not IsDBNull(drH("ReqCode")) Then
+                            oPR.Requester = drH("ReqCode").ToString()
+                        End If
+
+                        ' 請購類型: 12 = 員工
+                        oPR.ReqType = 12
+
+                    End Using
+                End Using
+
+                ' 讀取明細
+                Dim sqlL As String = "SELECT * FROM jPRQ1 WHERE jID=@jID ORDER BY LineNum"
+                Using cmdL As New SqlCommand(sqlL, conn)
+                    cmdL.Parameters.AddWithValue("@jID", jID)
+                    Using drL As SqlDataReader = cmdL.ExecuteReader()
+                        Dim lineIndex As Integer = 0
+                        While drL.Read()
+                            If lineIndex > 0 Then oPR.Lines.Add()
+
+                            ' 料號 (必填)
+                            oPR.Lines.ItemCode = drL("ItemCode").ToString()
+
+                            ' 說明 - 若有自訂說明，寫入 U_LineText UDF (不設定 ItemDescription)
+                            If Not IsDBNull(drL("U_Linetext")) AndAlso drL("U_Linetext").ToString() <> "" Then
+                                oPR.Lines.UserFields.Fields.Item("U_LineText").Value = drL("U_Linetext").ToString()
+                            End If
+
+                            ' 數量
+                            oPR.Lines.Quantity = Convert.ToDouble(drL("Quantity"))
+
+                            ' 單價 (未稅)
+                            If Not IsDBNull(drL("Price")) Then
+                                oPR.Lines.UnitPrice = Convert.ToDouble(drL("Price"))
+                            End If
+
+                            ' 倉庫
+                            If Not IsDBNull(drL("WhsCode")) AndAlso drL("WhsCode").ToString() <> "" Then
+                                oPR.Lines.WarehouseCode = drL("WhsCode").ToString()
+                            End If
+
+                            ' 需求日期
+                            If Not IsDBNull(drL("ShipDate")) Then
+                                oPR.Lines.RequiredDate = Convert.ToDateTime(drL("ShipDate"))
+                            End If
+
+                            ' 稅碼 (VatGroup) - 轉換為 SAP 稅碼: 1=J1(應稅), 2=J0(零稅), 3=JX(免稅)
+                            If Not IsDBNull(drL("VatGroup")) AndAlso drL("VatGroup").ToString() <> "" Then
+                                Dim vatCode As String = drL("VatGroup").ToString()
+                                Select Case vatCode
+                                    Case "1" : oPR.Lines.VatGroup = "J1"  ' 應稅
+                                    Case "2" : oPR.Lines.VatGroup = "J0"  ' 零稅
+                                    Case "3" : oPR.Lines.VatGroup = "JX"  ' 免稅
+                                    Case Else : oPR.Lines.VatGroup = vatCode  ' 若已是 SAP 稅碼則直接使用
+                                End Select
+                            End If
+
+                            ' 成本中心
+                            If Not IsDBNull(drL("CostingCode")) AndAlso drL("CostingCode").ToString() <> "" Then
+                                oPR.Lines.CostingCode = drL("CostingCode").ToString()
+                            End If
+                            If Not IsDBNull(drL("CostingCode2")) AndAlso drL("CostingCode2").ToString() <> "" Then
+                                oPR.Lines.CostingCode2 = drL("CostingCode2").ToString()
+                            End If
+
+                            ' 專案
+                            If Not IsDBNull(drL("Project")) AndAlso drL("Project").ToString() <> "" Then
+                                oPR.Lines.ProjectCode = drL("Project").ToString()
+                            End If
+
+                            lineIndex += 1
+                        End While
+                    End Using
+                End Using
+            End Using
+
+            ' 3. 新增文件
+            If oPR.Add() <> 0 Then
+                Dim errCode As Integer
+                oCompany.GetLastError(errCode, errMsg)
+                Throw New Exception("SAP Error [" & errCode & "]: " & errMsg)
+            Else
+                ' 取得 SAP DocEntry
+                sapDocEntry = Convert.ToInt32(oCompany.GetNewObjectKey())
+
+                ' 從 SAP OPRQ 取得 DocNum
+                Dim sapDocNum As Integer = GetSAPPRDocNum(sapDocEntry)
+
+                ShowSuccess("已核准並產生 SAP 請購單 (DocEntry: " & sapDocEntry & ", DocNum: " & sapDocNum & ")")
+
+                ' 更新 jOPRQ 的 SAP 單號和狀態
+                UpdateSAPPostStatus(jID, sapDocEntry, sapDocNum, "Y", "")
+            End If
+
+        Catch ex As Exception
+            errMsg = ex.Message
+            ShowError(errMsg)
+            UpdateSAPPostStatus(jID, 0, 0, "E", errMsg)
+        Finally
+            oPR = Nothing
+            CloseSAPConnection()
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從 SAP OPRQ 取得 DocNum
+    ''' </summary>
+    Private Function GetSAPPRDocNum(sapDocEntry As Integer) As Integer
+        Try
+            Using connSap As New SqlConnection(sapConnStr)
+                connSap.Open()
+                Dim sql As String = "SELECT DocNum FROM OPRQ WHERE DocEntry = @DocEntry"
+                Using cmd As New SqlCommand(sql, connSap)
+                    cmd.Parameters.AddWithValue("@DocEntry", sapDocEntry)
+                    Dim result As Object = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return Convert.ToInt32(result)
+                    End If
+                End Using
+            End Using
+        Catch
+        End Try
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' 更新 SAP 過帳狀態並回寫 DocEntry/DocNum
+    ''' </summary>
+    Private Sub UpdateSAPPostStatus(jID As Integer, sapDocEntry As Integer, sapDocNum As Integer, status As String, errMsg As String)
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+
+                ' 更新 jOPRQ 表頭
+                Dim sqlHeader As String = "UPDATE jOPRQ SET " &
+                                          "B1PostStatus = @Status, " &
+                                          "B1ErrMsg = @ErrMsg, " &
+                                          "B1PostDate = GETDATE()"
+
+                If sapDocEntry > 0 Then
+                    sqlHeader &= ", DocEntry = @SapDocEntry"
+                End If
+                If sapDocNum > 0 Then
+                    sqlHeader &= ", DocNum = @SapDocNum"
+                End If
+
+                sqlHeader &= " WHERE jID = @jID"
+
+                Using cmdHeader As New SqlCommand(sqlHeader, conn)
+                    cmdHeader.Parameters.AddWithValue("@jID", jID)
+                    cmdHeader.Parameters.AddWithValue("@Status", status)
+                    cmdHeader.Parameters.AddWithValue("@ErrMsg", If(String.IsNullOrEmpty(errMsg), DBNull.Value, errMsg))
+                    If sapDocEntry > 0 Then cmdHeader.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
+                    If sapDocNum > 0 Then cmdHeader.Parameters.AddWithValue("@SapDocNum", sapDocNum)
+                    cmdHeader.ExecuteNonQuery()
+                End Using
+
+                ' 更新 jPRQ1 明細
+                If sapDocEntry > 0 OrElse sapDocNum > 0 Then
+                    Dim sqlLines As String = "UPDATE jPRQ1 SET "
+                    Dim setClauses As New List(Of String)
+
+                    If sapDocEntry > 0 Then setClauses.Add("DocEntry = @SapDocEntry")
+                    If sapDocNum > 0 Then setClauses.Add("DocNum = @SapDocNum")
+
+                    sqlLines &= String.Join(", ", setClauses)
+                    sqlLines &= " WHERE jID = @jID"
+
+                    Using cmdLines As New SqlCommand(sqlLines, conn)
+                        cmdLines.Parameters.AddWithValue("@jID", jID)
+                        If sapDocEntry > 0 Then cmdLines.Parameters.AddWithValue("@SapDocEntry", sapDocEntry)
+                        If sapDocNum > 0 Then cmdLines.Parameters.AddWithValue("@SapDocNum", sapDocNum)
+                        cmdLines.ExecuteNonQuery()
+                    End Using
+                End If
+            End Using
+        Catch ex As Exception
+            System.Diagnostics.Debug.WriteLine("UpdateSAPPostStatus Error: " & ex.Message)
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 顯示警告訊息
+    ''' </summary>
+    Private Sub ShowWarning(msg As String)
+        lblMessage.Text = msg
+        lblMessage.ForeColor = Drawing.Color.Orange
+    End Sub
+
+    ''' <summary>
+    ''' 顯示成功訊息
+    ''' </summary>
+    Private Sub ShowSuccess(msg As String)
+        lblMessage.Text = msg
+        lblMessage.ForeColor = Drawing.Color.Green
+    End Sub
+#End Region
+
 
 #Region "其他按鈕"
     Protected Sub btnDelete_Click(sender As Object, e As EventArgs)
@@ -1917,8 +2272,7 @@ Partial Public Class PurchaseRequestForm
         mpeValidation.Hide()
         Try
             SaveDocument()
-            lblMessage.Text = "請購單儲存成功！單號: " & txtJID.Text
-            lblMessage.ForeColor = Drawing.Color.Green
+            ShowSuccess("請購單儲存成功！單號: " & txtJID.Text)
             Response.Redirect("PurchaseRequestForm.aspx?jID=" & txtJID.Text)
         Catch ex As Exception
             ShowError("儲存失敗: " & ex.Message)
