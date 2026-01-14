@@ -1604,7 +1604,9 @@ Partial Public Class PurchaseRequestForm
                                     lblSapPostStatus.Text = "(過帳失敗)"
                                     lblSapPostStatus.ForeColor = Drawing.Color.Red
                                     If Not IsDBNull(dr("B1ErrMsg")) Then
-                                        lblSapPostStatus.ToolTip = dr("B1ErrMsg").ToString()
+                                        Dim errMsg As String = dr("B1ErrMsg").ToString()
+                                        lblSapPostStatus.ToolTip = errMsg
+                                        ShowError("SAP 過帳失敗: " & errMsg)
                                     End If
                                 Case Else
                                     lblSapPostStatus.Text = ""
