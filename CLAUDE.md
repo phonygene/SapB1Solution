@@ -25,10 +25,36 @@
 
 | 規則 | 說明 |
 |------|------|
-| 控制項宣告 | `.aspx` 新增控制項時**必須同時更新** `.aspx.designer.vb` |
+| 控制項宣告 | `.aspx` 新增控制項時**必須同步更新** `.aspx.designer.vb` |
 | Namespace | .aspx 的 Inherits **必須**加前綴 `MgmSP.` |
-| 檔案編碼 | UTF-8 with BOM |
+| 檔案編碼 | UTF-8 with BOM（見下方詳細規則） |
 | 資料庫連線 | 本地 `jtdbConnectionString`、SAP `SapSQLConnection` |
+
+### 檔案編碼（強制規則）
+
+🔴 **這是重複發生的問題，必須嚴格遵守！**
+
+| 情境 | 必須執行 |
+|------|----------|
+| 創建新 `.aspx`/`.vb` 檔案 | 立即轉換為 UTF-8 with BOM |
+| 修改現有 `.aspx`/`.vb` 檔案 | 修改後驗證編碼未被改變 |
+| Git commit 前 | 執行 `git diff --check` 或手動驗證 |
+
+**驗證編碼命令**：
+```powershell
+# 檢查 BOM（應輸出 239,187,191）
+[System.IO.File]::ReadAllBytes("檔案路徑")[0..2] -join ','
+```
+
+**修復編碼命令**：
+```powershell
+$path = "檔案路徑"
+$content = Get-Content -Path $path -Raw -Encoding UTF8
+$utf8Bom = New-Object System.Text.UTF8Encoding $true
+[System.IO.File]::WriteAllText($path, $content, $utf8Bom)
+```
+
+🔴 **Claude Code 的 Write/Edit 工具不會保留 BOM！每次寫入後必須驗證。**
 
 ---
 

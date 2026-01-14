@@ -22,35 +22,61 @@
 
 ---
 
-## 創建新 .aspx/.vb 檔案後（強制執行）
+## 檔案編碼強制規則
 
-> **Claude Code 的 Write 工具不會自動添加 BOM！**
-> **每次創建新檔案後必須立即執行以下步驟，不可跳過。**
+> 🔴 **這是重複發生的問題！2026-01-07 和 2026-01-14 都因此出錯。**
+>
+> **Claude Code 的 Write/Edit 工具不會保留 BOM，每次寫入後必須驗證！**
 
-### 步驟 1：立即轉換為 UTF-8 with BOM
+### 情境一：創建新 .aspx/.vb 檔案
+
+**必須立即執行以下步驟，不可跳過。**
 
 ```powershell
+# 步驟 1：轉換為 UTF-8 with BOM
 $path = "路徑"
+$content = Get-Content -Path $path -Raw -Encoding UTF8
+$utf8Bom = New-Object System.Text.UTF8Encoding $true
+[System.IO.File]::WriteAllText($path, $content, $utf8Bom)
+
+# 步驟 2：驗證 BOM（應輸出 239,187,191）
+[System.IO.File]::ReadAllBytes($path)[0..2] -join ','
+```
+
+### 情境二：修改現有 .aspx/.vb 檔案（2026-01-14 新增）
+
+**修改後必須驗證編碼未被改變！**
+
+```powershell
+# 驗證 BOM 仍存在（應輸出 239,187,191）
+[System.IO.File]::ReadAllBytes("檔案路徑")[0..2] -join ','
+
+# 如果不是 239,187,191，執行修復
+$path = "檔案路徑"
 $content = Get-Content -Path $path -Raw -Encoding UTF8
 $utf8Bom = New-Object System.Text.UTF8Encoding $true
 [System.IO.File]::WriteAllText($path, $content, $utf8Bom)
 ```
 
-### 步驟 2：驗證 BOM 已添加
+### 情境三：Git commit 前
 
-```powershell
-[System.IO.File]::ReadAllBytes($path)[0..2] -join ','
-# 應該輸出：239,187,191
+**建議執行編碼檢查（或依賴 pre-commit hook）**
+
+```bash
+# 檢查即將 commit 的 .aspx/.vb 檔案編碼
+git diff --cached --name-only | grep -E '\.(aspx|vb)$'
 ```
 
-### 步驟 3：如果是 .aspx 頁面
+### 檢查清單
 
 - [ ] 確認 .aspx.designer.vb 存在且已更新
 - [ ] 確認 Inherits 有 `MgmSP.` 前綴
+- [ ] 確認編碼為 UTF-8 with BOM（239,187,191）
 
 ### 為什麼這很重要？
 
 - 缺少 BOM → 中文變亂碼 → 伺服器剖析錯誤 → 頁面無法執行
+- 編碼被改變 → 所有 Unicode 符號變成 ?? → 介面損壞
 - 這個問題已經發生多次，必須從流程上杜絕
 
 ## 程式碼品質
@@ -320,3 +346,18 @@ $utf8Bom = New-Object System.Text.UTF8Encoding $true
   1. 知道規範 ≠ 執行規範，必須有明確的操作步驟
   2. 工具的限制必須用流程來彌補
   3. 重複犯錯表示規範不夠具體，需要升級為強制流程
+
+### 2026-01-14: UTF-8 BOM 問題第三次發生（修改現有檔案）
+- **問題**: PurchaseRequestForm.aspx 編碼從 UTF-8 變成 Big5，所有 Unicode 符號變成 ??
+- **根因**:
+  1. 規範只覆蓋「創建新檔案」，沒有覆蓋「修改現有檔案」
+  2. Claude Code 的 Write/Edit 工具可能改變現有檔案的編碼
+  3. 沒有 commit 前的自動檢查機制
+- **解法**:
+  1. 更新 CLAUDE.md 加入顯眼的編碼規則
+  2. 擴展 general-checklist.md 覆蓋「修改現有檔案」情境
+  3. 新增 pre-commit hook 自動檢查編碼
+- **教訓**:
+  1. 規範必須覆蓋所有情境，不只是最常見的
+  2. 被動規範不可靠，需要自動化防呆機制
+  3. 同類問題第三次發生 → 必須加入自動化阻擋

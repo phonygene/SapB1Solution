@@ -1587,14 +1587,14 @@ Partial Public Class PurchaseRequestForm
                         End If
 
                         ' SAP 單號顯示
-                        If Not IsDBNull(dr("DocNum")) Then
+                        If HasColumn(dr, "DocNum") AndAlso Not IsDBNull(dr("DocNum")) Then
                             txtSapDocNum.Text = dr("DocNum").ToString()
                         Else
                             txtSapDocNum.Text = ""
                         End If
 
                         ' SAP 過帳狀態
-                        If Not IsDBNull(dr("B1PostStatus")) Then
+                        If HasColumn(dr, "B1PostStatus") AndAlso Not IsDBNull(dr("B1PostStatus")) Then
                             Dim postStatus As String = dr("B1PostStatus").ToString()
                             Select Case postStatus
                                 Case "Y"
@@ -1603,7 +1603,7 @@ Partial Public Class PurchaseRequestForm
                                 Case "E"
                                     lblSapPostStatus.Text = "(過帳失敗)"
                                     lblSapPostStatus.ForeColor = Drawing.Color.Red
-                                    If Not IsDBNull(dr("B1ErrMsg")) Then
+                                    If HasColumn(dr, "B1ErrMsg") AndAlso Not IsDBNull(dr("B1ErrMsg")) Then
                                         Dim errMsg As String = dr("B1ErrMsg").ToString()
                                         lblSapPostStatus.ToolTip = errMsg
                                         ShowError("SAP 過帳失敗: " & errMsg)
@@ -2314,6 +2314,18 @@ Partial Public Class PurchaseRequestForm
         lblMessage.Text = message
         lblMessage.ForeColor = Drawing.Color.Red
     End Sub
+
+    ''' <summary>
+    ''' 檢查 DataReader 是否包含指定欄位
+    ''' </summary>
+    Private Function HasColumn(dr As SqlDataReader, columnName As String) As Boolean
+        For i As Integer = 0 To dr.FieldCount - 1
+            If dr.GetName(i).Equals(columnName, StringComparison.InvariantCultureIgnoreCase) Then
+                Return True
+            End If
+        Next
+        Return False
+    End Function
 #End Region
 
 End Class

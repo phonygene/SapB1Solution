@@ -1,4 +1,4 @@
-<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="PurchaseRequestForm.aspx.vb" Inherits="MgmSP.PurchaseRequestForm"
+ï»¿<%@ Page Language="vb" AutoEventWireup="false" CodeBehind="PurchaseRequestForm.aspx.vb" Inherits="MgmSP.PurchaseRequestForm"
     MaintainScrollPositionOnPostback="true" %>
 <%@ Register Assembly="AjaxControlToolkit" Namespace="AjaxControlToolkit" TagPrefix="ajaxToolkit" %>
 
@@ -7,29 +7,29 @@
 
 <head runat="server">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>½ĞÁÊ³æ</title>
+    <title>è«‹è³¼å–®</title>
     <style type="text/css">
         /* ========================================
            JET Enterprise Platform - Elegant Theme
            ======================================== */
 
         :root {
-            /* ¥D¦â¨t */
+            /* ä¸»è‰²ç³» */
             --bg-primary: #F8F9FC;
             --bg-secondary: #EEF1F6;
             --bg-white: #FFFFFF;
 
-            /* ¤å¦r¦â */
+            /* æ–‡å­—è‰² */
             --text-primary: #2D3748;
             --text-secondary: #64748B;
             --text-muted: #94A3B8;
 
-            /* ±j½Õ¦â - ºñ¦â¨t */
+            /* å¼·èª¿è‰² - ç¶ è‰²ç³» */
             --accent-primary: #4A6B5B;
             --accent-hover: #5B7B6B;
             --accent-light: #7B9B8B;
 
-            /* ¥\¯à¦â */
+            /* åŠŸèƒ½è‰² */
             --border-color: #E2E8F0;
             --border-light: #EEF1F6;
             --gold-accent: #B8A88A;
@@ -38,7 +38,7 @@
             --danger: #A65D57;
             --info: #5B7B9A;
 
-            /* ³±¼v */
+            /* é™°å½± */
             --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
             --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 20px rgba(0, 0, 0, 0.04);
         }
@@ -146,7 +146,7 @@
             border-color: var(--border-light);
         }
 
-        /* «ö¶s¨t²Î */
+        /* æŒ‰éˆ•ç³»çµ± */
         .btn {
             padding: 8px 20px;
             border-radius: 8px;
@@ -272,7 +272,7 @@
             padding: 6px 8px;
         }
 
-        /* ¦Û¾AÀ³Äæ¦ì - ®Ú¾Ú¤º®e¦Û°Ê½Õ¾ã¼e«× */
+        /* è‡ªé©æ‡‰æ¬„ä½ - æ ¹æ“šå…§å®¹è‡ªå‹•èª¿æ•´å¯¬åº¦ */
         .gridview .auto-width-cell {
             white-space: nowrap;
         }
@@ -283,7 +283,7 @@
             min-width: 60px;
         }
 
-        /* ¶µ¥Ø¥N½XÄæ¦ì - ¦Û¾AÀ³ */
+        /* é …ç›®ä»£ç¢¼æ¬„ä½ - è‡ªé©æ‡‰ */
         .gridview .item-code-cell {
             white-space: nowrap;
         }
@@ -293,7 +293,7 @@
             min-width: 100px;
         }
 
-        /* ¼Æ¶qÄæ¦ì - ¦Û¾AÀ³ */
+        /* æ•¸é‡æ¬„ä½ - è‡ªé©æ‡‰ */
         .gridview .quantity-cell {
             white-space: nowrap;
         }
@@ -304,7 +304,7 @@
             text-align: right;
         }
 
-        /* ª÷ÃBÄæ¦ì - ¦Û¾AÀ³ */
+        /* é‡‘é¡æ¬„ä½ - è‡ªé©æ‡‰ */
         .gridview .amount-cell {
             white-space: nowrap;
         }
@@ -315,7 +315,7 @@
             text-align: right;
         }
 
-        /* ¤U©Ô¿ï³æÄæ¦ì - ¦Û¾AÀ³ */
+        /* ä¸‹æ‹‰é¸å–®æ¬„ä½ - è‡ªé©æ‡‰ */
         .gridview .select-cell {
             white-space: nowrap;
         }
@@ -325,7 +325,7 @@
             min-width: 70px;
         }
 
-        /* ¤é´ÁÄæ¦ì - ¦Û¾AÀ³ */
+        /* æ—¥æœŸæ¬„ä½ - è‡ªé©æ‡‰ */
         .gridview .date-cell {
             white-space: nowrap;
         }
@@ -335,7 +335,7 @@
             min-width: 130px;
         }
 
-        /* ¥i½s¿èÄæ¦ì - ÂùÀ»®i¶}´£¥Ü */
+        /* å¯ç·¨è¼¯æ¬„ä½ - é›™æ“Šå±•é–‹æç¤º */
         .expandable-field {
             cursor: pointer;
             transition: background-color 0.2s ease, box-shadow 0.2s ease;
@@ -346,14 +346,14 @@
             box-shadow: 0 0 0 2px var(--gold-accent);
         }
 
-        /* ÂùÀ»´£¥Ü®e¾¹ */
+        /* é›™æ“Šæç¤ºå®¹å™¨ */
         .expandable-hint {
             position: relative;
             display: inline-block;
         }
 
         .expandable-hint::after {
-            content: "ÂùÀ»®i¶}";
+            content: "é›™æ“Šå±•é–‹";
             position: absolute;
             bottom: -16px;
             left: 0;
@@ -368,7 +368,7 @@
             opacity: 1;
         }
 
-        /* ¤å¦r®i¶}¼uµ¡ */
+        /* æ–‡å­—å±•é–‹å½ˆçª— */
         .textEditModal {
             width: 500px;
         }
@@ -513,7 +513,7 @@
             color: var(--text-secondary);
         }
 
-        /* ­¶­±¼ĞÃD°Ï */
+        /* é é¢æ¨™é¡Œå€ */
         .page-header-title {
             margin: 0;
             color: var(--accent-primary);
@@ -521,7 +521,7 @@
             letter-spacing: 0.02em;
         }
 
-        /* ¼f®Ö°Ï¶ô */
+        /* å¯©æ ¸å€å¡Š */
         .approval-panel {
             margin-top: 24px;
             padding: 20px;
@@ -537,14 +537,14 @@
             font-weight: 500;
         }
 
-        /* Footer ¤À¹j½u */
+        /* Footer åˆ†éš”ç·š */
         .footer-section {
             margin-top: 24px;
             border-top: 1px solid var(--border-color);
             padding-top: 16px;
         }
 
-        /* Á`ÃBÅã¥Ü */
+        /* ç¸½é¡é¡¯ç¤º */
         .total-amount {
             font-weight: 600;
             font-size: 22px;
@@ -556,7 +556,7 @@
             font-size: 12px;
         }
 
-        /* ·j´M«ö¶s²Õ¦X */
+        /* æœå°‹æŒ‰éˆ•çµ„åˆ */
         .search-combo {
             display: flex;
             width: 100%;
@@ -573,14 +573,14 @@
             margin: 0;
         }
 
-        /* ¨ÑÀ³°Ó¸ê°T´£¥Ü */
+        /* ä¾›æ‡‰å•†è³‡è¨Šæç¤º */
         .vendor-info {
             margin-top: 6px;
             font-size: 12px;
             color: var(--accent-light);
         }
 
-        /* Empty data ´£¥Ü */
+        /* Empty data æç¤º */
         .empty-data-hint {
             text-align: center;
             padding: 24px;
@@ -599,7 +599,7 @@
             height: 16px;
         }
 
-        /* °T®§¼ĞÅÒ */
+        /* è¨Šæ¯æ¨™ç±¤ */
         .message-label {
             font-weight: 500;
         }
@@ -628,7 +628,7 @@
             display: inline-block;
         }
 
-        /* ÅçÃÒµ²ªG¼uµ¡ */
+        /* é©—è­‰çµæœå½ˆçª— */
         .validation-modal {
             width: 500px;
         }
@@ -673,7 +673,7 @@
         }
 
         .validation-list li:before {
-            content: "¡E ";
+            content: "â€¢ ";
             font-weight: bold;
         }
 
@@ -685,13 +685,13 @@
             color: var(--warning);
         }
 
-        /* ªş¥ó¤W¶Ç°Ï */
+        /* é™„ä»¶ä¸Šå‚³å€ */
         .file-upload-area {
             display: flex;
             align-items: center;
         }
 
-        /* ³sµ²¼Ë¦¡ */
+        /* é€£çµæ¨£å¼ */
         a {
             color: var(--accent-primary);
             text-decoration: none;
@@ -704,10 +704,10 @@
     </style>
     <script type="text/javascript">
         function confirmDelete() {
-            return confirm('½T©w­n§R°£¦¹µ§½ĞÁÊ³æ¶Ü¡H¦¹¾Ş§@µLªk´_­ì¡C');
+            return confirm('ç¢ºå®šè¦åˆªé™¤æ­¤ç­†è«‹è³¼å–®å—ï¼Ÿæ­¤æ“ä½œç„¡æ³•å¾©åŸã€‚');
         }
 
-        // ¨¾¤î«ö¶s³sÄòÂIÀ»
+        // é˜²æ­¢æŒ‰éˆ•é€£çºŒé»æ“Š
         var isSubmitting = false;
 
         function preventDoubleClick(btn, msg) {
@@ -737,7 +737,7 @@
             setTimeout(function () {
                 if (isSubmitting) {
                     btn.disabled = true;
-                    btn.value = '³B²z¤¤...';
+                    btn.value = 'è™•ç†ä¸­...';
                 }
             }, 50);
             return true;
@@ -780,12 +780,12 @@
         }
 
         // ========================================
-        // ÂùÀ»®i¶}½s¿è¥\¯à
+        // é›™æ“Šå±•é–‹ç·¨è¼¯åŠŸèƒ½
         // ========================================
         var currentEditTarget = null;
         var currentEditRowIndex = -1;
 
-        // ¶}±Ò¤å¦r½s¿è¼uµ¡
+        // é–‹å•Ÿæ–‡å­—ç·¨è¼¯å½ˆçª—
         function openTextEditModal(targetId, title, rowIndex) {
             var targetElement = document.getElementById(targetId);
             if (!targetElement) return;
@@ -793,26 +793,26 @@
             currentEditTarget = targetElement;
             currentEditRowIndex = rowIndex;
 
-            // ³]©w¼uµ¡¼ĞÃD
+            // è¨­å®šå½ˆçª—æ¨™é¡Œ
             var titleSpan = document.getElementById('<%= lblTextEditTitle.ClientID %>');
             if (titleSpan) {
                 titleSpan.innerText = title;
             }
 
-            // ³]©w¤å¦r¤º®e
+            // è¨­å®šæ–‡å­—å…§å®¹
             var textarea = document.getElementById('<%= txtTextEditContent.ClientID %>');
             if (textarea) {
                 textarea.value = targetElement.value || '';
             }
 
-            // Åã¥Ü¼uµ¡
+            // é¡¯ç¤ºå½ˆçª—
             var behavior = $find('mpeTextEditBehavior');
             if (behavior) {
                 behavior.show();
             }
         }
 
-        // ½T»{½s¿è
+        // ç¢ºèªç·¨è¼¯
         function confirmTextEdit() {
             if (!currentEditTarget) return;
 
@@ -823,9 +823,9 @@
 
                 currentEditTarget.value = newValue;
 
-                // ¼Ğ°O¸ÓÄæ¦ì¤w³Q½s¿è¡]¥Î©ó¶µ¥Ø»¡©úªº Dscription/U_LineText ÅŞ¿è¡^
+                // æ¨™è¨˜è©²æ¬„ä½å·²è¢«ç·¨è¼¯ï¼ˆç”¨æ–¼é …ç›®èªªæ˜çš„ Dscription/U_LineText é‚è¼¯ï¼‰
                 if (currentEditTarget.id.indexOf('txtDescription') >= 0 && newValue !== oldValue) {
-                    // §ä¨ì¹ïÀ³ªºÁôÂÃÄæ¦ì¼Ğ°O¬°¤w½s¿è
+                    // æ‰¾åˆ°å°æ‡‰çš„éš±è—æ¬„ä½æ¨™è¨˜ç‚ºå·²ç·¨è¼¯
                     var row = currentEditTarget.closest('tr');
                     if (row) {
                         var hiddenEdited = row.querySelector('[id*="hfDescriptionEdited"]');
@@ -835,7 +835,7 @@
                     }
                 }
 
-                // Ä²µo onchange ¨Æ¥ó
+                // è§¸ç™¼ onchange äº‹ä»¶
                 if (currentEditTarget.onchange) {
                     currentEditTarget.onchange();
                 }
@@ -844,7 +844,7 @@
             closeTextEditModal();
         }
 
-        // Ãö³¬¼uµ¡
+        // é—œé–‰å½ˆçª—
         function closeTextEditModal() {
             currentEditTarget = null;
             currentEditRowIndex = -1;
@@ -855,36 +855,36 @@
             }
         }
 
-        // ¬°¥i®i¶}Äæ¦ì¸j©wÂùÀ»¨Æ¥ó
+        // ç‚ºå¯å±•é–‹æ¬„ä½ç¶å®šé›™æ“Šäº‹ä»¶
         function bindExpandableFields() {
-            // ¶µ¥Ø»¡©úÄæ¦ì
+            // é …ç›®èªªæ˜æ¬„ä½
             var descriptionFields = document.querySelectorAll('[id*="txtDescription"]');
             descriptionFields.forEach(function(field, index) {
                 if (!field.hasAttribute('data-expandable-bound')) {
                     field.setAttribute('data-expandable-bound', 'true');
                     field.classList.add('expandable-field');
                     field.addEventListener('dblclick', function() {
-                        openTextEditModal(field.id, '½s¿è¶µ¥Ø»¡©ú - ²Ä ' + (index + 1) + ' ¦æ', index);
+                        openTextEditModal(field.id, 'ç·¨è¼¯é …ç›®èªªæ˜ - ç¬¬ ' + (index + 1) + ' è¡Œ', index);
                     });
                 }
             });
 
-            // ªíÀY³ÆµùÄæ¦ì
+            // è¡¨é ­å‚™è¨»æ¬„ä½
             var remarksField = document.getElementById('<%= txtRemarks.ClientID %>');
             if (remarksField && !remarksField.hasAttribute('data-expandable-bound')) {
                 remarksField.setAttribute('data-expandable-bound', 'true');
                 remarksField.classList.add('expandable-field');
                 remarksField.addEventListener('dblclick', function() {
-                    openTextEditModal(remarksField.id, '½s¿è³Æµù', -1);
+                    openTextEditModal(remarksField.id, 'ç·¨è¼¯å‚™è¨»', -1);
                 });
             }
         }
 
-        // ­¶­±¸ü¤J«á¸j©w¨Æ¥ó
+        // é é¢è¼‰å…¥å¾Œç¶å®šäº‹ä»¶
         function initExpandableFields() {
             bindExpandableFields();
 
-            // UpdatePanel §ó·s«á­«·s¸j©w
+            // UpdatePanel æ›´æ–°å¾Œé‡æ–°ç¶å®š
             if (typeof (Sys) !== 'undefined' && Sys.WebForms && Sys.WebForms.PageRequestManager) {
                 var prm = Sys.WebForms.PageRequestManager.getInstance();
                 prm.add_endRequest(function() {
@@ -908,16 +908,16 @@
             <a href="Home.aspx?smid=index&smode=0" class="site-logo">J E T</a>
             <div class="site-user-info">
                 <asp:Label ID="lblCurrentUser" runat="server" CssClass="user-name" Text=""></asp:Label>
-                <span class="separator">¡U</span>
-                <asp:LinkButton ID="lnkLogout" runat="server" OnClick="lnkLogout_Click">µn¥X</asp:LinkButton>
+                <span class="separator">ï½œ</span>
+                <asp:LinkButton ID="lnkLogout" runat="server" OnClick="lnkLogout_Click">ç™»å‡º</asp:LinkButton>
             </div>
         </header>
 
         <!-- Breadcrumb Navigation -->
         <nav class="breadcrumb">
-            <asp:HyperLink ID="lnkHome" runat="server" NavigateUrl="~/Home.aspx?smid=index&smode=0">­º­¶</asp:HyperLink>
+            <asp:HyperLink ID="lnkHome" runat="server" NavigateUrl="~/Home.aspx?smid=index&smode=0">é¦–é </asp:HyperLink>
             <span class="separator">></span>
-            <span class="current">½ĞÁÊ³æ</span>
+            <span class="current">è«‹è³¼å–®</span>
         </nav>
 
         <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
@@ -926,56 +926,56 @@
                 <asp:HiddenField ID="hfRateDate" runat="server" Value="" />
                 <div class="form-container">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2 class="page-header-title">½ĞÁÊ³æ (Purchase Request)</h2>
+                        <h2 class="page-header-title">è«‹è³¼å–® (Purchase Request)</h2>
                         <div style="text-align:right;">
                             <asp:Label ID="lblDocNum" runat="server" Text="[New]" Font-Bold="True"
                                 Font-Size="18px" ForeColor="#4A6B5B"></asp:Label>
                             <br />
-                            <asp:Label ID="lblDocStatus" runat="server" CssClass="badge status-P" Text="¯ó½Z">
+                            <asp:Label ID="lblDocStatus" runat="server" CssClass="badge status-P" Text="è‰ç¨¿">
                             </asp:Label>
                         </div>
                     </div>
 
                     <!-- Header Section -->
-                    <div class="section-header">ªíÀY¸ê°T</div>
+                    <div class="section-header">è¡¨é ­è³‡è¨Š</div>
 
                     <div class="row">
                         <!-- Left Column -->
                         <div class="col-half">
                             <div class="form-group">
-                                <label class="form-label"><span class="required">*</span>½ĞÁÊ¤H¤u¸¹:</label>
+                                <label class="form-label"><span class="required">*</span>è«‹è³¼äººå·¥è™Ÿ:</label>
                                 <div class="form-control">
                                     <div class="search-combo">
-                                        <asp:TextBox ID="txtReqCode" runat="server" placeholder="½ĞÂI¿ï·j´M"></asp:TextBox>
-                                        <asp:Button ID="btnSearchReqCode" runat="server" Text="??"
+                                        <asp:TextBox ID="txtReqCode" runat="server" placeholder="è«‹é»é¸æœå°‹"></asp:TextBox>
+                                        <asp:Button ID="btnSearchReqCode" runat="server" Text="ğŸ”"
                                             CssClass="btn btn-secondary"
                                             OnClick="btnSearchReqCode_Click" />
                                     </div>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">½ĞÁÊ¤H©m¦W:</label>
+                                <label class="form-label">è«‹è³¼äººå§“å:</label>
                                 <div class="form-control">
                                     <div class="search-combo">
-                                        <asp:TextBox ID="txtReqName" runat="server" placeholder="½ĞÂI¿ï·j´M"></asp:TextBox>
-                                        <asp:Button ID="btnSearchReqName" runat="server" Text="??"
+                                        <asp:TextBox ID="txtReqName" runat="server" placeholder="è«‹é»é¸æœå°‹"></asp:TextBox>
+                                        <asp:Button ID="btnSearchReqName" runat="server" Text="ğŸ”"
                                             CssClass="btn btn-secondary"
                                             OnClick="btnSearchReqName_Click" />
                                     </div>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">½ĞÁÊ³¡ªù:</label>
+                                <label class="form-label">è«‹è³¼éƒ¨é–€:</label>
                                 <div class="form-control">
                                     <asp:DropDownList ID="ddlReqDept" runat="server"></asp:DropDownList>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">«ØÄ³¨ÑÀ³°Ó¥N½X:</label>
+                                <label class="form-label">å»ºè­°ä¾›æ‡‰å•†ä»£ç¢¼:</label>
                                 <div class="form-control">
                                     <div class="search-combo">
-                                        <asp:TextBox ID="txtCardCode" runat="server" placeholder="½ĞÂI¿ï·j´M"></asp:TextBox>
-                                        <asp:Button ID="btnSearchCardCode" runat="server" Text="??"
+                                        <asp:TextBox ID="txtCardCode" runat="server" placeholder="è«‹é»é¸æœå°‹"></asp:TextBox>
+                                        <asp:Button ID="btnSearchCardCode" runat="server" Text="ğŸ”"
                                             CssClass="btn btn-secondary"
                                             OnClick="btnSearchCardCode_Click" />
                                     </div>
@@ -985,27 +985,27 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">«ØÄ³¨ÑÀ³°Ó¦WºÙ:</label>
+                                <label class="form-label">å»ºè­°ä¾›æ‡‰å•†åç¨±:</label>
                                 <div class="form-control">
                                     <div class="search-combo">
-                                        <asp:TextBox ID="txtCardName" runat="server" placeholder="½ĞÂI¿ï·j´M"></asp:TextBox>
-                                        <asp:Button ID="btnSearchCardName" runat="server" Text="??"
+                                        <asp:TextBox ID="txtCardName" runat="server" placeholder="è«‹é»é¸æœå°‹"></asp:TextBox>
+                                        <asp:Button ID="btnSearchCardName" runat="server" Text="ğŸ”"
                                             CssClass="btn btn-secondary"
                                             OnClick="btnSearchCardName_Click" />
                                     </div>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label"><span class="required">*</span>¹ô§O:</label>
+                                <label class="form-label"><span class="required">*</span>å¹£åˆ¥:</label>
                                 <div class="form-control">
                                     <asp:DropDownList ID="ddlDocCurrency" runat="server" AutoPostBack="True"
                                         OnSelectedIndexChanged="ddlDocCurrency_SelectedIndexChanged"
                                         Width="40%" style="margin-right:5px;"></asp:DropDownList>
                                     <asp:TextBox ID="txtDocRate" runat="server" Width="30%" Text="1.0"
                                         AutoPostBack="true" OnTextChanged="txtDocRate_TextChanged"></asp:TextBox>
-                                    <asp:Button ID="btnRefreshRate" runat="server" Text="?"
+                                    <asp:Button ID="btnRefreshRate" runat="server" Text="â†»"
                                         CssClass="btn btn-secondary btn-icon" OnClick="btnRefreshRate_Click"
-                                        ToolTip="§ó·s¶×²v" />
+                                        ToolTip="æ›´æ–°åŒ¯ç‡" />
                                 </div>
                             </div>
                         </div>
@@ -1013,22 +1013,22 @@
                         <!-- Right Column -->
                         <div class="col-half">
                             <div class="form-group">
-                                <label class="form-label">½ĞÁÊ³æ¸¹ (jID):</label>
+                                <label class="form-label">è«‹è³¼å–®è™Ÿ (jID):</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtJID" runat="server" ReadOnly="true"
-                                        CssClass="readonly-field" placeholder="¨t²Î¦Û°Ê²£¥Í"></asp:TextBox>
+                                        CssClass="readonly-field" placeholder="ç³»çµ±è‡ªå‹•ç”¢ç”Ÿ"></asp:TextBox>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">SAP ½ĞÁÊ³æ¸¹:</label>
+                                <label class="form-label">SAP è«‹è³¼å–®è™Ÿ:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtSapDocNum" runat="server" ReadOnly="true"
-                                        CssClass="readonly-field" placeholder="®Ö­ã«á¦Û°Ê²£¥Í"></asp:TextBox>
+                                        CssClass="readonly-field" placeholder="æ ¸å‡†å¾Œè‡ªå‹•ç”¢ç”Ÿ"></asp:TextBox>
                                     <asp:Label ID="lblSapPostStatus" runat="server" CssClass="hint-text"></asp:Label>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label"><span class="required">*</span>½ĞÁÊ¤é´Á:</label>
+                                <label class="form-label"><span class="required">*</span>è«‹è³¼æ—¥æœŸ:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtDocDate" runat="server" TextMode="Date"
                                         AutoPostBack="true" OnTextChanged="btnRefreshRate_Click"></asp:TextBox>
@@ -1037,7 +1037,7 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">»İ¨D¤é´Á:</label>
+                                <label class="form-label">éœ€æ±‚æ—¥æœŸ:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtReqDate" runat="server" TextMode="Date"
                                         AutoPostBack="true" OnTextChanged="txtReqDate_TextChanged"></asp:TextBox>
@@ -1046,21 +1046,21 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">¤å¥óª¬ºA:</label>
+                                <label class="form-label">æ–‡ä»¶ç‹€æ…‹:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtStatusDisplay" runat="server" ReadOnly="true"
                                         CssClass="readonly-field"></asp:TextBox>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">©ñ¦æª¬ºA:</label>
+                                <label class="form-label">æ”¾è¡Œç‹€æ…‹:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtApprovalStatus" runat="server" ReadOnly="true"
                                         CssClass="readonly-field"></asp:TextBox>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Ã±®Ö¨t²Î PID:</label>
+                                <label class="form-label">ç°½æ ¸ç³»çµ± PID:</label>
                                 <div class="form-control">
                                     <asp:TextBox ID="txtUPID" runat="server"></asp:TextBox>
                                 </div>
@@ -1069,20 +1069,20 @@
                     </div>
 
                     <!-- Detail Section Header -->
-                    <div class="section-header">½ĞÁÊ©ú²Ó</div>
+                    <div class="section-header">è«‹è³¼æ˜ç´°</div>
 
                     <div style="margin-bottom: 10px; display:flex; justify-content:space-between;">
                         <div>
-                            <asp:Button ID="btnAddLine" runat="server" Text="+ ·s¼W©ú²Ó"
+                            <asp:Button ID="btnAddLine" runat="server" Text="+ æ–°å¢æ˜ç´°"
                                 OnClick="btnAddLine_Click" CssClass="btn btn-primary" />
-                            <asp:Button ID="btnDeleteLine" runat="server" Text="?? §R°£¿ï¨ú"
+                            <asp:Button ID="btnDeleteLine" runat="server" Text="ğŸ—‘ åˆªé™¤é¸å–"
                                 OnClick="btnDeleteLine_Click" CssClass="btn btn-danger"
-                                OnClientClick="return confirm('½T©w§R°£¿ï¤¤ªº©ú²Ó¦æ¡H');" />
+                                OnClientClick="return confirm('ç¢ºå®šåˆªé™¤é¸ä¸­çš„æ˜ç´°è¡Œï¼Ÿ');" />
                         </div>
                         <div class="file-upload-area">
                             <asp:FileUpload ID="fileUpload" runat="server"
                                 style="display:inline-block; width:200px;" AllowMultiple="true" />
-                            <asp:Button ID="btnUpload" runat="server" Text="¤W¶Çªş¥ó"
+                            <asp:Button ID="btnUpload" runat="server" Text="ä¸Šå‚³é™„ä»¶"
                                 OnClick="btnUpload_Click" CssClass="btn btn-secondary btn-icon" />
                         </div>
                     </div>
@@ -1091,28 +1091,28 @@
                         <asp:GridView ID="gvAttachments" runat="server" AutoGenerateColumns="False"
                             CssClass="gridview" OnRowCommand="gvAttachments_RowCommand">
                             <Columns>
-                                <asp:BoundField DataField="FileName" HeaderText="ÀÉ®×¦WºÙ" />
-                                <asp:BoundField DataField="UploadDate" HeaderText="¤W¶Ç¤é´Á"
+                                <asp:BoundField DataField="FileName" HeaderText="æª”æ¡ˆåç¨±" />
+                                <asp:BoundField DataField="UploadDate" HeaderText="ä¸Šå‚³æ—¥æœŸ"
                                     DataFormatString="{0:yyyy-MM-dd}" />
-                                <asp:BoundField DataField="UploadTime" HeaderText="¤W¶Ç®É¶¡" />
-                                <asp:BoundField DataField="Uploader" HeaderText="¤W¶ÇªÌ" />
-                                <asp:TemplateField HeaderText="°Ê§@">
+                                <asp:BoundField DataField="UploadTime" HeaderText="ä¸Šå‚³æ™‚é–“" />
+                                <asp:BoundField DataField="Uploader" HeaderText="ä¸Šå‚³è€…" />
+                                <asp:TemplateField HeaderText="å‹•ä½œ">
                                     <ItemTemplate>
                                         <asp:LinkButton ID="lbtnDelete" runat="server"
                                             CommandName="DeleteFile"
-                                            CommandArgument='<%# Container.DataItemIndex %>' Text="§R°£"
-                                            ForeColor="#A65D57" OnClientClick="return confirm('½T©w§R°£¦¹ªş¥ó¡H');">
+                                            CommandArgument='<%# Container.DataItemIndex %>' Text="åˆªé™¤"
+                                            ForeColor="#A65D57" OnClientClick="return confirm('ç¢ºå®šåˆªé™¤æ­¤é™„ä»¶ï¼Ÿ');">
                                         </asp:LinkButton>
                                         <asp:HyperLink ID="hlDownload" runat="server"
                                             NavigateUrl='<%# "DownloadHandler.ashx?id=" & Eval("ID") %>'
-                                            Target="_blank" Text="¤U¸ü" style="margin-left:5px;">
+                                            Target="_blank" Text="ä¸‹è¼‰" style="margin-left:5px;">
                                         </asp:HyperLink>
                                     </ItemTemplate>
                                     <ItemStyle HorizontalAlign="Center" Width="100px" />
                                 </asp:TemplateField>
                             </Columns>
                             <EmptyDataTemplate>
-                                <div class="empty-data-hint">µLªş¥ó</div>
+                                <div class="empty-data-hint">ç„¡é™„ä»¶</div>
                             </EmptyDataTemplate>
                         </asp:GridView>
                     </div>
@@ -1122,7 +1122,7 @@
                             CssClass="gridview" OnRowDataBound="gvPRDetail_RowDataBound"
                             OnRowCommand="gvPRDetail_RowCommand">
                             <Columns>
-                                <asp:TemplateField HeaderText="¿ï">
+                                <asp:TemplateField HeaderText="é¸">
                                     <HeaderTemplate>
                                         <input type="checkbox"
                                             onclick="toggleGridCheckboxes(this, '<%= gvPRDetail.ClientID %>', 'chkSelect')" />
@@ -1140,11 +1140,11 @@
                                     <ItemStyle Width="40px" HorizontalAlign="Center" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="«~¸¹">
+                                <asp:TemplateField HeaderText="å“è™Ÿ">
                                     <ItemTemplate>
                                         <div style="display:flex; align-items:center; gap:4px;">
                                             <asp:TextBox ID="txtItemCode" runat="server"></asp:TextBox>
-                                            <asp:Button ID="btnSearchItem" runat="server" Text="??"
+                                            <asp:Button ID="btnSearchItem" runat="server" Text="ğŸ”"
                                                 CssClass="btn btn-secondary btn-icon"
                                                 CommandName="SearchItem"
                                                 CommandArgument='<%# Container.DataItemIndex %>' />
@@ -1153,24 +1153,24 @@
                                     <ItemStyle CssClass="item-code-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="«~¦W/»¡©ú">
+                                <asp:TemplateField HeaderText="å“å/èªªæ˜">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtDescription" runat="server" Width="180px"
-                                            CssClass="expandable-field" title="ÂùÀ»®i¶}½s¿è"></asp:TextBox>
+                                            CssClass="expandable-field" title="é›™æ“Šå±•é–‹ç·¨è¼¯"></asp:TextBox>
                                         <asp:HiddenField ID="hfOriginalDescription" runat="server" />
                                         <asp:HiddenField ID="hfDescriptionEdited" runat="server" Value="false" />
                                     </ItemTemplate>
                                     <ItemStyle Width="190px" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="ºK­n" Visible="false">
+                                <asp:TemplateField HeaderText="æ‘˜è¦" Visible="false">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtLineText" runat="server" Width="150px"></asp:TextBox>
                                     </ItemTemplate>
                                     <ItemStyle Width="160px" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="¼Æ¶q">
+                                <asp:TemplateField HeaderText="æ•¸é‡">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtQuantity" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
@@ -1179,7 +1179,7 @@
                                     <ItemStyle CssClass="quantity-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="³æ»ù">
+                                <asp:TemplateField HeaderText="å–®åƒ¹">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtPrice" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
@@ -1188,7 +1188,7 @@
                                     <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="§tµ|³æ»ù">
+                                <asp:TemplateField HeaderText="å«ç¨…å–®åƒ¹">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtPriceAfVAT" runat="server"
                                             style="text-align:right;" AutoPostBack="true"
@@ -1197,7 +1197,7 @@
                                     <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="µ|½X">
+                                <asp:TemplateField HeaderText="ç¨…ç¢¼">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlVatGroup" runat="server"
                                             AutoPostBack="true"
@@ -1207,7 +1207,7 @@
                                     <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="µ|ÃB">
+                                <asp:TemplateField HeaderText="ç¨…é¡">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtVatSum" runat="server" Text="0"
                                             style="text-align:right;" AutoPostBack="true"
@@ -1216,7 +1216,7 @@
                                     <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="§tµ|ª÷ÃB">
+                                <asp:TemplateField HeaderText="å«ç¨…é‡‘é¡">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtGTotal" runat="server"
                                             style="text-align:right;" ReadOnly="true"
@@ -1225,7 +1225,7 @@
                                     <ItemStyle CssClass="amount-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="­Ü®w">
+                                <asp:TemplateField HeaderText="å€‰åº«">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlWhsCode" runat="server">
                                         </asp:DropDownList>
@@ -1233,14 +1233,14 @@
                                     <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="¥æ´Á">
+                                <asp:TemplateField HeaderText="äº¤æœŸ">
                                     <ItemTemplate>
                                         <asp:TextBox ID="txtShipDate" runat="server" TextMode="Date"></asp:TextBox>
                                     </ItemTemplate>
                                     <ItemStyle CssClass="date-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="²£«~">
+                                <asp:TemplateField HeaderText="ç”¢å“">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlCostingCode" runat="server">
                                         </asp:DropDownList>
@@ -1248,7 +1248,7 @@
                                     <ItemStyle CssClass="select-cell" />
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="³¡ªù">
+                                <asp:TemplateField HeaderText="éƒ¨é–€">
                                     <ItemTemplate>
                                         <asp:DropDownList ID="ddlCostingCode2" runat="server">
                                         </asp:DropDownList>
@@ -1257,7 +1257,7 @@
                                 </asp:TemplateField>
                             </Columns>
                             <EmptyDataTemplate>
-                                <div class="empty-data-hint">½Ğ·s¼W½ĞÁÊ©ú²Ó</div>
+                                <div class="empty-data-hint">è«‹æ–°å¢è«‹è³¼æ˜ç´°</div>
                             </EmptyDataTemplate>
                         </asp:GridView>
                     </div>
@@ -1267,38 +1267,38 @@
                         <div class="row">
                             <div class="col-half">
                                 <div class="form-group">
-                                    <label class="form-label">±ÄÁÊ¤H­û:</label>
+                                    <label class="form-label">æ¡è³¼äººå“¡:</label>
                                     <div class="form-control">
                                         <asp:DropDownList ID="ddlPurchaser" runat="server"></asp:DropDownList>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">«Ø¥ßªÌ:</label>
+                                    <label class="form-label">å»ºç«‹è€…:</label>
                                     <div class="form-control">
                                         <asp:TextBox ID="txtOwner" runat="server" CssClass="readonly-field"
                                             ReadOnly="true"></asp:TextBox>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">³Æµù:</label>
+                                    <label class="form-label">å‚™è¨»:</label>
                                     <div class="form-control">
                                         <asp:TextBox ID="txtRemarks" runat="server" TextMode="MultiLine"
-                                            Height="50px" CssClass="expandable-field" title="ÂùÀ»®i¶}½s¿è"></asp:TextBox>
+                                            Height="50px" CssClass="expandable-field" title="é›™æ“Šå±•é–‹ç·¨è¼¯"></asp:TextBox>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-half" style="text-align:right;">
                                 <div class="form-group" style="justify-content: flex-end;">
-                                    <label class="form-label" style="width:auto;">³æ¾ÚÁ`ÃB (§tµ|):</label>
+                                    <label class="form-label" style="width:auto;">å–®æ“šç¸½é¡ (å«ç¨…):</label>
                                     <div style="width: 150px; margin-left:10px;">
                                         <asp:Label ID="lblDocTotalWithTax" runat="server" Text="0.00"
                                             CssClass="total-amount"></asp:Label>
                                     </div>
                                 </div>
                                 <div class="total-detail">
-                                    ¥¼µ|: <asp:Label ID="lblDocTotal" runat="server" Text="0.00"></asp:Label>
+                                    æœªç¨…: <asp:Label ID="lblDocTotal" runat="server" Text="0.00"></asp:Label>
                                     |
-                                    µ|ÃB: <asp:Label ID="lblVatSum" runat="server" Text="0.00"></asp:Label>
+                                    ç¨…é¡: <asp:Label ID="lblVatSum" runat="server" Text="0.00"></asp:Label>
                                 </div>
                             </div>
                         </div>
@@ -1306,39 +1306,39 @@
 
                     <!-- Approval Section -->
                     <asp:Panel ID="pnlApproval" runat="server" CssClass="approval-panel">
-                        <h3>¼f®Ö§@·~</h3>
+                        <h3>å¯©æ ¸ä½œæ¥­</h3>
                         <div class="form-group">
-                            <label class="form-label" style="width:100px;">¼f®Ö·N¨£:</label>
+                            <label class="form-label" style="width:100px;">å¯©æ ¸æ„è¦‹:</label>
                             <div class="form-control">
                                 <asp:TextBox ID="txtApprovalComments" runat="server" TextMode="MultiLine"
                                     Height="60px"></asp:TextBox>
                             </div>
                         </div>
                         <div style="text-align:center; margin-top:10px;">
-                            <asp:Button ID="btnApprove" runat="server" Text="©ñ¦æ (Approve)"
+                            <asp:Button ID="btnApprove" runat="server" Text="æ”¾è¡Œ (Approve)"
                                 OnClick="btnApprove_Click" CssClass="btn btn-success"
-                                OnClientClick="return confirm('½T©w­n©ñ¦æ¦¹³æ¾Ú¶Ü¡H');" />
-                            <asp:Button ID="btnReject" runat="server" Text="°h¦^ (Reject)"
+                                OnClientClick="return confirm('ç¢ºå®šè¦æ”¾è¡Œæ­¤å–®æ“šå—ï¼Ÿ');" />
+                            <asp:Button ID="btnReject" runat="server" Text="é€€å› (Reject)"
                                 OnClick="btnReject_Click" CssClass="btn btn-danger"
-                                OnClientClick="return confirm('½T©w­n°h¦^¦¹³æ¾Ú¶Ü¡H');" />
+                                OnClientClick="return confirm('ç¢ºå®šè¦é€€å›æ­¤å–®æ“šå—ï¼Ÿ');" />
                         </div>
                     </asp:Panel>
 
                     <!-- Buttons -->
                     <div style="text-align:center; margin-top:30px;">
-                        <asp:Button ID="btnSubmit" runat="server" Text="Àx¦s¨Ã°e¼f (Save & Submit)"
+                        <asp:Button ID="btnSubmit" runat="server" Text="å„²å­˜ä¸¦é€å¯© (Save & Submit)"
                             OnClick="btnSubmit_Click" CssClass="btn btn-success"
-                            OnClientClick="return preventDoubleClick(this, '½T©w­n°e¥X¼f®Ö¶Ü¡H');" />
-                        <asp:Button ID="btnDelete" runat="server" Text="§R°£ (Delete)"
+                            OnClientClick="return preventDoubleClick(this, 'ç¢ºå®šè¦é€å‡ºå¯©æ ¸å—ï¼Ÿ');" />
+                        <asp:Button ID="btnDelete" runat="server" Text="åˆªé™¤ (Delete)"
                             OnClick="btnDelete_Click" CssClass="btn btn-danger"
                             OnClientClick="return preventDoubleClick(this, null) && confirmDelete();" />
-                        <asp:Button ID="btnCancel" runat="server" Text="¨ú®ø (Cancel)"
+                        <asp:Button ID="btnCancel" runat="server" Text="å–æ¶ˆ (Cancel)"
                             OnClick="btnCancel_Click" CssClass="btn btn-secondary" />
-                        <asp:Button ID="btnUpdate" runat="server" Text="§ó·s (Update)"
+                        <asp:Button ID="btnUpdate" runat="server" Text="æ›´æ–° (Update)"
                             OnClick="btnUpdate_Click" CssClass="btn btn-primary" Visible="false" />
-                        <asp:Button ID="btnExportPDF" runat="server" Text="¶×¥X PDF"
+                        <asp:Button ID="btnExportPDF" runat="server" Text="åŒ¯å‡º PDF"
                             OnClick="btnExportPDF_Click" CssClass="btn btn-info" Visible="false" />
-                        <asp:Button ID="btnNewDocument" runat="server" Text="·s¼W·s³æ¾Ú"
+                        <asp:Button ID="btnNewDocument" runat="server" Text="æ–°å¢æ–°å–®æ“š"
                             OnClick="btnNewDocument_Click" CssClass="btn btn-primary" Visible="false" />
 
                         <div style="margin-top:10px;">
@@ -1355,16 +1355,16 @@
                     CancelControlID="btnCloseVendor" />
                 <asp:Panel ID="pnlVendorSearch" runat="server" CssClass="modalPopup" style="display:none;">
                     <div class="modalHeader">
-                        <span>¨ÑÀ³°Ó·j´M</span>
+                        <span>ä¾›æ‡‰å•†æœå°‹</span>
                         <asp:LinkButton ID="btnCloseVendor" runat="server" ForeColor="White"
-                            Font-Bold="true" style="text-decoration:none;">?</asp:LinkButton>
+                            Font-Bold="true" style="text-decoration:none;">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody">
                         <div style="margin-bottom:10px;">
                             <div style="display:flex; align-items:center;">
                                 <asp:TextBox ID="txtVendorSearchKeyword" runat="server"
-                                    placeholder="¿é¤JÃöÁä¦r..."></asp:TextBox>
-                                <asp:Button ID="btnDoSearchVendor" runat="server" Text="·j´M"
+                                    placeholder="è¼¸å…¥é—œéµå­—..."></asp:TextBox>
+                                <asp:Button ID="btnDoSearchVendor" runat="server" Text="æœå°‹"
                                     OnClick="btnDoSearchVendor_Click" CssClass="btn btn-primary"
                                     style="margin-left:5px;" />
                                 <asp:HiddenField ID="hfSearchSource" runat="server" />
@@ -1372,8 +1372,8 @@
                             <div style="margin-top:8px;">
                                 <asp:RadioButtonList ID="rblSearchMode" runat="server"
                                     RepeatDirection="Horizontal">
-                                    <asp:ListItem Value="Fuzzy" Selected="True">¼Ò½k·j´M</asp:ListItem>
-                                    <asp:ListItem Value="Exact">¶}ÀY¤ñ¹ï</asp:ListItem>
+                                    <asp:ListItem Value="Fuzzy" Selected="True">æ¨¡ç³Šæœå°‹</asp:ListItem>
+                                    <asp:ListItem Value="Exact">é–‹é ­æ¯”å°</asp:ListItem>
                                 </asp:RadioButtonList>
                             </div>
                         </div>
@@ -1382,24 +1382,24 @@
                             AllowPaging="True" PageSize="10"
                             OnPageIndexChanging="gvVendorSearch_PageIndexChanging">
                             <Columns>
-                                <asp:TemplateField HeaderText="°Ê§@">
+                                <asp:TemplateField HeaderText="å‹•ä½œ">
                                     <ItemTemplate>
                                         <asp:LinkButton ID="lbtnSelect" runat="server"
                                             CommandName="SelectVendor"
                                             CommandArgument='<%# Eval("CardCode") + "|" + Eval("CardName") %>'
-                                            CssClass="btn btn-success btn-icon">¿ï¨ú</asp:LinkButton>
+                                            CssClass="btn btn-success btn-icon">é¸å–</asp:LinkButton>
                                     </ItemTemplate>
                                     <ItemStyle HorizontalAlign="Center" Width="70px" />
                                 </asp:TemplateField>
-                                <asp:BoundField DataField="CardCode" HeaderText="¥N½X" />
-                                <asp:BoundField DataField="CardName" HeaderText="¦WºÙ" />
+                                <asp:BoundField DataField="CardCode" HeaderText="ä»£ç¢¼" />
+                                <asp:BoundField DataField="CardName" HeaderText="åç¨±" />
                             </Columns>
                             <PagerStyle HorizontalAlign="Center" CssClass="gridview" />
                         </asp:GridView>
                     </div>
                 </asp:Panel>
 
-                <!-- Requester Search Modal (½ĞÁÊ¤H·j´M) -->
+                <!-- Requester Search Modal (è«‹è³¼äººæœå°‹) -->
                 <asp:Button ID="btnReqDummy" runat="server" style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpeReqName" runat="server"
                     BehaviorID="mpeReqNameBehavior" TargetControlID="btnReqDummy"
@@ -1407,16 +1407,16 @@
                     CancelControlID="btnCloseReqName" />
                 <asp:Panel ID="pnlReqNameSearch" runat="server" CssClass="modalPopup" style="display:none;">
                     <div class="modalHeader">
-                        <span>½ĞÁÊ¤H·j´M</span>
+                        <span>è«‹è³¼äººæœå°‹</span>
                         <asp:LinkButton ID="btnCloseReqName" runat="server" ForeColor="White"
-                            Font-Bold="true" style="text-decoration:none;">?</asp:LinkButton>
+                            Font-Bold="true" style="text-decoration:none;">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody">
                         <div style="margin-bottom:10px;">
                             <div style="display:flex; align-items:center;">
                                 <asp:TextBox ID="txtReqNameSearchKeyword" runat="server"
-                                    placeholder="¿é¤J¤u¸¹©Î©m¦W..."></asp:TextBox>
-                                <asp:Button ID="btnDoSearchReqName" runat="server" Text="·j´M"
+                                    placeholder="è¼¸å…¥å·¥è™Ÿæˆ–å§“å..."></asp:TextBox>
+                                <asp:Button ID="btnDoSearchReqName" runat="server" Text="æœå°‹"
                                     OnClick="btnDoSearchReqName_Click" CssClass="btn btn-primary"
                                     style="margin-left:5px;" />
                                 <asp:HiddenField ID="hfReqSearchSource" runat="server" />
@@ -1424,8 +1424,8 @@
                             <div style="margin-top:8px;">
                                 <asp:RadioButtonList ID="rblReqSearchMode" runat="server"
                                     RepeatDirection="Horizontal">
-                                    <asp:ListItem Value="Fuzzy" Selected="True">¼Ò½k·j´M</asp:ListItem>
-                                    <asp:ListItem Value="Exact">¶}ÀY¤ñ¹ï</asp:ListItem>
+                                    <asp:ListItem Value="Fuzzy" Selected="True">æ¨¡ç³Šæœå°‹</asp:ListItem>
+                                    <asp:ListItem Value="Exact">é–‹é ­æ¯”å°</asp:ListItem>
                                 </asp:RadioButtonList>
                             </div>
                         </div>
@@ -1434,17 +1434,17 @@
                             AllowPaging="True" PageSize="10"
                             OnPageIndexChanging="gvReqNameSearch_PageIndexChanging">
                             <Columns>
-                                <asp:TemplateField HeaderText="°Ê§@">
+                                <asp:TemplateField HeaderText="å‹•ä½œ">
                                     <ItemTemplate>
                                         <asp:LinkButton ID="lbtnSelectReq" runat="server"
                                             CommandName="SelectReqName"
                                             CommandArgument='<%# Eval("Code") + "|" + Eval("EmpName") %>'
-                                            CssClass="btn btn-success btn-icon">¿ï¨ú</asp:LinkButton>
+                                            CssClass="btn btn-success btn-icon">é¸å–</asp:LinkButton>
                                     </ItemTemplate>
                                     <ItemStyle HorizontalAlign="Center" Width="70px" />
                                 </asp:TemplateField>
-                                <asp:BoundField DataField="Code" HeaderText="¤u¸¹" />
-                                <asp:BoundField DataField="EmpName" HeaderText="©m¦W" />
+                                <asp:BoundField DataField="Code" HeaderText="å·¥è™Ÿ" />
+                                <asp:BoundField DataField="EmpName" HeaderText="å§“å" />
                             </Columns>
                             <PagerStyle HorizontalAlign="Center" CssClass="gridview" />
                         </asp:GridView>
@@ -1459,16 +1459,16 @@
                     CancelControlID="btnCloseItem" />
                 <asp:Panel ID="pnlItemSearch" runat="server" CssClass="modalPopup" style="display:none;">
                     <div class="modalHeader">
-                        <span>«~¸¹·j´M</span>
+                        <span>å“è™Ÿæœå°‹</span>
                         <asp:LinkButton ID="btnCloseItem" runat="server" ForeColor="White"
-                            Font-Bold="true" style="text-decoration:none;">?</asp:LinkButton>
+                            Font-Bold="true" style="text-decoration:none;">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody">
                         <div style="margin-bottom:10px;">
                             <div style="display:flex; align-items:center;">
                                 <asp:TextBox ID="txtItemSearchKeyword" runat="server"
-                                    placeholder="¿é¤J«~¸¹©Î«~¦W..."></asp:TextBox>
-                                <asp:Button ID="btnDoSearchItem" runat="server" Text="·j´M"
+                                    placeholder="è¼¸å…¥å“è™Ÿæˆ–å“å..."></asp:TextBox>
+                                <asp:Button ID="btnDoSearchItem" runat="server" Text="æœå°‹"
                                     OnClick="btnDoSearchItem_Click" CssClass="btn btn-primary"
                                     style="margin-left:5px;" />
                                 <asp:HiddenField ID="hfItemSearchRowIndex" runat="server" />
@@ -1476,8 +1476,8 @@
                             <div style="margin-top:8px;">
                                 <asp:RadioButtonList ID="rblItemSearchMode" runat="server"
                                     RepeatDirection="Horizontal">
-                                    <asp:ListItem Value="Fuzzy" Selected="True">¼Ò½k·j´M</asp:ListItem>
-                                    <asp:ListItem Value="Exact">¶}ÀY¤ñ¹ï</asp:ListItem>
+                                    <asp:ListItem Value="Fuzzy" Selected="True">æ¨¡ç³Šæœå°‹</asp:ListItem>
+                                    <asp:ListItem Value="Exact">é–‹é ­æ¯”å°</asp:ListItem>
                                 </asp:RadioButtonList>
                             </div>
                         </div>
@@ -1486,25 +1486,25 @@
                             AllowPaging="True" PageSize="10"
                             OnPageIndexChanging="gvItemSearch_PageIndexChanging">
                             <Columns>
-                                <asp:TemplateField HeaderText="°Ê§@">
+                                <asp:TemplateField HeaderText="å‹•ä½œ">
                                     <ItemTemplate>
                                         <asp:LinkButton ID="lbtnSelectItem" runat="server"
                                             CommandName="SelectItem"
                                             CommandArgument='<%# Eval("ItemCode").ToString() & "|" & Eval("ItemName").ToString() & "|" & If(Eval("LastPurPrc") Is DBNull.Value, "0", Eval("LastPurPrc").ToString()) %>'
-                                            CssClass="btn btn-success btn-icon">¿ï¨ú</asp:LinkButton>
+                                            CssClass="btn btn-success btn-icon">é¸å–</asp:LinkButton>
                                     </ItemTemplate>
                                     <ItemStyle HorizontalAlign="Center" Width="70px" />
                                 </asp:TemplateField>
-                                <asp:BoundField DataField="ItemCode" HeaderText="«~¸¹" />
-                                <asp:BoundField DataField="ItemName" HeaderText="«~¦W" />
-                                <asp:BoundField DataField="LastPurPrc" HeaderText="³Ìªñ±ÄÁÊ»ù" DataFormatString="{0:N2}" />
+                                <asp:BoundField DataField="ItemCode" HeaderText="å“è™Ÿ" />
+                                <asp:BoundField DataField="ItemName" HeaderText="å“å" />
+                                <asp:BoundField DataField="LastPurPrc" HeaderText="æœ€è¿‘æ¡è³¼åƒ¹" DataFormatString="{0:N2}" />
                             </Columns>
                             <PagerStyle HorizontalAlign="Center" CssClass="gridview" />
                         </asp:GridView>
                     </div>
                 </asp:Panel>
 
-                <!-- °²¤é¶¶©µ½T»{¼uµ¡ -->
+                <!-- å‡æ—¥é †å»¶ç¢ºèªå½ˆçª— -->
                 <asp:HiddenField ID="hfOriginalReqDate" runat="server" />
                 <asp:HiddenField ID="hfAdjustedReqDate" runat="server" />
                 <asp:Button ID="btnHolidayDummy" runat="server" Style="display:none" />
@@ -1515,25 +1515,25 @@
                 <asp:Panel ID="pnlHoliday" runat="server" CssClass="modalPopup"
                     Style="display:none; width:400px;">
                     <div class="modalHeader">
-                        <span>»İ¨D¤é´Á¬°°²¤é</span>
+                        <span>éœ€æ±‚æ—¥æœŸç‚ºå‡æ—¥</span>
                         <asp:LinkButton ID="btnHolidayClose" runat="server" ForeColor="White"
                             Font-Bold="true" Style="text-decoration:none;"
-                            OnClick="btnHolidayKeep_Click">?</asp:LinkButton>
+                            OnClick="btnHolidayKeep_Click">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody" style="padding:20px;">
-                        <p>±z¿ï¾Üªº¤é´Á <asp:Label ID="lblHolidayOriginalDate" runat="server" Font-Bold="true"></asp:Label>
-                           ¬° <asp:Label ID="lblHolidayName" runat="server" ForeColor="#C44536" Font-Bold="true"></asp:Label></p>
-                        <p>¬O§_­n¶¶©µ¨ì¤U¤@­Ó¤u§@¤é <asp:Label ID="lblHolidayNextWorkday" runat="server" Font-Bold="true" ForeColor="#2E7D32"></asp:Label>¡H</p>
+                        <p>æ‚¨é¸æ“‡çš„æ—¥æœŸ <asp:Label ID="lblHolidayOriginalDate" runat="server" Font-Bold="true"></asp:Label>
+                           ç‚º <asp:Label ID="lblHolidayName" runat="server" ForeColor="#C44536" Font-Bold="true"></asp:Label></p>
+                        <p>æ˜¯å¦è¦é †å»¶åˆ°ä¸‹ä¸€å€‹å·¥ä½œæ—¥ <asp:Label ID="lblHolidayNextWorkday" runat="server" Font-Bold="true" ForeColor="#2E7D32"></asp:Label>ï¼Ÿ</p>
                     </div>
                     <div class="modalFooter">
-                        <asp:Button ID="btnHolidayKeep" runat="server" Text="§_¡Aºû«ù­ì¤é´Á"
+                        <asp:Button ID="btnHolidayKeep" runat="server" Text="å¦ï¼Œç¶­æŒåŸæ—¥æœŸ"
                             CssClass="btn btn-secondary" OnClick="btnHolidayKeep_Click" />
-                        <asp:Button ID="btnHolidayAdjust" runat="server" Text="¬O¡A¶¶©µ"
+                        <asp:Button ID="btnHolidayAdjust" runat="server" Text="æ˜¯ï¼Œé †å»¶"
                             CssClass="btn btn-primary" OnClick="btnHolidayAdjust_Click" />
                     </div>
                 </asp:Panel>
 
-                <!-- ¨ÑÀ³°Ó»ù®æ§ó·s½T»{¼uµ¡ -->
+                <!-- ä¾›æ‡‰å•†åƒ¹æ ¼æ›´æ–°ç¢ºèªå½ˆçª— -->
                 <asp:Button ID="btnPriceUpdateDummy" runat="server" Style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpePriceUpdate" runat="server"
                     BehaviorID="mpePriceUpdateBehavior" TargetControlID="btnPriceUpdateDummy"
@@ -1542,27 +1542,27 @@
                 <asp:Panel ID="pnlPriceUpdate" runat="server" CssClass="modalPopup"
                     Style="display:none; width:450px;">
                     <div class="modalHeader">
-                        <span>§ó·s±ÄÁÊ»ù®æ</span>
+                        <span>æ›´æ–°æ¡è³¼åƒ¹æ ¼</span>
                         <asp:LinkButton ID="btnPriceUpdateClose" runat="server" ForeColor="White"
                             Font-Bold="true" Style="text-decoration:none;"
-                            OnClick="btnPriceUpdateCancel_Click">?</asp:LinkButton>
+                            OnClick="btnPriceUpdateCancel_Click">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody" style="padding:20px;">
-                        <p>¤w¿ï¾Ü¨ÑÀ³°Ó¡G<asp:Label ID="lblSelectedVendor" runat="server" Font-Bold="true"></asp:Label></p>
-                        <p>¬O§_®Ú¾Ú¦¹¨ÑÀ³°Óªº¾ú¥v±ÄÁÊ°O¿ı§ó·s©ú²Óªº³æ»ù¡H</p>
+                        <p>å·²é¸æ“‡ä¾›æ‡‰å•†ï¼š<asp:Label ID="lblSelectedVendor" runat="server" Font-Bold="true"></asp:Label></p>
+                        <p>æ˜¯å¦æ ¹æ“šæ­¤ä¾›æ‡‰å•†çš„æ­·å²æ¡è³¼è¨˜éŒ„æ›´æ–°æ˜ç´°çš„å–®åƒ¹ï¼Ÿ</p>
                         <p style="color:#666; font-size:12px;">
-                            (¨t²Î±N¬d¸ß¹ï¦¹¨ÑÀ³°Ó³Ìªñ¤@¦¸±ÄÁÊ¸Ó«~¶µªº»ù®æ¡A­YµL°O¿ı«h¨Ï¥Î«~¶µªº³Ì«á±ÄÁÊ»ù)
+                            (ç³»çµ±å°‡æŸ¥è©¢å°æ­¤ä¾›æ‡‰å•†æœ€è¿‘ä¸€æ¬¡æ¡è³¼è©²å“é …çš„åƒ¹æ ¼ï¼Œè‹¥ç„¡è¨˜éŒ„å‰‡ä½¿ç”¨å“é …çš„æœ€å¾Œæ¡è³¼åƒ¹)
                         </p>
                     </div>
                     <div class="modalFooter">
-                        <asp:Button ID="btnPriceUpdateCancel" runat="server" Text="§_¡A«O«ù²{¦³»ù®æ"
+                        <asp:Button ID="btnPriceUpdateCancel" runat="server" Text="å¦ï¼Œä¿æŒç¾æœ‰åƒ¹æ ¼"
                             CssClass="btn btn-secondary" OnClick="btnPriceUpdateCancel_Click" />
-                        <asp:Button ID="btnPriceUpdateConfirm" runat="server" Text="¬O¡A§ó·s»ù®æ"
+                        <asp:Button ID="btnPriceUpdateConfirm" runat="server" Text="æ˜¯ï¼Œæ›´æ–°åƒ¹æ ¼"
                             CssClass="btn btn-primary" OnClick="btnPriceUpdateConfirm_Click" />
                     </div>
                 </asp:Panel>
 
-                <!-- ÅçÃÒµ²ªG¼uµ¡ -->
+                <!-- é©—è­‰çµæœå½ˆçª— -->
                 <asp:Button ID="btnValidationDummy" runat="server" Style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpeValidation" runat="server"
                     BehaviorID="mpeValidationBehavior" TargetControlID="btnValidationDummy"
@@ -1572,36 +1572,36 @@
                     Style="display:none;">
                     <div class="modalHeader" style="background: linear-gradient(135deg, #A65D57 0%, #B86E68 100%);" id="divValidationHeader"
                         runat="server">
-                        <span>³æ¾ÚÀË®Öµ²ªG</span>
+                        <span>å–®æ“šæª¢æ ¸çµæœ</span>
                         <asp:LinkButton ID="btnValidationClose" runat="server" ForeColor="White"
                             Font-Bold="true" Style="text-decoration:none;"
-                            OnClick="btnValidationBack_Click">?</asp:LinkButton>
+                            OnClick="btnValidationBack_Click">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody">
                         <asp:Panel ID="pnlErrors" runat="server" CssClass="validation-section"
                             Visible="false">
-                            <div class="validation-section-title error">¿ù»~ (¥²¶·­×¥¿¤~¯àÀx¦s)</div>
+                            <div class="validation-section-title error">éŒ¯èª¤ (å¿…é ˆä¿®æ­£æ‰èƒ½å„²å­˜)</div>
                             <asp:BulletedList ID="blErrors" runat="server" CssClass="validation-list error">
                             </asp:BulletedList>
                         </asp:Panel>
                         <asp:Panel ID="pnlWarnings" runat="server" CssClass="validation-section"
                             Visible="false">
-                            <div class="validation-section-title warning">´£¿ô (½Ğ½T»{¥H¤U¶µ¥Ø)</div>
+                            <div class="validation-section-title warning">æé†’ (è«‹ç¢ºèªä»¥ä¸‹é …ç›®)</div>
                             <asp:BulletedList ID="blWarnings" runat="server"
                                 CssClass="validation-list warning">
                             </asp:BulletedList>
                         </asp:Panel>
                     </div>
                     <div class="modalFooter">
-                        <asp:Button ID="btnValidationBack" runat="server" Text="ªğ¦^­×§ï"
+                        <asp:Button ID="btnValidationBack" runat="server" Text="è¿”å›ä¿®æ”¹"
                             CssClass="btn btn-secondary" OnClick="btnValidationBack_Click" />
-                        <asp:Button ID="btnValidationConfirm" runat="server" Text="½T©w¤´­n·s¼W"
+                        <asp:Button ID="btnValidationConfirm" runat="server" Text="ç¢ºå®šä»è¦æ–°å¢"
                             CssClass="btn btn-warning" OnClick="btnValidationConfirm_Click"
                             Visible="false" />
                     </div>
                 </asp:Panel>
 
-                <!-- ¤å¦r½s¿è¼uµ¡ (ÂùÀ»®i¶}½s¿è) -->
+                <!-- æ–‡å­—ç·¨è¼¯å½ˆçª— (é›™æ“Šå±•é–‹ç·¨è¼¯) -->
                 <asp:Button ID="btnTextEditDummy" runat="server" Style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpeTextEdit" runat="server"
                     BehaviorID="mpeTextEditBehavior" TargetControlID="btnTextEditDummy"
@@ -1610,25 +1610,25 @@
                 <asp:Panel ID="pnlTextEdit" runat="server" CssClass="modalPopup textEditModal"
                     Style="display:none;">
                     <div class="modalHeader">
-                        <asp:Label ID="lblTextEditTitle" runat="server" Text="½s¿è¤å¦r"></asp:Label>
+                        <asp:Label ID="lblTextEditTitle" runat="server" Text="ç·¨è¼¯æ–‡å­—"></asp:Label>
                         <a href="javascript:void(0);" onclick="closeTextEditModal();"
-                            style="color:white; text-decoration:none; font-weight:bold;">?</a>
+                            style="color:white; text-decoration:none; font-weight:bold;">âœ•</a>
                     </div>
                     <div class="modalBody">
                         <asp:TextBox ID="txtTextEditContent" runat="server" TextMode="MultiLine"
                             Rows="8" Width="100%" MaxLength="254"
                             style="min-height:150px; resize:vertical; font-family:inherit; font-size:14px; line-height:1.6;"></asp:TextBox>
                         <div style="margin-top:8px; color:var(--text-muted); font-size:12px;">
-                            ´£¥Ü¡G³Ì¦h¥i¿é¤J 254 ­Ó¦r¤¸
+                            æç¤ºï¼šæœ€å¤šå¯è¼¸å…¥ 254 å€‹å­—å…ƒ
                         </div>
                     </div>
                     <div class="modalFooter">
-                        <button type="button" class="btn btn-secondary" onclick="closeTextEditModal();">¨ú®ø</button>
-                        <button type="button" class="btn btn-primary" onclick="confirmTextEdit();">½T©w</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeTextEditModal();">å–æ¶ˆ</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmTextEdit();">ç¢ºå®š</button>
                     </div>
                 </asp:Panel>
 
-                <!-- PDF ¦X¨Ö¿ï¶µ¼uµ¡ -->
+                <!-- PDF åˆä½µé¸é …å½ˆçª— -->
                 <asp:Button ID="btnPdfMergeDummy" runat="server" Style="display:none" />
                 <ajaxToolkit:ModalPopupExtender ID="mpePdfMerge" runat="server"
                     BehaviorID="mpePdfMergeBehavior" TargetControlID="btnPdfMergeDummy"
@@ -1636,15 +1636,15 @@
                     DropShadow="false" />
                 <asp:Panel ID="pnlPdfMerge" runat="server" CssClass="modalPopup" Style="display:none; width:500px;">
                     <div class="modalHeader">
-                        <span>PDF ªş¥ó¦X¨Ö</span>
+                        <span>PDF é™„ä»¶åˆä½µ</span>
                         <asp:LinkButton ID="btnClosePdfMerge" runat="server" ForeColor="White"
                             Font-Bold="true" Style="text-decoration:none;"
-                            OnClick="btnPdfMergeCancel_Click">?</asp:LinkButton>
+                            OnClick="btnPdfMergeCancel_Click">âœ•</asp:LinkButton>
                     </div>
                     <div class="modalBody" style="padding:20px;">
-                        <p style="margin-bottom:15px;">ªş¥ó¤¤¦³¨ä¥¦ PDF ÀÉ®×¡A¬O§_­n±µÄò¨ì¶×¥X³æ¾Ú¤W¡H</p>
+                        <p style="margin-bottom:15px;">é™„ä»¶ä¸­æœ‰å…¶å®ƒ PDF æª”æ¡ˆï¼Œæ˜¯å¦è¦æ¥çºŒåˆ°åŒ¯å‡ºå–®æ“šä¸Šï¼Ÿ</p>
                         <p style="color:#666; font-size:12px; margin-bottom:15px;">
-                            ½Ğ¦b¿é¤J®Ø¤¤¿é¤J¼Æ¦r¨M©w¶¶§Ç¡]¼Æ¦r¶V¤p¶V«e­±¡A¤£¿é¤J«h¤£¦X¨Ö¡^¡G
+                            è«‹åœ¨è¼¸å…¥æ¡†ä¸­è¼¸å…¥æ•¸å­—æ±ºå®šé †åºï¼ˆæ•¸å­—è¶Šå°è¶Šå‰é¢ï¼Œä¸è¼¸å…¥å‰‡ä¸åˆä½µï¼‰ï¼š
                         </p>
                         <asp:Repeater ID="rptPdfAttachments" runat="server">
                             <ItemTemplate>
@@ -1658,9 +1658,9 @@
                         </asp:Repeater>
                     </div>
                     <div class="modalFooter">
-                        <asp:Button ID="btnPdfMergeCancel" runat="server" Text="¨ú®ø"
+                        <asp:Button ID="btnPdfMergeCancel" runat="server" Text="å–æ¶ˆ"
                             CssClass="btn btn-secondary" OnClick="btnPdfMergeCancel_Click" />
-                        <asp:Button ID="btnPdfMergeConfirm" runat="server" Text="¶×¥X PDF"
+                        <asp:Button ID="btnPdfMergeConfirm" runat="server" Text="åŒ¯å‡º PDF"
                             CssClass="btn btn-primary" OnClick="btnPdfMergeConfirm_Click" />
                     </div>
                 </asp:Panel>
