@@ -1723,22 +1723,28 @@ Partial Public Class PurchaseRequestForm
         If currentJID = 0 Then Return
 
         Try
-            Using conn As New SqlConnection(connStr)
-                conn.Open()
-                Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Approved', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
-                Using cmd As New SqlCommand(sql, conn)
-                    cmd.Parameters.AddWithValue("@jID", currentJID)
-                    cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
-                    cmd.Parameters.AddWithValue("@Comments", txtApprovalComments.Text)
-                    cmd.Parameters.AddWithValue("@UpdateBy", currentUserId)
-                    cmd.ExecuteNonQuery()
+            ' 1. 先嘗試寫入 SAP（不先更新狀態）
+            Dim sapSuccess As Boolean = CreatePurchaseRequestInSAP(currentJID)
+
+            If sapSuccess Then
+                ' 2. SAP 成功後才更新狀態為 Approved
+                Using conn As New SqlConnection(connStr)
+                    conn.Open()
+                    Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Approved', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
+                    Using cmd As New SqlCommand(sql, conn)
+                        cmd.Parameters.AddWithValue("@jID", currentJID)
+                        cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
+                        cmd.Parameters.AddWithValue("@Comments", txtApprovalComments.Text)
+                        cmd.Parameters.AddWithValue("@UpdateBy", currentUserId)
+                        cmd.ExecuteNonQuery()
+                    End Using
                 End Using
-            End Using
 
-            ' 2. 拋轉到 SAP 請購單
-            CreatePurchaseRequestInSAP(currentJID)
+                ' 3. 成功才 Redirect
+                Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
+            End If
+            ' SAP 失敗時不 Redirect，讓錯誤訊息顯示在頁面上
 
-            Response.Redirect("PurchaseRequestForm.aspx?jID=" & currentJID)
         Catch ex As Exception
             ShowError("核准失敗: " & ex.Message)
         End Try
@@ -1806,7 +1812,8 @@ Partial Public Class PurchaseRequestForm
     ''' <summary>
     ''' 建立 SAP 請購單 (Purchase Request)
     ''' </summary>
-    Private Sub CreatePurchaseRequestInSAP(jID As Integer)
+    ''' <returns>True = 成功, False = 失敗</returns>
+    Private Function CreatePurchaseRequestInSAP(jID As Integer) As Boolean
         Dim oPR As SAPbobsCOM.Documents = Nothing
         Dim sapDocEntry As Integer = 0
         Dim errMsg As String = ""
@@ -1820,7 +1827,7 @@ Partial Public Class PurchaseRequestForm
                     Dim status = cmd.ExecuteScalar()
                     If status IsNot Nothing AndAlso status.ToString() = "Y" Then
                         ShowWarning("此單據已成功寫入 SAP，跳過重複寫入")
-                        Return
+                        Return True ' 已成功，視為成功
                     End If
                 End Using
             End Using
@@ -1982,17 +1989,22 @@ Partial Public Class PurchaseRequestForm
 
                 ' 更新 jOPRQ 的 SAP 單號和狀態
                 UpdateSAPPostStatus(jID, sapDocEntry, sapDocNum, "Y", "")
+
+                Return True ' 成功
             End If
 
         Catch ex As Exception
             errMsg = ex.Message
-            ShowError(errMsg)
+            ShowError("SAP 過帳失敗: " & errMsg)
             UpdateSAPPostStatus(jID, 0, 0, "E", errMsg)
+            Return False ' 失敗
         Finally
             oPR = Nothing
             CloseSAPConnection()
         End Try
-    End Sub
+
+        Return False ' 預設失敗
+    End Function
 
     ''' <summary>
     ''' 從 SAP OPRQ 取得 DocNum
