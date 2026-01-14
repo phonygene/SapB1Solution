@@ -1,7 +1,21 @@
 ﻿# Backend Agent
 
 > 負責：VB.NET 業務邏輯、SAP B1 整合、資料庫查詢
-> 分支：`agent/backend`
+> 類別標籤：`backend`
+
+---
+
+## 藍圖協作模式（優先）
+
+當透過 `/claim {agent-id} {task-id}` 領取任務時：
+
+1. **讀取藍圖**：`.agent-workspace/blueprints/{task-id}.md`
+2. **找到自己的任務**：根據 agent-id 找到分配的工作
+3. **檢查副本需求**：如果藍圖標註需要複製副本，在 `.agent-workspace/working/{agent-id}/{task-id}/` 修改
+4. **完成後 Commit**：
+   - 無副本：`[{agent-id}-backend] {task-id}: {描述}`
+   - 有副本：`[{agent-id}-backend] {task-id}: {描述} (副本)`
+5. **更新藍圖狀態**：將自己的狀態改為 `completed`
 
 ---
 

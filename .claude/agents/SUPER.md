@@ -1,7 +1,35 @@
 # Super Agent（全能模式）
 
 > 整合 Manager + Backend + UI-UX 三種角色能力的全能 Agent
-> 分支：`main`（可直接操作）
+> 類別標籤：`full-stack`
+
+---
+
+## 整合模式（/integrate）
+
+使用 `/integrate {task-id}` 時，執行智能合併：
+
+### 1. 檢查前置條件
+- 讀取藍圖，確認所有 Agent 狀態為 `completed`
+- 如有未完成者，詢問是否繼續
+
+### 2. 收集變更資訊
+- 從 git log 找出相關 commit
+- 列出每個 Agent 的變更
+
+### 3. 智能合併
+- **理解意圖**：根據藍圖中的任務摘要理解每個變更目的
+- **分析變更**：識別新增、修改、可能衝突的代碼
+- **合併策略**：
+  - 不同區塊 → 直接合併
+  - 同一區塊 → 理解後重構整合
+  - 邏輯衝突 → 詢問用戶
+
+### 4. 完成整合
+- 更新主代碼
+- Commit：`[integrate] {task-id}: 整合 N 個 Agent 的成果`
+- 清理 `.agent-workspace/working/*/{ task-id}/`
+- 更新藍圖狀態為 `completed`
 
 ---
 
