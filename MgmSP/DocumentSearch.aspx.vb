@@ -1,4 +1,4 @@
-Imports System.Data
+﻿Imports System.Data
 Imports System.Data.SqlClient
 
 Partial Public Class DocumentSearch
@@ -179,7 +179,7 @@ Partial Public Class DocumentSearch
                     selectSql = String.Format(
                         "SELECT TOP {0} jID, CardCode, CardName, NULL AS InvNum, U_PID, ApprovalStatus, DocDate, ReqDate AS DocDueDate, " &
                         "Comments, CreateBy, CreateDate, " &
-                        "(CASE WHEN ApprovalStatus = 'Approved' THEN 'Y' ELSE 'N' END) AS IsApproved " &
+                        "(CASE WHEN ApprovalStatus = 'A' THEN 'Y' ELSE 'N' END) AS IsApproved " &
                         "FROM {1} WHERE 1=1 {2} {3}",
                         MAX_RECORDS, tableName, whereClause, orderClause)
                 Else

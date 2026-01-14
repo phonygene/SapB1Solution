@@ -1374,8 +1374,8 @@ Partial Public Class PurchaseRequestForm
 
                         ' 使用從 OJID 取得的 jID 插入 jOPRQ（需開啟 IDENTITY_INSERT）
                         Dim insertSql As String = "SET IDENTITY_INSERT jOPRQ ON; " &
-                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqCode, ReqName, ReqDept, SlpCode, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
-                                                   "VALUES (@jID, @CardCode, @CardName, @ReqCode, @ReqName, @ReqDept, @SlpCode, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); " &
+                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqCode, ReqName, ReqDept, SlpCode, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, B1PostStatus, U_PID, CreateDate, CreateBy) " &
+                                                   "VALUES (@jID, @CardCode, @CardName, @ReqCode, @ReqName, @ReqDept, @SlpCode, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'W', 'N', @U_PID, GETDATE(), @CreateBy); " &
                                                    "SET IDENTITY_INSERT jOPRQ OFF;"
 
                         Using cmd As New SqlCommand(insertSql, conn, trans)
@@ -1548,19 +1548,19 @@ Partial Public Class PurchaseRequestForm
                         txtUPID.Text = If(IsDBNull(dr("U_PID")), "", dr("U_PID").ToString())
                         txtOwner.Text = If(IsDBNull(dr("CreateBy")), "", dr("CreateBy").ToString())
 
-                        ' 狀態
+                        ' 狀態（與 jOPCH 統一：W=待審核, A=已核准, R=已退回）
                         Dim approvalStatus As String = dr("ApprovalStatus").ToString()
                         txtApprovalStatus.Text = approvalStatus
                         Select Case approvalStatus
-                            Case "Pending"
+                            Case "W"
                                 lblDocStatus.Text = "待審核"
                                 lblDocStatus.CssClass = "badge status-W"
                                 txtStatusDisplay.Text = "待審核"
-                            Case "Approved"
+                            Case "A"
                                 lblDocStatus.Text = "已核准"
                                 lblDocStatus.CssClass = "badge status-A"
                                 txtStatusDisplay.Text = "已核准"
-                            Case "Rejected"
+                            Case "R"
                                 lblDocStatus.Text = "已退回"
                                 lblDocStatus.CssClass = "badge status-R"
                                 txtStatusDisplay.Text = "已退回"
@@ -1570,11 +1570,11 @@ Partial Public Class PurchaseRequestForm
                         ' 1. 審核意見欄位：PU_App 權限者可編輯
                         txtApprovalComments.ReadOnly = Not isPuUser
 
-                        ' 2. 審核按鈕：只有 PU_App 權限者可見，且僅在 Pending 狀態可操作
+                        ' 2. 審核按鈕：只有 PU_App 權限者可見，且僅在 W(待審核) 狀態可操作
                         btnApprove.Visible = isPuUser
                         btnReject.Visible = isPuUser
 
-                        If isPuUser AndAlso approvalStatus = "Pending" Then
+                        If isPuUser AndAlso approvalStatus = "W" Then
                             btnApprove.Enabled = True
                             btnReject.Enabled = True
                         Else
@@ -1727,10 +1727,10 @@ Partial Public Class PurchaseRequestForm
             Dim sapSuccess As Boolean = CreatePurchaseRequestInSAP(currentJID)
 
             If sapSuccess Then
-                ' 2. SAP 成功後才更新狀態為 Approved
+                ' 2. SAP 成功後才更新狀態為 A(已核准)
                 Using conn As New SqlConnection(connStr)
                     conn.Open()
-                    Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Approved', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
+                    Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'A', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
                     Using cmd As New SqlCommand(sql, conn)
                         cmd.Parameters.AddWithValue("@jID", currentJID)
                         cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
@@ -1756,7 +1756,7 @@ Partial Public Class PurchaseRequestForm
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'Rejected', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
+                Dim sql As String = "UPDATE jOPRQ SET ApprovalStatus = 'R', ApprovedBy = @ApprovedBy, ApprovedDate = GETDATE(), ApprovalComments = @Comments, UpdateDate = GETDATE(), UpdateBy = @UpdateBy WHERE jID = @jID"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@jID", currentJID)
                     cmd.Parameters.AddWithValue("@ApprovedBy", currentUserId)
