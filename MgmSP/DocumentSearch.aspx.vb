@@ -7,6 +7,7 @@ Partial Public Class DocumentSearch
     Private connStr As String = System.Configuration.ConfigurationManager.ConnectionStrings("jtdbConnectionString").ConnectionString
     Private currentUserId As String = ""
     Private isApUser As Boolean = False
+    Private isPuUser As Boolean = False
     Private Const MAX_RECORDS As Integer = 300
 
 #Region "Page Events"
@@ -17,35 +18,54 @@ Partial Public Class DocumentSearch
         End If
 
         currentUserId = Session("s_id").ToString()
-        
-        ' 檢查是否為審核者 (AP_App = 1)
-        isApUser = CheckIsApUser()
+
+        ' 檢查權限：AP_App (費用報支)、PU_App (請購單)
+        CheckUserPermissions()
 
         If Not IsPostBack Then
             InitializeControls()
         End If
     End Sub
 
-    Private Function CheckIsApUser() As Boolean
+    Private Sub CheckUserPermissions()
         Try
             Using conn As New SqlConnection(connStr)
                 conn.Open()
-                Dim sql As String = "SELECT ISNULL(AP_App, 0) FROM [User] WHERE ID = @ID"
+                Dim sql As String = "SELECT ISNULL(AP_App, 0) AS AP_App, ISNULL(PU_App, 0) AS PU_App FROM [User] WHERE ID = @ID"
                 Using cmd As New SqlCommand(sql, conn)
                     cmd.Parameters.AddWithValue("@ID", currentUserId)
-                    Dim result = cmd.ExecuteScalar()
-                    Return result IsNot Nothing AndAlso Convert.ToInt32(result) = 1
+                    Using reader = cmd.ExecuteReader()
+                        If reader.Read() Then
+                            isApUser = Convert.ToInt32(reader("AP_App")) = 1
+                            isPuUser = Convert.ToInt32(reader("PU_App")) = 1
+                        End If
+                    End Using
                 End Using
             End Using
         Catch
-            Return False
+            isApUser = False
+            isPuUser = False
         End Try
+    End Sub
+
+    ''' <summary>
+    ''' 根據當前選擇的單據類型，判斷是否有查詢所有人單據的權限
+    ''' </summary>
+    Private Function HasViewAllPermission() As Boolean
+        Dim docType As String = ddlDocType.SelectedValue
+        Select Case docType
+            Case "PurchaseRequest"
+                Return isPuUser
+            Case Else
+                Return isApUser
+        End Select
     End Function
 
     Private Sub InitializeControls()
         ' 設定使用者欄位權限
-        If isApUser Then
-            ' 審核者可以查詢所有人的單據
+        ' 如果有任一查詢權限（AP_App 或 PU_App），就讓使用者欄位可編輯
+        If isApUser OrElse isPuUser Then
+            ' 有權限者可以查詢所有人的單據
             txtUserCode.ReadOnly = False
             txtUserName.ReadOnly = False
             txtUserCode.CssClass = ""
@@ -57,7 +77,7 @@ Partial Public Class DocumentSearch
             txtUserCode.CssClass = "readonly-field"
             txtUserName.ReadOnly = True
             txtUserName.CssClass = "readonly-field"
-            
+
             ' 嘗試取得使用者名稱
             Try
                 Using conn As New SqlConnection(connStr)
@@ -111,11 +131,11 @@ Partial Public Class DocumentSearch
         ddlSortBy.SelectedIndex = 0
         rblSortOrder.SelectedIndex = 0
         
-        If isApUser Then
+        If isApUser OrElse isPuUser Then
             txtUserCode.Text = ""
             txtUserName.Text = ""
         End If
-        
+
         lblMessage.Text = ""
         lblResultCount.Text = ""
         gvResults.DataSource = Nothing
@@ -215,11 +235,12 @@ Partial Public Class DocumentSearch
     Private Function BuildWhereClause() As String
         Dim sb As New System.Text.StringBuilder()
         
-        ' 使用者權限控制 (非審核者只能看自己的)
-        If Not isApUser Then
+        ' 使用者權限控制 (根據單據類型檢查對應權限)
+        If Not HasViewAllPermission() Then
+            ' 無權限者只能看自己的單據
             sb.Append(" AND CreateBy = @CurrentUser")
         Else
-            ' 審核者可指定使用者
+            ' 有權限者可指定使用者
             If Not String.IsNullOrEmpty(txtUserCode.Text.Trim()) Then
                 sb.Append(" AND CreateBy = @UserCode")
             End If
@@ -415,7 +436,7 @@ Partial Public Class DocumentSearch
             Dim lbtnCopy As LinkButton = CType(e.Row.FindControl("lbtnCopy"), LinkButton)
             If lbtnCopy IsNot Nothing Then
                 Dim ownerId As String = If(createBy, "").Trim()
-                Dim canCopy As Boolean = isApUser OrElse String.Equals(ownerId, currentUserId, StringComparison.OrdinalIgnoreCase)
+                Dim canCopy As Boolean = HasViewAllPermission() OrElse String.Equals(ownerId, currentUserId, StringComparison.OrdinalIgnoreCase)
                 lbtnCopy.Visible = True
                 lbtnCopy.Enabled = canCopy
                 lbtnCopy.ToolTip = If(canCopy, "", "僅可複製自己的單據")
@@ -440,7 +461,7 @@ Partial Public Class DocumentSearch
         Dim jID As Integer = Convert.ToInt32(gvResults.DataKeys(rowIndex)("jID"))
         Dim createBy As String = gvResults.DataKeys(rowIndex)("CreateBy").ToString()
 
-        If Not isApUser AndAlso Not String.Equals(createBy, currentUserId, StringComparison.OrdinalIgnoreCase) Then
+        If Not HasViewAllPermission() AndAlso Not String.Equals(createBy, currentUserId, StringComparison.OrdinalIgnoreCase) Then
             Response.Write("<script>alert('您沒有權限複製此單據');</script>")
             Return
         End If
