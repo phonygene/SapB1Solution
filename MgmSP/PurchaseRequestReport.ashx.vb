@@ -4,10 +4,13 @@ Imports System.Web
 Imports System.Web.Configuration
 Imports CrystalDecisions.CrystalReports.Engine
 Imports CrystalDecisions.Shared
+Imports iTextSharp.text
+Imports iTextSharp.text.pdf
 
 ''' <summary>
 ''' 請購單 Crystal Report PDF 匯出 Handler
 ''' 使用方式：PurchaseRequestReport.ashx?jID={平台單號}
+''' 合併附件：PurchaseRequestReport.ashx?jID={平台單號}&mergeAttach={附件ID列表，逗號分隔}
 ''' </summary>
 Public Class PurchaseRequestReport
     Implements IHttpHandler, System.Web.SessionState.IRequiresSessionState
@@ -57,8 +60,15 @@ Public Class PurchaseRequestReport
             ' 設定參數
             report.SetParameterValue("myjid", jID)
 
-            ' 匯出為 PDF 並輸出
-            ExportToPdfResponse(report, context, jID)
+            ' 檢查是否有合併附件參數
+            Dim mergeAttach As String = context.Request.QueryString("mergeAttach")
+            If Not String.IsNullOrEmpty(mergeAttach) Then
+                ' 有合併參數，執行 PDF 合併
+                ExportMergedPdf(report, context, jID, mergeAttach)
+            Else
+                ' 無合併參數，直接匯出
+                ExportToPdfResponse(report, context, jID)
+            End If
 
         Catch ex As Exception
             context.Response.StatusCode = 500
@@ -180,6 +190,148 @@ Public Class PurchaseRequestReport
             End If
         Loop While bytesRead > 0
 
+        context.Response.Flush()
+    End Sub
+
+    ''' <summary>
+    ''' 匯出合併後的 PDF（主報表 + 附件 PDF）
+    ''' </summary>
+    Private Sub ExportMergedPdf(report As ReportDocument, context As HttpContext, jID As String, attachIds As String)
+        Dim tempFolder As String = context.Server.MapPath("~/Temp/")
+        Dim mainPdfPath As String = ""
+        Dim mergedPdfPath As String = ""
+
+        Try
+            ' 確保暫存資料夾存在
+            If Not Directory.Exists(tempFolder) Then
+                Directory.CreateDirectory(tempFolder)
+            End If
+
+            ' 1. 匯出主報表到暫存檔
+            mainPdfPath = Path.Combine(tempFolder, "PR_" & jID & "_" & Guid.NewGuid().ToString("N") & ".pdf")
+            report.ExportToDisk(ExportFormatType.PortableDocFormat, mainPdfPath)
+
+            ' 2. 取得附件 PDF 檔案路徑
+            Dim attachPdfPaths As New List(Of String)
+            Dim ids() As String = attachIds.Split(","c)
+
+            For Each idStr As String In ids
+                Dim attachId As Integer
+                If Integer.TryParse(idStr.Trim(), attachId) Then
+                    Dim attachPath As String = GetAttachmentPath(attachId)
+                    If Not String.IsNullOrEmpty(attachPath) Then
+                        Dim fullPath As String = context.Server.MapPath("~/" & attachPath)
+                        If File.Exists(fullPath) AndAlso Path.GetExtension(fullPath).ToLower() = ".pdf" Then
+                            attachPdfPaths.Add(fullPath)
+                        End If
+                    End If
+                End If
+            Next
+
+            ' 3. 如果沒有有效的附件 PDF，直接輸出主報表
+            If attachPdfPaths.Count = 0 Then
+                OutputPdfFile(context, mainPdfPath, jID)
+                Return
+            End If
+
+            ' 4. 合併 PDF
+            mergedPdfPath = Path.Combine(tempFolder, "PR_Merged_" & jID & "_" & Guid.NewGuid().ToString("N") & ".pdf")
+
+            ' 建立要合併的 PDF 清單（主報表 + 附件）
+            Dim allPdfFiles As New List(Of String)
+            allPdfFiles.Add(mainPdfPath)
+            allPdfFiles.AddRange(attachPdfPaths)
+
+            MergePdfFiles(allPdfFiles, mergedPdfPath)
+
+            ' 5. 輸出合併後的 PDF
+            OutputPdfFile(context, mergedPdfPath, jID & "_Combined")
+
+        Finally
+            ' 6. 清理暫存檔
+            Try
+                If Not String.IsNullOrEmpty(mainPdfPath) AndAlso File.Exists(mainPdfPath) Then
+                    File.Delete(mainPdfPath)
+                End If
+                If Not String.IsNullOrEmpty(mergedPdfPath) AndAlso File.Exists(mergedPdfPath) Then
+                    File.Delete(mergedPdfPath)
+                End If
+            Catch
+                ' 忽略清理失敗
+            End Try
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 從資料庫取得附件路徑
+    ''' </summary>
+    Private Function GetAttachmentPath(attachId As Integer) As String
+        Try
+            Using conn As New SqlConnection(connStr)
+                conn.Open()
+                Dim sql As String = "SELECT FilePath FROM jAttach WHERE ID = @ID AND (IsDeleted = 0 OR IsDeleted IS NULL)"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@ID", attachId)
+                    Dim result = cmd.ExecuteScalar()
+                    If result IsNot Nothing AndAlso Not IsDBNull(result) Then
+                        Return result.ToString()
+                    End If
+                End Using
+            End Using
+        Catch
+            ' 忽略錯誤
+        End Try
+        Return ""
+    End Function
+
+    ''' <summary>
+    ''' 使用 iTextSharp 合併多個 PDF 檔案
+    ''' </summary>
+    Private Sub MergePdfFiles(pdfFiles As List(Of String), outputPath As String)
+        Dim document As iTextSharp.text.Document = Nothing
+        Dim writer As PdfCopy = Nothing
+
+        Try
+            document = New iTextSharp.text.Document()
+            writer = New PdfCopy(document, New FileStream(outputPath, FileMode.Create))
+            document.Open()
+
+            For Each pdfFile As String In pdfFiles
+                Dim reader As PdfReader = Nothing
+                Try
+                    reader = New PdfReader(pdfFile)
+                    Dim pageCount As Integer = reader.NumberOfPages
+
+                    For i As Integer = 1 To pageCount
+                        Dim page As PdfImportedPage = writer.GetImportedPage(reader, i)
+                        writer.AddPage(page)
+                    Next
+                Finally
+                    If reader IsNot Nothing Then
+                        reader.Close()
+                    End If
+                End Try
+            Next
+
+        Finally
+            If document IsNot Nothing Then
+                document.Close()
+            End If
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 輸出 PDF 檔案到 Response
+    ''' </summary>
+    Private Sub OutputPdfFile(context As HttpContext, pdfPath As String, fileNamePrefix As String)
+        context.Response.Clear()
+        context.Response.Buffer = True
+        context.Response.ContentType = "application/pdf"
+
+        Dim safeFileName As String = "PurchaseRequest_" & SanitizeFileName(fileNamePrefix) & ".pdf"
+        context.Response.AddHeader("Content-Disposition", "inline; filename=""" & safeFileName & """")
+
+        context.Response.TransmitFile(pdfPath)
         context.Response.Flush()
     End Sub
 

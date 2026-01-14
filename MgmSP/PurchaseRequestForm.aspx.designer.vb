@@ -20,7 +20,10 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents hfRateDate As Global.System.Web.UI.WebControls.HiddenField
     Protected WithEvents lblDocNum As Global.System.Web.UI.WebControls.Label
     Protected WithEvents lblDocStatus As Global.System.Web.UI.WebControls.Label
-    Protected WithEvents ddlReqName As Global.System.Web.UI.WebControls.DropDownList
+    Protected WithEvents txtReqCode As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents btnSearchReqCode As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents txtReqName As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents btnSearchReqName As Global.System.Web.UI.WebControls.Button
     Protected WithEvents ddlReqDept As Global.System.Web.UI.WebControls.DropDownList
     Protected WithEvents txtCardCode As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents btnSearchCardCode As Global.System.Web.UI.WebControls.Button
@@ -31,6 +34,8 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents txtDocRate As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents btnRefreshRate As Global.System.Web.UI.WebControls.Button
     Protected WithEvents txtJID As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents txtSapDocNum As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents lblSapPostStatus As Global.System.Web.UI.WebControls.Label
     Protected WithEvents txtDocDate As Global.System.Web.UI.WebControls.TextBox
     Protected WithEvents lblErrDocDate As Global.System.Web.UI.WebControls.Label
     Protected WithEvents txtReqDate As Global.System.Web.UI.WebControls.TextBox
@@ -113,5 +118,21 @@ Partial Public Class PurchaseRequestForm
     Protected WithEvents pnlTextEdit As Global.System.Web.UI.WebControls.Panel
     Protected WithEvents lblTextEditTitle As Global.System.Web.UI.WebControls.Label
     Protected WithEvents txtTextEditContent As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents btnReqDummy As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents mpeReqName As Global.AjaxControlToolkit.ModalPopupExtender
+    Protected WithEvents pnlReqNameSearch As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents btnCloseReqName As Global.System.Web.UI.WebControls.LinkButton
+    Protected WithEvents txtReqNameSearchKeyword As Global.System.Web.UI.WebControls.TextBox
+    Protected WithEvents btnDoSearchReqName As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents hfReqSearchSource As Global.System.Web.UI.WebControls.HiddenField
+    Protected WithEvents rblReqSearchMode As Global.System.Web.UI.WebControls.RadioButtonList
+    Protected WithEvents gvReqNameSearch As Global.System.Web.UI.WebControls.GridView
+    Protected WithEvents btnPdfMergeDummy As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents mpePdfMerge As Global.AjaxControlToolkit.ModalPopupExtender
+    Protected WithEvents pnlPdfMerge As Global.System.Web.UI.WebControls.Panel
+    Protected WithEvents btnClosePdfMerge As Global.System.Web.UI.WebControls.LinkButton
+    Protected WithEvents rptPdfAttachments As Global.System.Web.UI.WebControls.Repeater
+    Protected WithEvents btnPdfMergeCancel As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents btnPdfMergeConfirm As Global.System.Web.UI.WebControls.Button
 
 End Class

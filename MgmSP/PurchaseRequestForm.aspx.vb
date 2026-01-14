@@ -2,6 +2,7 @@ Imports System.Data
 Imports System.Data.SqlClient
 Imports System.IO
 Imports System.Web.Configuration
+Imports SAPbobsCOM
 
 ''' <summary>
 ''' 請購單 (Purchase Request Form)
@@ -162,10 +163,8 @@ Partial Public Class PurchaseRequestForm
 
     Private Sub SetDefaultValues()
         lblDocNum.Text = "[新單據]"
-        ' 嘗試在請購人下拉選單中選擇當前使用者
-        If ddlReqName.Items.FindByValue(currentUserId) IsNot Nothing Then
-            ddlReqName.SelectedValue = currentUserId
-        End If
+        ' 嘗試帶入當前使用者作為請購人
+        SetDefaultRequester(currentUserId)
         txtOwner.Text = currentUserId
         lblDocStatus.Text = "新增中"
         lblDocStatus.CssClass = "badge status-W"
@@ -193,35 +192,10 @@ Partial Public Class PurchaseRequestForm
     Private Sub InitializeDropDowns()
         LoadCurrencies()
         LoadDepartments()
-        LoadReqName()
+        ' LoadReqName 已移除，改用搜尋彈窗
         ' LoadWarehouses, LoadProducts, LoadDepartments2 改為在 RowDataBound 中呼叫 (參照費用申請單模式)
         LoadPurchasers()
         LoadVatGroups()
-    End Sub
-
-    ''' <summary>
-    ''' 載入請購人下拉選單（從 SAP OHEM）
-    ''' </summary>
-    Private Sub LoadReqName()
-        ddlReqName.Items.Clear()
-        ddlReqName.Items.Add(New ListItem("-- 請選擇 --", ""))
-        Try
-            Using conn As New SqlConnection(sapConnStr)
-                conn.Open()
-                Dim sql As String = "SELECT Code, lastName + firstName AS EmpName FROM OHEM WHERE Active = 'Y' ORDER BY Code"
-                Using cmd As New SqlCommand(sql, conn)
-                    Using dr As SqlDataReader = cmd.ExecuteReader()
-                        While dr.Read()
-                            Dim code As String = dr("Code").ToString()
-                            Dim empName As String = If(IsDBNull(dr("EmpName")), "", dr("EmpName").ToString())
-                            ddlReqName.Items.Add(New ListItem(code & " - " & empName, code))
-                        End While
-                    End Using
-                End Using
-            End Using
-        Catch ex As Exception
-            ' 靜默處理
-        End Try
     End Sub
 
     Private Sub InitializeGridViews()
@@ -1029,6 +1003,123 @@ Partial Public Class PurchaseRequestForm
     End Function
 #End Region
 
+#Region "請購人搜尋"
+    ''' <summary>
+    ''' 設定預設請購人（從 OHEM 查詢員工資料）
+    ''' </summary>
+    Private Sub SetDefaultRequester(empCode As String)
+        If String.IsNullOrEmpty(empCode) Then Return
+
+        Try
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = "SELECT Code, lastName + firstName AS EmpName FROM OHEM WHERE Code = @Code AND Active = 'Y'"
+                Using cmd As New SqlCommand(sql, conn)
+                    cmd.Parameters.AddWithValue("@Code", empCode)
+                    Using dr As SqlDataReader = cmd.ExecuteReader()
+                        If dr.Read() Then
+                            txtReqCode.Text = dr("Code").ToString()
+                            txtReqName.Text = If(IsDBNull(dr("EmpName")), "", dr("EmpName").ToString())
+                        End If
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ' 靜默處理
+        End Try
+    End Sub
+
+    Protected Sub btnSearchReqCode_Click(sender As Object, e As EventArgs)
+        PerformReqNameSearch("Code", txtReqCode.Text.Trim())
+    End Sub
+
+    Protected Sub btnSearchReqName_Click(sender As Object, e As EventArgs)
+        PerformReqNameSearch("Name", txtReqName.Text.Trim())
+    End Sub
+
+    Private Sub PerformReqNameSearch(source As String, keyword As String)
+        hfReqSearchSource.Value = source
+        txtReqNameSearchKeyword.Text = keyword
+        BindReqNameSearchGrid(keyword)
+        mpeReqName.Show()
+    End Sub
+
+    Protected Sub btnDoSearchReqName_Click(sender As Object, e As EventArgs)
+        gvReqNameSearch.PageIndex = 0  ' 重新搜尋時回到第一頁
+        BindReqNameSearchGrid(txtReqNameSearchKeyword.Text.Trim())
+        mpeReqName.Show()
+    End Sub
+
+    Protected Sub gvReqNameSearch_PageIndexChanging(sender As Object, e As GridViewPageEventArgs)
+        gvReqNameSearch.PageIndex = e.NewPageIndex
+        BindReqNameSearchGrid(txtReqNameSearchKeyword.Text.Trim())
+        mpeReqName.Show()
+    End Sub
+
+    Private Sub BindReqNameSearchGrid(keyword As String)
+        Try
+            Dim sqlWhere As String = "WHERE Active = 'Y' "
+
+            Dim searchSource As String = hfReqSearchSource.Value
+            Dim isExact As Boolean = (rblReqSearchMode.SelectedValue = "Exact")
+
+            If Not String.IsNullOrEmpty(keyword) Then
+                keyword = keyword.Replace("*", "").Replace("%", "")
+
+                If isExact Then
+                    ' 開頭比對
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND Code LIKE @Kw"
+                    Else
+                        ' 按姓名搜尋：lastName + firstName 組合比對
+                        sqlWhere &= " AND (lastName + firstName) LIKE @Kw"
+                    End If
+                    keyword = keyword & "%"
+                Else
+                    ' 模糊比對
+                    If searchSource = "Code" Then
+                        sqlWhere &= " AND Code LIKE @Kw"
+                    Else
+                        ' 按姓名搜尋：lastName + firstName 組合比對
+                        sqlWhere &= " AND (lastName + firstName) LIKE @Kw"
+                    End If
+                    keyword = "%" & keyword & "%"
+                End If
+            End If
+
+            Using conn As New SqlConnection(sapConnStr)
+                conn.Open()
+                Dim sql As String = $"SELECT TOP 100 Code, lastName + firstName AS EmpName FROM OHEM {sqlWhere} ORDER BY Code"
+                Using cmd As New SqlCommand(sql, conn)
+                    If Not String.IsNullOrEmpty(keyword) Then
+                        cmd.Parameters.AddWithValue("@Kw", keyword)
+                    End If
+
+                    Using da As New SqlDataAdapter(cmd)
+                        Dim dt As New DataTable()
+                        da.Fill(dt)
+                        gvReqNameSearch.DataSource = dt
+                        gvReqNameSearch.DataBind()
+                    End Using
+                End Using
+            End Using
+        Catch ex As Exception
+            ShowError("搜尋請購人錯誤: " & ex.Message)
+        End Try
+    End Sub
+
+    Protected Sub gvReqNameSearch_RowCommand(sender As Object, e As GridViewCommandEventArgs)
+        If e.CommandName = "SelectReqName" Then
+            Dim args() As String = e.CommandArgument.ToString().Split("|"c)
+            If args.Length >= 2 Then
+                txtReqCode.Text = args(0)  ' Code
+                txtReqName.Text = args(1)  ' EmpName
+            End If
+            mpeReqName.Hide()
+        End If
+    End Sub
+#End Region
+
 #Region "幣別匯率"
     Protected Sub ddlDocCurrency_SelectedIndexChanged(sender As Object, e As EventArgs)
         UpdateExchangeRate()
@@ -1268,16 +1359,8 @@ Partial Public Class PurchaseRequestForm
                     Dim jID As Integer = currentJID
 
                     ' 取得請購人資訊 (ReqCode 和 ReqName)
-                    Dim reqCode As String = ddlReqName.SelectedValue
-                    Dim reqName As String = ""
-                    If ddlReqName.SelectedIndex > 0 Then
-                        ' 從 "Code - Name" 格式中提取名稱
-                        Dim selectedText As String = ddlReqName.SelectedItem.Text
-                        Dim dashPos As Integer = selectedText.IndexOf(" - ")
-                        If dashPos > 0 AndAlso dashPos + 3 < selectedText.Length Then
-                            reqName = selectedText.Substring(dashPos + 3)
-                        End If
-                    End If
+                    Dim reqCode As String = txtReqCode.Text.Trim()
+                    Dim reqName As String = txtReqName.Text.Trim()
 
                     If jID = 0 Then
                         ' 新增 - 先從 OJID 取得全域唯一的 jID
@@ -1289,8 +1372,8 @@ Partial Public Class PurchaseRequestForm
 
                         ' 使用從 OJID 取得的 jID 插入 jOPRQ（需開啟 IDENTITY_INSERT）
                         Dim insertSql As String = "SET IDENTITY_INSERT jOPRQ ON; " &
-                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqCode, ReqName, ReqDept, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
-                                                   "VALUES (@jID, @CardCode, @CardName, @ReqCode, @ReqName, @ReqDept, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); " &
+                                                   "INSERT INTO jOPRQ (jID, CardCode, CardName, ReqCode, ReqName, ReqDept, SlpCode, DocDate, ReqDate, DocCurrency, DocRate, DocTotal, VatSum, Comments, DocStatus, ApprovalStatus, U_PID, CreateDate, CreateBy) " &
+                                                   "VALUES (@jID, @CardCode, @CardName, @ReqCode, @ReqName, @ReqDept, @SlpCode, @DocDate, @ReqDate, @DocCurrency, @DocRate, @DocTotal, @VatSum, @Comments, 'O', 'Pending', @U_PID, GETDATE(), @CreateBy); " &
                                                    "SET IDENTITY_INSERT jOPRQ OFF;"
 
                         Using cmd As New SqlCommand(insertSql, conn, trans)
@@ -1300,6 +1383,7 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
                             cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
+                            cmd.Parameters.AddWithValue("@SlpCode", If(String.IsNullOrEmpty(ddlPurchaser.SelectedValue), DBNull.Value, ddlPurchaser.SelectedValue))
                             ' 使用 SqlDbType.Date 避免 SqlDateTime 溢位
                             cmd.Parameters.Add("@DocDate", SqlDbType.Date).Value = DateTime.Parse(txtDocDate.Text)
                             cmd.Parameters.Add("@ReqDate", SqlDbType.Date).Value = If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text))
@@ -1314,7 +1398,7 @@ Partial Public Class PurchaseRequestForm
                         End Using
                     Else
                         ' 更新
-                        Dim updateSql As String = "UPDATE jOPRQ SET CardCode=@CardCode, CardName=@CardName, ReqCode=@ReqCode, ReqName=@ReqName, ReqDept=@ReqDept, DocDate=@DocDate, ReqDate=@ReqDate, " &
+                        Dim updateSql As String = "UPDATE jOPRQ SET CardCode=@CardCode, CardName=@CardName, ReqCode=@ReqCode, ReqName=@ReqName, ReqDept=@ReqDept, SlpCode=@SlpCode, DocDate=@DocDate, ReqDate=@ReqDate, " &
                                                    "DocCurrency=@DocCurrency, DocRate=@DocRate, DocTotal=@DocTotal, VatSum=@VatSum, Comments=@Comments, U_PID=@U_PID, UpdateDate=GETDATE(), UpdateBy=@UpdateBy WHERE jID=@jID"
 
                         Using cmd As New SqlCommand(updateSql, conn, trans)
@@ -1324,6 +1408,7 @@ Partial Public Class PurchaseRequestForm
                             cmd.Parameters.AddWithValue("@ReqCode", If(String.IsNullOrEmpty(reqCode), DBNull.Value, reqCode))
                             cmd.Parameters.AddWithValue("@ReqName", If(String.IsNullOrEmpty(reqName), DBNull.Value, reqName))
                             cmd.Parameters.AddWithValue("@ReqDept", If(String.IsNullOrEmpty(ddlReqDept.SelectedValue), DBNull.Value, ddlReqDept.SelectedValue))
+                            cmd.Parameters.AddWithValue("@SlpCode", If(String.IsNullOrEmpty(ddlPurchaser.SelectedValue), DBNull.Value, ddlPurchaser.SelectedValue))
                             ' 使用 SqlDbType.Date 避免 SqlDateTime 溢位
                             cmd.Parameters.Add("@DocDate", SqlDbType.Date).Value = DateTime.Parse(txtDocDate.Text)
                             cmd.Parameters.Add("@ReqDate", SqlDbType.Date).Value = If(String.IsNullOrEmpty(txtReqDate.Text), DBNull.Value, DateTime.Parse(txtReqDate.Text))
@@ -1430,22 +1515,20 @@ Partial Public Class PurchaseRequestForm
                         txtCardCode.Text = If(IsDBNull(dr("CardCode")), "", dr("CardCode").ToString())
                         txtCardName.Text = If(IsDBNull(dr("CardName")), "", dr("CardName").ToString())
 
-                        ' 讀取請購人 (優先使用 ReqCode，若欄位不存在則使用 ReqName)
-                        Dim reqCode As String = ""
-                        Try
-                            If Not IsDBNull(dr("ReqCode")) Then
-                                reqCode = dr("ReqCode").ToString()
-                            End If
-                        Catch
-                            ' ReqCode 欄位可能不存在於舊資料
-                        End Try
-
-                        If Not String.IsNullOrEmpty(reqCode) AndAlso ddlReqName.Items.FindByValue(reqCode) IsNot Nothing Then
-                            ddlReqName.SelectedValue = reqCode
-                        End If
+                        ' 讀取請購人
+                        txtReqCode.Text = If(IsDBNull(dr("ReqCode")), "", dr("ReqCode").ToString())
+                        txtReqName.Text = If(IsDBNull(dr("ReqName")), "", dr("ReqName").ToString())
 
                         If Not IsDBNull(dr("ReqDept")) AndAlso ddlReqDept.Items.FindByValue(dr("ReqDept").ToString()) IsNot Nothing Then
                             ddlReqDept.SelectedValue = dr("ReqDept").ToString()
+                        End If
+
+                        ' 讀取採購人員
+                        If Not IsDBNull(dr("SlpCode")) Then
+                            Dim slpCode As String = dr("SlpCode").ToString()
+                            If ddlPurchaser.Items.FindByValue(slpCode) IsNot Nothing Then
+                                ddlPurchaser.SelectedValue = slpCode
+                            End If
                         End If
 
                         txtDocDate.Text = Convert.ToDateTime(dr("DocDate")).ToString("yyyy-MM-dd")
@@ -1697,12 +1780,77 @@ Partial Public Class PurchaseRequestForm
     ''' </summary>
     Protected Sub btnExportPDF_Click(sender As Object, e As EventArgs)
         Dim jID As String = txtJID.Text.Trim()
-        If Not String.IsNullOrEmpty(jID) Then
-            ' 使用 Crystal Report Handler 產生 PDF (在新視窗開啟)
-            Dim script As String = String.Format("window.open('PurchaseRequestReport.ashx?jID={0}', '_blank');", HttpUtility.UrlEncode(jID))
-            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenPDF", script, True)
-        Else
+        If String.IsNullOrEmpty(jID) Then
             ShowError("無法匯出：尚未儲存的單據或缺少平台單號")
+            Return
+        End If
+
+        ' 檢查附件中是否有 PDF 檔案（已儲存的附件，非新上傳）
+        Dim pdfAttachments = CurrentAttachments.Where(Function(a) a.FileName.ToLower().EndsWith(".pdf") AndAlso Not a.IsNew).ToList()
+
+        If pdfAttachments.Count > 0 Then
+            ' 有 PDF 附件，顯示合併選項彈窗
+            rptPdfAttachments.DataSource = pdfAttachments
+            rptPdfAttachments.DataBind()
+            mpePdfMerge.Show()
+        Else
+            ' 無 PDF 附件，直接匯出
+            ExportPdfDirect()
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 直接匯出 PDF（無合併）
+    ''' </summary>
+    Private Sub ExportPdfDirect()
+        Dim script As String = String.Format("window.open('PurchaseRequestReport.ashx?jID={0}', '_blank');",
+            HttpUtility.UrlEncode(txtJID.Text.Trim()))
+        ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenPDF", script, True)
+    End Sub
+
+    ''' <summary>
+    ''' PDF 合併彈窗 - 取消按鈕
+    ''' </summary>
+    Protected Sub btnPdfMergeCancel_Click(sender As Object, e As EventArgs)
+        mpePdfMerge.Hide()
+    End Sub
+
+    ''' <summary>
+    ''' PDF 合併彈窗 - 確認匯出
+    ''' </summary>
+    Protected Sub btnPdfMergeConfirm_Click(sender As Object, e As EventArgs)
+        ' 收集用戶輸入的順序
+        Dim mergeList As New List(Of Tuple(Of Integer, Integer))  ' (順序, AttachID)
+
+        For Each item As RepeaterItem In rptPdfAttachments.Items
+            If item.ItemType = ListItemType.Item OrElse item.ItemType = ListItemType.AlternatingItem Then
+                Dim txtOrder As TextBox = CType(item.FindControl("txtOrder"), TextBox)
+                Dim hfAttachId As HiddenField = CType(item.FindControl("hfAttachId"), HiddenField)
+
+                If txtOrder IsNot Nothing AndAlso hfAttachId IsNot Nothing Then
+                    Dim order As Integer
+                    If Integer.TryParse(txtOrder.Text.Trim(), order) Then
+                        mergeList.Add(Tuple.Create(order, Integer.Parse(hfAttachId.Value)))
+                    End If
+                End If
+            End If
+        Next
+
+        mpePdfMerge.Hide()
+
+        If mergeList.Count = 0 Then
+            ' 沒有輸入任何順序，直接匯出
+            ExportPdfDirect()
+        Else
+            ' 有選擇合併，按順序排列附件並調用合併 Handler
+            mergeList = mergeList.OrderBy(Function(t) t.Item1).ToList()
+            Dim attachIds As String = String.Join(",", mergeList.Select(Function(t) t.Item2))
+
+            Dim script As String = String.Format(
+                "window.open('PurchaseRequestReport.ashx?jID={0}&mergeAttach={1}', '_blank');",
+                HttpUtility.UrlEncode(txtJID.Text.Trim()),
+                HttpUtility.UrlEncode(attachIds))
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "OpenPDF", script, True)
         End If
     End Sub
 
