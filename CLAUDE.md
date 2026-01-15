@@ -29,6 +29,21 @@
 | Namespace | .aspx 的 Inherits **必須**加前綴 `MgmSP.` |
 | 檔案編碼 | UTF-8 with BOM（見下方詳細規則） |
 | 資料庫連線 | 本地 `jtdbConnectionString`、SAP `SapSQLConnection` |
+| **MCP SQL 查詢** | 🔴 **必讀 `skills/database-guide.md`** 選擇正確資料庫 |
+
+### 資料庫選擇規則（MCP 工具）
+
+🔴 **這是重複發生的問題！執行 SQL 前必須確認資料庫。**
+
+| 表名特徵 | 資料庫 | MCP Server | 範例 |
+|----------|--------|------------|------|
+| **j 開頭** | jtdb（本地） | `mcp__jtdb__*` | jOPRQ, jOPCH, jUser |
+| **O 開頭** | JTTST（SAP） | `mcp__sapb1__*` | OITM, OCRD, OPRQ |
+
+```
+❌ 錯誤：mcp__sapb1__sql_query("SELECT * FROM jOPRQ")
+✓ 正確：mcp__jtdb__sql_query("SELECT * FROM jOPRQ")
+```
 
 ### 檔案編碼（強制規則）
 

@@ -8,6 +8,7 @@
 
 | 觸發條件 | 資源檔案 | 說明 |
 |----------|----------|------|
+| **執行 SQL 查詢（MCP 工具）** | `database-guide.md` | 🔴 **必讀** - 選擇正確的資料庫 |
 | 建立/修改 Slash Command | `slash-command-standards.md` | 指令格式規範、frontmatter 語法 |
 | 後端開發（VB.NET、資料庫） | `backend-checklist.md` | 資料庫操作、金額處理、錯誤處理 |
 | 資料存取（ADO.NET、ViewState） | `aspnet-data.md` | 參數化查詢型別、資料儲存位置 |
@@ -23,6 +24,7 @@
 
 | 檔案 | 適用 Agent | 更新日期 |
 |------|-----------|----------|
+| `database-guide.md` | All | 2026-01-15 (新建) |
 | `aspnet-data.md` | All (Backend 重點) | 2026-01-13 (新建) |
 | `backend-checklist.md` | Backend | 2026-01-07 |
 | `general-checklist.md` | All | 2026-01-08 (錯誤處理規範) |
