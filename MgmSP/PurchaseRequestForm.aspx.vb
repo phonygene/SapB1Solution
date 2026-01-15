@@ -1615,10 +1615,10 @@ Partial Public Class PurchaseRequestForm
                             lblSapPostStatus.Text = ""
                         End If
 
-                        ' 按鈕狀態
-                        btnDelete.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
-                        btnUpdate.Visible = (approvalStatus = "Pending")
-                        btnSubmit.Visible = (approvalStatus = "Pending" OrElse approvalStatus = "Rejected")
+                        ' 按鈕狀態（與 jOPCH 統一：W=待審核, R=已退回）
+                        btnDelete.Visible = (approvalStatus = "W" OrElse approvalStatus = "R")
+                        btnUpdate.Visible = (approvalStatus = "W")
+                        btnSubmit.Visible = (approvalStatus = "W" OrElse approvalStatus = "R")
                         btnExportPDF.Visible = True      ' 已儲存的單據可匯出 PDF
                         btnNewDocument.Visible = True    ' 已儲存的單據可新增新單據
                     End If
