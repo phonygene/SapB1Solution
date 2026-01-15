@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "jtdb": {
+    "sapb1-sql": {
       "command": "uv",
       "args": [
         "run",
@@ -10,35 +10,6 @@
         "src/server.py"
       ],
       "env": {
-        "DB_DRIVER": "ODBC Driver 17 for SQL Server",
-        "DB_SERVER": ".\\SQLEXPRESS2008R2",
-        "DB_PORT": "1433",
-        "DB_NAME": "jtdb",
-        "DB_USER": "sa",
-        "DB_PASSWORD": "sap19690123",
-        "BACKUP_ENABLED": "true",
-        "BACKUP_DIR": "C:\\SQLBackups\\jtdb",
-        "LOG_LEVEL": "INFO"
-      }
-    },
-    "sapb1": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "C:/Projects/SapB1Solution/mcp-sqlserver",
-        "python",
-        "src/server.py"
-      ],
-      "env": {
-        "DB_DRIVER": "ODBC Driver 17 for SQL Server",
-        "DB_SERVER": "192.168.1.31",
-        "DB_PORT": "1433",
-        "DB_NAME": "JTTST",
-        "DB_USER": "sa",
-        "DB_PASSWORD": "sap19690123",
-        "BACKUP_ENABLED": "false",
-        "BACKUP_DIR": "C:\\SQLBackups\\JTTST",
         "LOG_LEVEL": "INFO"
       }
     }

@@ -1,6 +1,7 @@
 """資料庫操作模組
 
 提供安全的 SQL Server 資料庫操作功能。
+支援多資料庫動態切換。
 """
 
 import pyodbc
@@ -18,6 +19,7 @@ class DatabaseManager:
     """SQL Server 資料庫管理器
 
     特點：
+    - 支援多資料庫動態切換
     - 安全的參數化查詢
     - 自動事務管理
     - SQL 注入防護
@@ -35,12 +37,56 @@ class DatabaseManager:
             self.config = json.load(f)
 
         self.safe_mode = self.config["safe_mode"]
-        self._connection: Optional[pyodbc.Connection] = None
 
-        logger.info("資料庫管理器初始化完成")
+        # 多資料庫連線池
+        self._connections: Dict[str, pyodbc.Connection] = {}
+        self._current_db: Optional[str] = None
 
-    def connect(self) -> pyodbc.Connection:
-        """建立或返回現有的資料庫連線
+        # 資料庫配置
+        self.databases = self.config.get("databases", {})
+        self.default_database = self.config.get("default_database", "jtdb")
+
+        logger.info(f"資料庫管理器初始化完成，可用資料庫: {list(self.databases.keys())}")
+
+    def get_available_databases(self) -> List[Dict[str, str]]:
+        """取得所有可用的資料庫列表
+
+        Returns:
+            資料庫資訊列表
+        """
+        return [
+            {
+                "name": name,
+                "description": cfg.get("description", ""),
+                "server": cfg.get("server", ""),
+                "database": cfg.get("database", "")
+            }
+            for name, cfg in self.databases.items()
+        ]
+
+    def _get_db_config(self, db_name: Optional[str] = None) -> Dict[str, Any]:
+        """取得資料庫配置
+
+        Args:
+            db_name: 資料庫名稱，None 則使用預設
+
+        Returns:
+            資料庫配置字典
+        """
+        if db_name is None:
+            db_name = self.default_database
+
+        if db_name not in self.databases:
+            available = list(self.databases.keys())
+            raise ValueError(f"未知的資料庫: {db_name}，可用選項: {available}")
+
+        return self.databases[db_name]
+
+    def connect(self, db_name: Optional[str] = None) -> pyodbc.Connection:
+        """建立或返回指定資料庫的連線
+
+        Args:
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             pyodbc 連線物件
@@ -48,34 +94,42 @@ class DatabaseManager:
         Raises:
             Exception: 連線失敗時拋出異常
         """
-        if self._connection:
+        if db_name is None:
+            db_name = self.default_database
+
+        self._current_db = db_name
+
+        # 檢查是否已有連線
+        if db_name in self._connections:
             try:
                 # 測試連線是否還有效
-                self._connection.cursor().execute("SELECT 1")
-                return self._connection
+                self._connections[db_name].cursor().execute("SELECT 1")
+                return self._connections[db_name]
             except:
                 # 連線失效，關閉並重新連線
                 try:
-                    self._connection.close()
+                    self._connections[db_name].close()
                 except:
                     pass
-                self._connection = None
+                del self._connections[db_name]
 
-        # 建立新連線
-        driver = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
-        server = os.getenv("DB_SERVER", "localhost")
-        port = os.getenv("DB_PORT")
-        database = os.getenv("DB_NAME")
-        username = os.getenv("DB_USER")
-        password = os.getenv("DB_PASSWORD")
+        # 取得資料庫配置
+        db_config = self._get_db_config(db_name)
+
+        driver = db_config.get("driver", "ODBC Driver 17 for SQL Server")
+        server = db_config.get("server", "localhost")
+        port = db_config.get("port")
+        database = db_config.get("database")
+        username = db_config.get("username")
+        password = db_config.get("password")
 
         if not all([database, username, password]):
-            raise ValueError("缺少必要的資料庫連線資訊，請檢查 .env 檔案")
+            raise ValueError(f"資料庫 {db_name} 缺少必要的連線資訊")
 
         # 建立連線字串
         conn_str = f"DRIVER={{{driver}}};SERVER={server};"
 
-        # 如果有指定 PORT，加入連線字串（FreeTDS 需要）
+        # 如果有指定 PORT，加入連線字串
         if port:
             conn_str += f"PORT={port};"
 
@@ -87,59 +141,77 @@ class DatabaseManager:
         )
 
         try:
-            self._connection = pyodbc.connect(conn_str, timeout=10)
-            logger.info(f"成功連線至資料庫: {database} @ {server}")
-            return self._connection
+            self._connections[db_name] = pyodbc.connect(conn_str, timeout=10)
+            logger.info(f"成功連線至資料庫: {database} @ {server} (別名: {db_name})")
+            return self._connections[db_name]
         except Exception as e:
-            logger.error(f"資料庫連線失敗: {str(e)}")
+            logger.error(f"資料庫連線失敗 ({db_name}): {str(e)}")
             raise
 
-    def disconnect(self):
-        """關閉資料庫連線"""
-        if self._connection:
-            try:
-                self._connection.close()
-                logger.info("資料庫連線已關閉")
-            except Exception as e:
-                logger.warning(f"關閉連線時發生錯誤: {str(e)}")
-            finally:
-                self._connection = None
+    def disconnect(self, db_name: Optional[str] = None):
+        """關閉資料庫連線
 
-    def get_db_size(self) -> float:
+        Args:
+            db_name: 資料庫名稱，None 則關閉所有連線
+        """
+        if db_name is None:
+            # 關閉所有連線
+            for name, conn in list(self._connections.items()):
+                try:
+                    conn.close()
+                    logger.info(f"資料庫連線已關閉: {name}")
+                except Exception as e:
+                    logger.warning(f"關閉連線時發生錯誤 ({name}): {str(e)}")
+            self._connections.clear()
+        elif db_name in self._connections:
+            try:
+                self._connections[db_name].close()
+                logger.info(f"資料庫連線已關閉: {db_name}")
+            except Exception as e:
+                logger.warning(f"關閉連線時發生錯誤 ({db_name}): {str(e)}")
+            finally:
+                del self._connections[db_name]
+
+    def get_db_size(self, db_name: Optional[str] = None) -> float:
         """取得資料庫大小（MB）
+
+        Args:
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             資料庫大小（MB）
         """
         try:
-            conn = self.connect()
+            conn = self.connect(db_name)
             cursor = conn.cursor()
 
-            db_name = os.getenv("DB_NAME")
+            db_config = self._get_db_config(db_name)
+            actual_db_name = db_config.get("database")
             query = f"""
                 SELECT
                     SUM(CAST(size AS BIGINT)) * 8.0 / 1024 AS SizeMB
                 FROM sys.master_files
-                WHERE database_id = DB_ID('{db_name}')
+                WHERE database_id = DB_ID('{actual_db_name}')
             """
 
             cursor.execute(query)
             row = cursor.fetchone()
             size_mb = float(row[0]) if row and row[0] else 0.0
 
-            logger.debug(f"資料庫大小: {size_mb:.2f} MB")
+            logger.debug(f"資料庫大小 ({db_name}): {size_mb:.2f} MB")
             return size_mb
 
         except Exception as e:
             logger.error(f"取得資料庫大小失敗: {str(e)}")
             return 0.0
 
-    def execute_query(self, query: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
+    def execute_query(self, query: str, params: Optional[tuple] = None, db_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """執行查詢（SELECT）
 
         Args:
             query: SQL 查詢語句
             params: 參數（用於參數化查詢，防止 SQL Injection）
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             查詢結果列表（字典格式）
@@ -147,7 +219,7 @@ class DatabaseManager:
         Raises:
             Exception: 查詢執行失敗時拋出異常
         """
-        conn = self.connect()
+        conn = self.connect(db_name)
         cursor = conn.cursor()
 
         try:
@@ -190,7 +262,8 @@ class DatabaseManager:
         self,
         query: str,
         params: Optional[tuple] = None,
-        backup_manager=None
+        backup_manager=None,
+        db_name: Optional[str] = None
     ) -> Tuple[bool, str, int]:
         """執行寫入操作（INSERT, UPDATE, DELETE）
 
@@ -200,6 +273,7 @@ class DatabaseManager:
             query: SQL 語句
             params: 參數
             backup_manager: 備份管理器實例
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             (是否成功, 訊息, 影響行數)
@@ -210,12 +284,16 @@ class DatabaseManager:
             logger.warning(f"{msg}: {query[:100]}")
             return False, msg, 0
 
-        conn = self.connect()
+        conn = self.connect(db_name)
 
         try:
+            # 取得資料庫配置，檢查是否啟用備份
+            db_config = self._get_db_config(db_name)
+            backup_enabled = db_config.get("backup_enabled", True)
+
             # 寫入前自動備份
-            if backup_manager and os.getenv("BACKUP_ENABLED", "true").lower() == "true":
-                db_size = self.get_db_size()
+            if backup_manager and backup_enabled:
+                db_size = self.get_db_size(db_name)
 
                 # 檢查是否需要每日備份
                 if backup_manager.should_create_daily_backup():
@@ -289,11 +367,12 @@ class DatabaseManager:
 
         return True
 
-    def get_table_info(self, table_name: str) -> Dict[str, Any]:
+    def get_table_info(self, table_name: str, db_name: Optional[str] = None) -> Dict[str, Any]:
         """取得資料表結構資訊
 
         Args:
             table_name: 資料表名稱
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             包含表名和欄位資訊的字典
@@ -313,7 +392,7 @@ class DatabaseManager:
                 ORDER BY c.ORDINAL_POSITION
             """
 
-            columns = self.execute_query(query, (table_name,))
+            columns = self.execute_query(query, (table_name,), db_name)
 
             # 取得主鍵資訊
             pk_query = """
@@ -323,7 +402,7 @@ class DatabaseManager:
                 AND TABLE_NAME = ?
             """
 
-            pk_columns = self.execute_query(pk_query, (table_name,))
+            pk_columns = self.execute_query(pk_query, (table_name,), db_name)
             pk_column_names = [row['COLUMN_NAME'] for row in pk_columns]
 
             # 標記主鍵
@@ -343,11 +422,12 @@ class DatabaseManager:
             logger.error(f"取得資料表資訊失敗: {str(e)}")
             raise
 
-    def list_tables(self, schema: str = "dbo") -> List[str]:
+    def list_tables(self, schema: str = "dbo", db_name: Optional[str] = None) -> List[str]:
         """列出所有資料表
 
         Args:
             schema: 結構描述名稱（預設 dbo）
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             資料表名稱列表
@@ -361,26 +441,27 @@ class DatabaseManager:
                 ORDER BY TABLE_NAME
             """
 
-            results = self.execute_query(query, (schema,))
+            results = self.execute_query(query, (schema,), db_name)
             tables = [row['TABLE_NAME'] for row in results]
 
-            logger.info(f"找到 {len(tables)} 個資料表")
+            logger.info(f"找到 {len(tables)} 個資料表 ({db_name or self.default_database})")
             return tables
 
         except Exception as e:
             logger.error(f"列出資料表失敗: {str(e)}")
             raise
 
-    def execute_ddl(self, query: str) -> Tuple[bool, str]:
+    def execute_ddl(self, query: str, db_name: Optional[str] = None) -> Tuple[bool, str]:
         """執行 DDL 操作（CREATE, DROP, ALTER）
 
         Args:
             query: DDL SQL 語句
+            db_name: 資料庫名稱，None 則使用預設
 
         Returns:
             (是否成功, 訊息)
         """
-        conn = self.connect()
+        conn = self.connect(db_name)
 
         try:
             logger.info(f"執行 DDL 操作: {query[:100]}...")

@@ -1,7 +1,32 @@
 {
   "server_name": "sapb1-sql-mcp",
   "language": "zh-TW",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "databases": {
+    "jtdb": {
+      "description": "JET 自有資料（j 開頭表：jOPRQ, jOPCH, jUser...）",
+      "driver": "ODBC Driver 17 for SQL Server",
+      "server": ".\\SQLEXPRESS2008R2",
+      "port": null,
+      "database": "jtdb",
+      "username": "sa",
+      "password": "sap19690123",
+      "backup_enabled": true,
+      "backup_dir": "C:\\SQLBackups\\jtdb"
+    },
+    "sapb1": {
+      "description": "SAP B1 資料（O 開頭表：OITM, OCRD, OPRQ...）",
+      "driver": "ODBC Driver 17 for SQL Server",
+      "server": "192.168.1.31",
+      "port": "1433",
+      "database": "JTTST",
+      "username": "sa",
+      "password": "sap19690123",
+      "backup_enabled": false,
+      "backup_dir": "C:\\SQLBackups\\JTTST"
+    }
+  },
+  "default_database": "jtdb",
   "backup_size_limit": {
     "enabled": true,
     "max_db_size_mb": 100,

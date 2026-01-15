@@ -1,120 +1,118 @@
 # 資料庫使用指南
 
-> Agent 執行 SQL 查詢前**必須**先閱讀此文件，選擇正確的 MCP Server。
+> Agent 執行 SQL 查詢時，透過 `db` 參數選擇目標資料庫。
 
 ---
 
 ## 資料庫架構
 
-本專案使用**兩個獨立的資料庫**，透過不同的 MCP Server 連接：
+本專案有**兩個資料庫**，透過同一個 MCP Server 的 `db` 參數切換：
 
-| MCP Server | 資料庫 | 位置 | 用途 |
-|------------|--------|------|------|
-| `mcp__jtdb__*` | jtdb | 本地 (.\SQLEXPRESS2008R2) | JET 自有資料 |
-| `mcp__sapb1__*` | JTTST | 遠端 (192.168.1.31) | SAP Business One |
+| db 參數 | 實際資料庫 | 位置 | 用途 |
+|---------|-----------|------|------|
+| `jtdb` (預設) | jtdb | 本地 (.\SQLEXPRESS2008R2) | JET 自有資料 |
+| `sapb1` | JTTST | 遠端 (192.168.1.31) | SAP Business One |
 
 ---
 
-## 選擇規則（必須遵守）
+## 使用方式
 
-### 使用 `jtdb` 的情況
+### 查詢 JET 自有表（j 開頭）
 
-**表名以 `j` 開頭** = JET 自有表，使用 `mcp__jtdb__*`
+```python
+# 預設就是 jtdb，可省略 db 參數
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ")
 
-| 表名 | 說明 |
-|------|------|
-| jOPCH | 費用報支單表頭 |
-| jPCH1 | 費用報支單明細 |
-| jOPRQ | 請購單表頭 |
-| jPRQ1 | 請購單明細 |
-| jUser | 使用者資料 |
-| jATTH | 附件表頭 |
-| jATT1 | 附件明細 |
-
-**範例**：
-```
-查詢 jOPRQ 狀態 → 使用 mcp__jtdb__sql_query
+# 或明確指定
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ", db="jtdb")
 ```
 
-### 使用 `sapb1` 的情況
+### 查詢 SAP 表（O 開頭）
 
-**表名以 `O` 開頭** = SAP 系統表，使用 `mcp__sapb1__*`
-
-| 表名 | 說明 |
-|------|------|
-| OITM | 物料主檔 |
-| OCRD | 業務夥伴主檔 |
-| OPRQ | SAP 請購單 |
-| OPOR | SAP 採購訂單 |
-| OPCH | SAP 應付發票 |
-| OSLP | 業務員主檔 |
-| OHEM | 員工主檔 |
-| OWHS | 倉庫主檔 |
-
-**範例**：
-```
-查詢 OITM 品號資料 → 使用 mcp__sapb1__sql_query
+```python
+# 必須指定 db="sapb1"
+mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM WHERE ItemCode = ?", params=["A001"], db="sapb1")
 ```
 
-### 快速判斷法
+### 列出可用資料庫
 
-```
-表名第一個字母：
-  j → jtdb（JET 自有）
-  O → sapb1（SAP 系統）
-  其他 → 先查 jtdb，若不存在再查 sapb1
+```python
+mcp__sapb1-sql__list_databases()
 ```
 
 ---
 
-## 常見錯誤
+## 選擇規則
 
-### ❌ 錯誤：用 sapb1 查 jOPRQ
-
-```
-mcp__sapb1__sql_query("SELECT * FROM jOPRQ")
-→ Error: Invalid object name 'jOPRQ'
-```
-
-### ✓ 正確：用 jtdb 查 jOPRQ
-
-```
-mcp__jtdb__sql_query("SELECT * FROM jOPRQ")
-→ 成功返回資料
-```
+| 表名特徵 | db 參數 | 範例表 |
+|----------|---------|--------|
+| **j** 開頭 | `jtdb` 或省略 | jOPRQ, jOPCH, jUser, jATTH |
+| **O** 開頭 | `sapb1` | OITM, OCRD, OPRQ, OPCH |
+| 其他 | 先試 `jtdb` | 自訂表 |
 
 ---
 
-## 跨資料庫查詢
+## 範例
 
-若需要同時查詢兩個資料庫的資料：
+### 正確用法
 
-1. **分開查詢**：先查 jtdb，再查 sapb1，在程式碼中 JOIN
-2. **Linked Server**：在 SQL 中使用 `[SAP-NEW-TST].[JTTST].dbo.OITM`（需 DBA 設定）
+```python
+# 查詢請購單（JET 自有）
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ WHERE jID = ?", params=[123])
 
----
+# 查詢物料主檔（SAP）
+mcp__sapb1-sql__sql_query(query="SELECT ItemCode, ItemName FROM OITM", db="sapb1")
 
-## MCP 工具對照
+# 取得表結構
+mcp__sapb1-sql__get_table_info(table_name="jOPRQ")  # JET 表
+mcp__sapb1-sql__get_table_info(table_name="OITM", db="sapb1")  # SAP 表
+```
 
-| 工具 | jtdb | sapb1 |
-|------|------|-------|
-| 查詢 | `mcp__jtdb__sql_query` | `mcp__sapb1__sql_query` |
-| 寫入 | `mcp__jtdb__sql_write` | `mcp__sapb1__sql_write` |
-| DDL | `mcp__jtdb__sql_ddl` | `mcp__sapb1__sql_ddl` |
-| 表結構 | `mcp__jtdb__get_table_info` | `mcp__sapb1__get_table_info` |
-| 列表 | `mcp__jtdb__list_tables` | `mcp__sapb1__list_tables` |
+### 錯誤用法
+
+```python
+# 錯誤：用預設 jtdb 查詢 SAP 表
+mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM")
+# → Error: Invalid object name 'OITM'
+
+# 正確：指定 db="sapb1"
+mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM", db="sapb1")
+```
 
 ---
 
 ## Web.config 對照
 
-程式碼中的連線字串與 MCP Server 的對應：
-
-| ConnectionString | MCP Server |
-|------------------|------------|
+| ConnectionString | db 參數 |
+|------------------|---------|
 | `jtdbConnectionString` | `jtdb` |
 | `SapSQLConnection` | `sapb1` |
-| `MDRConnectionString` | （未設定 MCP） |
+
+---
+
+## 新增資料庫
+
+如需新增其他資料庫，編輯 `mcp-sqlserver/config.json` 的 `databases` 區塊：
+
+```json
+{
+  "databases": {
+    "jtdb": { ... },
+    "sapb1": { ... },
+    "newdb": {
+      "description": "新資料庫說明",
+      "driver": "ODBC Driver 17 for SQL Server",
+      "server": "server-address",
+      "port": "1433",
+      "database": "DatabaseName",
+      "username": "user",
+      "password": "pass",
+      "backup_enabled": true,
+      "backup_dir": "C:\\SQLBackups\\newdb"
+    }
+  }
+}
+```
 
 ---
 

@@ -56,9 +56,20 @@ def init_managers():
             raise
 
 
+def get_db_param_schema() -> dict:
+    """取得 db 參數的 schema 定義"""
+    return {
+        "type": "string",
+        "description": "目標資料庫（可選）。jtdb=JET自有資料(j開頭表)、sapb1=SAP B1資料(O開頭表)。預設使用 jtdb。",
+        "enum": ["jtdb", "sapb1"]
+    }
+
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     """列出所有可用工具"""
+    db_param = get_db_param_schema()
+
     return [
         Tool(
             name="sql_query",
@@ -76,7 +87,8 @@ async def list_tools() -> list[Tool]:
                         "items": {
                             "type": ["string", "number", "null", "boolean"]
                         }
-                    }
+                    },
+                    "db": db_param
                 },
                 "required": ["query"]
             }
@@ -97,7 +109,8 @@ async def list_tools() -> list[Tool]:
                         "items": {
                             "type": ["string", "number", "null", "boolean"]
                         }
-                    }
+                    },
+                    "db": db_param
                 },
                 "required": ["query"]
             }
@@ -111,7 +124,8 @@ async def list_tools() -> list[Tool]:
                     "query": {
                         "type": "string",
                         "description": "DDL SQL 語句。例如：CREATE TABLE test (id INT, name NVARCHAR(50))"
-                    }
+                    },
+                    "db": db_param
                 },
                 "required": ["query"]
             }
@@ -125,7 +139,8 @@ async def list_tools() -> list[Tool]:
                     "table_name": {
                         "type": "string",
                         "description": "資料表名稱。例如：OITM（物料主檔）、OCRD（業務夥伴主檔）"
-                    }
+                    },
+                    "db": db_param
                 },
                 "required": ["table_name"]
             }
@@ -140,8 +155,17 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "結構描述名稱（可選，預設為 dbo）",
                         "default": "dbo"
-                    }
+                    },
+                    "db": db_param
                 }
+            }
+        ),
+        Tool(
+            name="list_databases",
+            description="列出所有可用的資料庫配置",
+            inputSchema={
+                "type": "object",
+                "properties": {}
             }
         ),
         Tool(
@@ -199,11 +223,14 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         # 確保管理器已初始化
         init_managers()
 
+        # 取得目標資料庫（如有指定）
+        db_name = arguments.get("db", None)
+
         if name == "sql_query":
             query = arguments["query"]
             params = tuple(arguments.get("params", []))
 
-            results = db_manager.execute_query(query, params if params else None)
+            results = db_manager.execute_query(query, params if params else None, db_name)
 
             return [TextContent(
                 type="text",
@@ -217,13 +244,15 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             success, message, affected_rows = db_manager.execute_write(
                 query,
                 params if params else None,
-                backup_manager
+                backup_manager,
+                db_name
             )
 
             result = {
                 "success": success,
                 "message": message,
-                "affected_rows": affected_rows
+                "affected_rows": affected_rows,
+                "database": db_name or db_manager.default_database
             }
 
             return [TextContent(
@@ -234,11 +263,12 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         elif name == "sql_ddl":
             query = arguments["query"]
 
-            success, message = db_manager.execute_ddl(query)
+            success, message = db_manager.execute_ddl(query, db_name)
 
             result = {
                 "success": success,
-                "message": message
+                "message": message,
+                "database": db_name or db_manager.default_database
             }
 
             return [TextContent(
@@ -248,7 +278,8 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "get_table_info":
             table_name = arguments["table_name"]
-            info = db_manager.get_table_info(table_name)
+            info = db_manager.get_table_info(table_name, db_name)
+            info["database"] = db_name or db_manager.default_database
 
             return [TextContent(
                 type="text",
@@ -257,12 +288,26 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "list_tables":
             schema = arguments.get("schema", "dbo")
-            tables = db_manager.list_tables(schema)
+            tables = db_manager.list_tables(schema, db_name)
 
             result = {
+                "database": db_name or db_manager.default_database,
                 "schema": schema,
                 "table_count": len(tables),
                 "tables": tables
+            }
+
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, ensure_ascii=False, indent=2)
+            )]
+
+        elif name == "list_databases":
+            databases = db_manager.get_available_databases()
+
+            result = {
+                "default": db_manager.default_database,
+                "available": databases
             }
 
             return [TextContent(

@@ -35,14 +35,19 @@
 
 🔴 **這是重複發生的問題！執行 SQL 前必須確認資料庫。**
 
-| 表名特徵 | 資料庫 | MCP Server | 範例 |
-|----------|--------|------------|------|
-| **j 開頭** | jtdb（本地） | `mcp__jtdb__*` | jOPRQ, jOPCH, jUser |
-| **O 開頭** | JTTST（SAP） | `mcp__sapb1__*` | OITM, OCRD, OPRQ |
+透過 `db` 參數選擇目標資料庫：
 
-```
-❌ 錯誤：mcp__sapb1__sql_query("SELECT * FROM jOPRQ")
-✓ 正確：mcp__jtdb__sql_query("SELECT * FROM jOPRQ")
+| 表名特徵 | db 參數 | 範例 |
+|----------|---------|------|
+| **j 開頭** | `jtdb`（預設，可省略） | jOPRQ, jOPCH, jUser |
+| **O 開頭** | `sapb1`（必須指定） | OITM, OCRD, OPRQ |
+
+```python
+# JET 自有表（預設 jtdb）
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ")
+
+# SAP 表（必須指定 db="sapb1"）
+mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM", db="sapb1")
 ```
 
 ### 檔案編碼（強制規則）
