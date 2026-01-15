@@ -68,13 +68,17 @@ class DatabaseManager:
         """取得資料庫配置
 
         Args:
-            db_name: 資料庫名稱，None 則使用預設
+            db_name: 資料庫名稱（必填）
 
         Returns:
             資料庫配置字典
+
+        Raises:
+            ValueError: 未指定資料庫或資料庫不存在時拋出
         """
         if db_name is None:
-            db_name = self.default_database
+            available = list(self.databases.keys())
+            raise ValueError(f"必須指定資料庫（db 參數）。可用選項: {available}")
 
         if db_name not in self.databases:
             available = list(self.databases.keys())
@@ -86,16 +90,18 @@ class DatabaseManager:
         """建立或返回指定資料庫的連線
 
         Args:
-            db_name: 資料庫名稱，None 則使用預設
+            db_name: 資料庫名稱（必填）
 
         Returns:
             pyodbc 連線物件
 
         Raises:
+            ValueError: 未指定資料庫時拋出
             Exception: 連線失敗時拋出異常
         """
         if db_name is None:
-            db_name = self.default_database
+            available = list(self.databases.keys())
+            raise ValueError(f"必須指定資料庫（db 參數）。可用選項: {available}")
 
         self._current_db = db_name
 

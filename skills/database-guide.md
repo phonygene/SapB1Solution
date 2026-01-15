@@ -1,6 +1,6 @@
 # 資料庫使用指南
 
-> Agent 執行 SQL 查詢時，透過 `db` 參數選擇目標資料庫。
+> 🔴 **`db` 參數為必填！每次調用都必須明確指定資料庫。**
 
 ---
 
@@ -10,8 +10,10 @@
 
 | db 參數 | 實際資料庫 | 位置 | 用途 |
 |---------|-----------|------|------|
-| `jtdb` (預設) | jtdb | 本地 (.\SQLEXPRESS2008R2) | JET 自有資料 |
+| `jtdb` | jtdb | 本地 (.\SQLEXPRESS2008R2) | JET 自有資料 |
 | `sapb1` | JTTST | 遠端 (192.168.1.31) | SAP Business One |
+
+⚠️ **沒有預設值**：未指定 `db` 參數將會報錯。
 
 ---
 
@@ -20,10 +22,7 @@
 ### 查詢 JET 自有表（j 開頭）
 
 ```python
-# 預設就是 jtdb，可省略 db 參數
-mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ")
-
-# 或明確指定
+# 必須指定 db="jtdb"
 mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ", db="jtdb")
 ```
 
@@ -46,9 +45,9 @@ mcp__sapb1-sql__list_databases()
 
 | 表名特徵 | db 參數 | 範例表 |
 |----------|---------|--------|
-| **j** 開頭 | `jtdb` 或省略 | jOPRQ, jOPCH, jUser, jATTH |
-| **O** 開頭 | `sapb1` | OITM, OCRD, OPRQ, OPCH |
-| 其他 | 先試 `jtdb` | 自訂表 |
+| **j** 開頭 | `jtdb`（必須指定） | jOPRQ, jOPCH, jUser, jATTH |
+| **O** 開頭 | `sapb1`（必須指定） | OITM, OCRD, OPRQ, OPCH |
+| 其他 | 依實際所屬資料庫指定 | 自訂表 |
 
 ---
 
@@ -57,26 +56,26 @@ mcp__sapb1-sql__list_databases()
 ### 正確用法
 
 ```python
-# 查詢請購單（JET 自有）
-mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ WHERE jID = ?", params=[123])
+# 查詢請購單（JET 自有）- 必須指定 db="jtdb"
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ WHERE jID = ?", params=[123], db="jtdb")
 
-# 查詢物料主檔（SAP）
+# 查詢物料主檔（SAP）- 必須指定 db="sapb1"
 mcp__sapb1-sql__sql_query(query="SELECT ItemCode, ItemName FROM OITM", db="sapb1")
 
-# 取得表結構
-mcp__sapb1-sql__get_table_info(table_name="jOPRQ")  # JET 表
+# 取得表結構 - 都必須指定 db
+mcp__sapb1-sql__get_table_info(table_name="jOPRQ", db="jtdb")  # JET 表
 mcp__sapb1-sql__get_table_info(table_name="OITM", db="sapb1")  # SAP 表
 ```
 
 ### 錯誤用法
 
 ```python
-# 錯誤：用預設 jtdb 查詢 SAP 表
-mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM")
-# → Error: Invalid object name 'OITM'
+# 錯誤：未指定 db 參數
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ")
+# → Error: 必須指定資料庫（db 參數）。可用選項: ['jtdb', 'sapb1']
 
-# 正確：指定 db="sapb1"
-mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM", db="sapb1")
+# 正確：指定 db 參數
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ", db="jtdb")
 ```
 
 ---

@@ -33,22 +33,24 @@
 
 ### 資料庫選擇規則（MCP 工具）
 
-🔴 **這是重複發生的問題！執行 SQL 前必須確認資料庫。**
+🔴 **`db` 參數為必填！每次調用都必須明確指定資料庫。**
 
 透過 `db` 參數選擇目標資料庫：
 
 | 表名特徵 | db 參數 | 範例 |
 |----------|---------|------|
-| **j 開頭** | `jtdb`（預設，可省略） | jOPRQ, jOPCH, jUser |
+| **j 開頭** | `jtdb`（必須指定） | jOPRQ, jOPCH, jUser |
 | **O 開頭** | `sapb1`（必須指定） | OITM, OCRD, OPRQ |
 
 ```python
-# JET 自有表（預設 jtdb）
-mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ")
+# JET 自有表（必須指定 db="jtdb"）
+mcp__sapb1-sql__sql_query(query="SELECT * FROM jOPRQ", db="jtdb")
 
 # SAP 表（必須指定 db="sapb1"）
 mcp__sapb1-sql__sql_query(query="SELECT * FROM OITM", db="sapb1")
 ```
+
+⚠️ **未指定 `db` 參數將會報錯**，不會使用任何預設值。
 
 ### 檔案編碼（強制規則）
 

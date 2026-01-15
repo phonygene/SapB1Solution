@@ -60,7 +60,7 @@ def get_db_param_schema() -> dict:
     """取得 db 參數的 schema 定義"""
     return {
         "type": "string",
-        "description": "目標資料庫（可選）。jtdb=JET自有資料(j開頭表)、sapb1=SAP B1資料(O開頭表)。預設使用 jtdb。",
+        "description": "目標資料庫（必填）。jtdb=JET自有資料(j開頭表)、sapb1=SAP B1資料(O開頭表)。",
         "enum": ["jtdb", "sapb1"]
     }
 
@@ -90,7 +90,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "db": db_param
                 },
-                "required": ["query"]
+                "required": ["query", "db"]
             }
         ),
         Tool(
@@ -112,7 +112,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "db": db_param
                 },
-                "required": ["query"]
+                "required": ["query", "db"]
             }
         ),
         Tool(
@@ -127,7 +127,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "db": db_param
                 },
-                "required": ["query"]
+                "required": ["query", "db"]
             }
         ),
         Tool(
@@ -142,7 +142,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "db": db_param
                 },
-                "required": ["table_name"]
+                "required": ["table_name", "db"]
             }
         ),
         Tool(
@@ -157,7 +157,8 @@ async def list_tools() -> list[Tool]:
                         "default": "dbo"
                     },
                     "db": db_param
-                }
+                },
+                "required": ["db"]
             }
         ),
         Tool(
@@ -306,7 +307,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             databases = db_manager.get_available_databases()
 
             result = {
-                "default": db_manager.default_database,
+                "message": "每次查詢必須明確指定資料庫（db 參數）",
                 "available": databases
             }
 
