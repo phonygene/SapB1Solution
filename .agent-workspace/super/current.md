@@ -1,7 +1,7 @@
 # Super Agent - Current Work
 
 ## 狀態
-idle
+thinking
 
 ## 角色說明
 
@@ -17,4 +17,4 @@ main（直接操作）
 無
 
 ## 最後更新
-2026-01-14 - 修正 SAP 請購單 DI API 欄位映射
+2026-01-14 - jOPRQ 狀態欄位統一（與 jOPCH 格式對齊）
