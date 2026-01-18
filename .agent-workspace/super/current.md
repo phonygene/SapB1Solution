@@ -1,7 +1,7 @@
 # Super Agent - Current Work
 
 ## 狀態
-thinking
+idle
 
 ## 角色說明
 
