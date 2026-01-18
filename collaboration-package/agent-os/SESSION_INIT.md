@@ -42,7 +42,14 @@
 - 建議的下一步工作
 - **⚠️ 協作模式提醒**：提醒使用者本專案採用 Shopfloor 協作模式
 
-### 第四步：等待使用者回應
+### 第四步：動態角色初始化 (Tag-Based Injection)
+若使用 `/super` 或多 Agent 協作模式：
+1. **讀取 Bootstrap Prompt**：`agent-os/prompts/BOOTSTRAP_PROMPT.md`
+2. **準備角色 Tags**：根據藍圖指派（如 `Sql Expert`, `Frontend`）
+3. **執行初始化**：將 Prompt 貼入 Agent 視窗，系統將根據 `agent-os/config/roles_map.json` 自動載入對應規則。
+4. **缺失處理**：若遇未知 Tag，遵循 `agent-os/standards/MISSING_TAG_PROTOCOL.md` 進行修復。
+
+### 第五步：等待使用者回應
 - 使用者可能回報上次待辦事項的執行結果
 - 使用者可能提出新的任務
 - 根據回應調整工作計畫

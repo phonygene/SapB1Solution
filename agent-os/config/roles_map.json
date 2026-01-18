@@ -1,0 +1,11 @@
+{
+    "_meta": {
+        "description": "Maps Role Tags to their corresponding configuration/rule files.",
+        "version": "1.0"
+    },
+    "roles": {
+        "Sql Expert": "mcp-sqlserver/OPERATION_RULES.md",
+        "Agent OS Core": "agent-os/SESSION_INIT.md",
+        "Missing Protocol": "agent-os/standards/MISSING_TAG_PROTOCOL.md"
+    }
+}
