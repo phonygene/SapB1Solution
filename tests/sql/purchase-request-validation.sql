@@ -240,24 +240,27 @@ PRINT ''
 
 -- ============================================================
 -- 9. 附件檢查（jAttach 對應）
+-- 注意：jAttach 用 jID 關聯，需同時檢查 jOPRQ 和 jOPCH
 -- ============================================================
 PRINT '【9】附件完整性檢查'
 
--- 檢查附件記錄是否有對應的請購單
+-- 檢查附件記錄是否有對應的單據（請購單或費用申請單）
 SELECT
+    A.ID,
     A.jID,
     A.FileName,
     A.FilePath
 FROM jAttach A
-LEFT JOIN jOPRQ H ON A.jID = H.jID
-WHERE A.DocType = 'PR'
-  AND H.jID IS NULL
-  AND ISNULL(A.IsDeleted, 0) = 0
+LEFT JOIN jOPRQ PR ON A.jID = PR.jID
+LEFT JOIN jOPCH EC ON A.jID = EC.jID
+WHERE PR.jID IS NULL
+  AND EC.jID IS NULL
+  AND A.IsDeleted = 0
 
 IF @@ROWCOUNT = 0
     PRINT '  ✓ 通過：附件對應正確'
 ELSE
-    PRINT '  ⚠ 警告：發現孤兒附件（請購單已刪除但附件仍存在）'
+    PRINT '  ⚠ 警告：發現孤兒附件（單據已刪除但附件仍存在）'
 
 PRINT ''
 
