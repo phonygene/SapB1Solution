@@ -22,3 +22,10 @@ shopfloor/Claude_TMP/*.md
 shopfloor/Claude_TMP/*.py
 shopfloor/Claude_TMP/*.example
 shopfloor/Claude_TMP/*.txt
+
+# mcp-sqlserver 臨時分析檔
+mcp-sqlserver/analysis_results.txt
+mcp-sqlserver/analyze_*.py
+
+# Claude Code 臨時目錄
+tmpclaude-*
