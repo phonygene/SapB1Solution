@@ -138,6 +138,15 @@ Public Class Global_asax
         ' 在嘗試驗證使用時引發
     End Sub
 
+    Sub Application_AcquireRequestState(ByVal sender As Object, ByVal e As EventArgs)
+        ' 在取得 Session 後引發 - 此時可以檢查使用者是否為 admin
+        Dim context As HttpContext = HttpContext.Current
+        If context Is Nothing OrElse context.Session Is Nothing Then Return
+        
+        ' 檢查維護模式並導向 (admin 可繞過)
+        MaintenanceHelper.CheckAndRedirect(context.Response, context.Request.Url.AbsolutePath, context.Session)
+    End Sub
+
     Sub Application_Error(ByVal sender As Object, ByVal e As EventArgs)
         ' 在錯誤發生時引發
     End Sub

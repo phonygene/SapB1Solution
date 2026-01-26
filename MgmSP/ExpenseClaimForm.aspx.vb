@@ -195,6 +195,9 @@ Partial Public Class ExpenseClaimForm
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Try
+            ' 功能維護檢查 - 若費用申請單維護中且非管理員，導向維護頁面
+            MaintenanceHelper.CheckFeatureAndRedirect(Response, "ExpenseClaim", Session)
+
             If Session("s_id") Is Nothing Then
                 Response.Redirect("~/usermgm/login.aspx")
                 Return
