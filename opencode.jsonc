@@ -21,8 +21,8 @@
   "mcp": {
     "sapb1-sql": {
       "type": "local",
-      "command": "uv",
-      "args": [
+      "command": [
+        "uv",
         "run",
         "--directory",
         "C:/Projects/SapB1Solution/mcp-sqlserver",
