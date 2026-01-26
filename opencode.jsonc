@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // 專案層模型設定（請填你實際使用的 model）
+  // "model": "openai/<model-id>",
+  // "small_model": "openai/<small-model-id>",
+
+  // 建議：鎖定 provider，避免誤用其他來源
+  // "enabled_providers": ["openai"],
+  // "disabled_providers": ["google"],
+
+  // 專案規範注入（相對於此檔案位置）
+  "instructions": [
+    "CLAUDE.md",
+    "skills/INDEX.md",
+    "skills/**/*.md"
+  ],
+
+  // MCP 設定（OpenCode 只讀這裡，不讀 .mcp.json）
+  // 請依實際路徑調整
+  "mcp": {
+    "sapb1-sql": {
+      "type": "local",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "C:/Projects/SapB1Solution/mcp-sqlserver",
+        "python",
+        "src/server.py"
+      ],
+      "enabled": true
+    }
+  }
+}
