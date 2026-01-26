@@ -29,3 +29,6 @@ mcp-sqlserver/analyze_*.py
 
 # Claude Code 臨時目錄
 tmpclaude-*
+
+# stray Windows nul file
+nul
