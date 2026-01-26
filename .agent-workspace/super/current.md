@@ -17,4 +17,4 @@ main（直接操作）
 無
 
 ## 最後更新
-2026-01-26 - 狀態確認為 idle
+2026-01-26 - 狀態確認為 idle (oauth crash follow-up)

@@ -23,6 +23,56 @@
 
 ## 錯誤記錄
 
+### 2026-01-26 15:40 | delegate_task (git-master) | Background task failed without detail
+- **命令/操作**: `delegate_task` running `git status -sb` and `git log --oneline -20`
+- **錯誤訊息**:
+  ```
+  Background task failed (no error detail returned)
+  ```
+- **根因分析**: 背景代理未回傳任何錯誤訊息，無法判斷是 git 指令失敗或工具執行異常
+- **解決方案**: 改由新的代理或直接執行 git 指令；若仍失敗，回報工具問題
+- **狀態**: 待分析
+
+### 2026-01-26 16:05 | delegate_task (explore/librarian) | Background task failed without detail
+- **命令/操作**: `delegate_task` explore/librarian for OpenCode config research
+- **錯誤訊息**:
+  ```
+  Background task failed (no error detail returned)
+  ```
+- **根因分析**: 背景代理未回傳任何錯誤訊息，無法判斷是工具執行異常或環境限制
+- **解決方案**: 改用直接工具 (Glob/Read) 取得本地配置；外部文件改為手動查找或由使用者提供來源
+- **狀態**: 待分析
+
+### 2026-01-26 16:20 | delegate_task (explore/librarian) | Background task failed without detail
+- **命令/操作**: `delegate_task` explore/librarian for jet-platform specs discovery
+- **錯誤訊息**:
+  ```
+  Background task failed (no error detail returned)
+  ```
+- **根因分析**: 背景代理未回傳任何錯誤訊息，無法判斷是工具執行異常或環境限制
+- **解決方案**: 改用直接工具 (Read/Grep/Glob) 進行本地搜尋；必要時改成手動查找
+- **狀態**: 待分析
+
+### 2026-01-26 16:55 | delegate_task (category quick) | JSON Parse error on prompt
+- **命令/操作**: `delegate_task` to install opencode-gemini-auth
+- **錯誤訊息**:
+  ```
+  JSON Parse error: Unexpected EOF
+  ```
+- **根因分析**: delegate_task prompt 送出時被系統解析為不完整 JSON
+- **解決方案**: 改由直接使用工具執行 npm 安裝與設定更新
+- **狀態**: 已解決
+
+### 2026-01-26 17:05 | apply_patch | Cannot edit file outside repo root
+- **命令/操作**: `apply_patch` update `C:\Users\ACER\.config\opencode\opencode.json`
+- **錯誤訊息**:
+  ```
+  Failed to read file to update: C:\Projects\SapB1Solution\C
+  ```
+- **根因分析**: apply_patch 受限於工作區根目錄，無法編輯 repo 以外的檔案
+- **解決方案**: 請使用者手動編輯全域設定檔，或將設定檔移到專案內由工具更新
+- **狀態**: 已解決
+
 ### 2026-01-08 14:30 | Claude Code Edit | Rust Panic（中文字符邊界）
 - **命令/操作**: `Edit` 工具更新 `skills/INDEX.md`
 - **錯誤訊息**:
@@ -62,6 +112,9 @@
 |----------|----------|--------------|
 | Claude Code Rust Panic | 1 | 無解，重試或回報 GitHub |
 | MSBuild 路徑/參數 | 1+ | `skills/general-checklist.md` |
+| delegate_task 背景失敗無訊息 | 2 | `work-logs/insights/tool-errors.md` |
+| delegate_task JSON Parse error | 1 | `work-logs/insights/tool-errors.md` |
+| apply_patch 跨工作區限制 | 1 | `work-logs/insights/tool-errors.md` |
 | UTF-8 BOM 缺失 | 2+ | `skills/general-checklist.md` |
 | COM 物件未釋放 | 多次 | `skills/backend-checklist.md` |
 
