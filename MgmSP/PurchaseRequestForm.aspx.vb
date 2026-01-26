@@ -115,6 +115,9 @@ Partial Public Class PurchaseRequestForm
 #Region "頁面載入"
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         Try
+            ' 功能維護檢查 - 若請購單維護中且非管理員，導向維護頁面
+            MaintenanceHelper.CheckFeatureAndRedirect(Response, "PurchaseRequest", Session)
+
             If Session("s_id") Is Nothing Then
                 Response.Redirect("~/usermgm/login.aspx")
                 Return
@@ -1818,6 +1821,14 @@ Partial Public Class PurchaseRequestForm
         Dim sapDocEntry As Integer = 0
         Dim errMsg As String = ""
 
+        ' ===== 除錯用：記錄所有匯入欄位的值 (宣告在 Try 外部以便 Catch 可存取) =====
+        Dim importLog As New System.Text.StringBuilder()
+        importLog.AppendLine("========================================")
+        importLog.AppendLine("SAP 請購單匯入記錄")
+        importLog.AppendLine("時間: " & DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+        importLog.AppendLine("jID: " & jID)
+        importLog.AppendLine("========================================")
+
         Try
             ' 0. 雙重檢查：確保尚未成功寫入 SAP
             Using conn As New SqlConnection(connStr)
@@ -1849,9 +1860,14 @@ Partial Public Class PurchaseRequestForm
             ' 2. 建立請購單物件
             oPR = oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseRequest)
 
-            ' 記錄文件幣別和匯率
+            ' 繼續記錄 Log
+            importLog.AppendLine()
+            importLog.AppendLine("【單頭 Header】")
+
+            ' 記錄文件幣別、匯率和供應商代碼 (供明細使用)
             Dim docCurrency As String = "TWD"
             Dim docRate As Double = 1.0
+            Dim cardCode As String = ""  ' 供應商代碼，需在明細設定
 
             Using conn As New SqlConnection(connStr)
                 conn.Open()
@@ -1865,23 +1881,31 @@ Partial Public Class PurchaseRequestForm
                             Throw New Exception("找不到請購單: jID=" & jID)
                         End If
 
-                        ' 供應商代碼 (選填)
+                        ' 供應商代碼 - 暫存，稍後在明細設定 (SAP OPRQ 需在 Lines 設定 Vendor)
                         If Not IsDBNull(drH("CardCode")) AndAlso drH("CardCode").ToString() <> "" Then
-                            oPR.CardCode = drH("CardCode").ToString()
+                            cardCode = drH("CardCode").ToString()
+                            importLog.AppendLine("  CardCode (暫存給明細): " & cardCode)
                         End If
 
                         ' 文件日期
                         oPR.DocDate = Convert.ToDateTime(drH("DocDate"))
+                        importLog.AppendLine("  DocDate: " & oPR.DocDate.ToString("yyyy-MM-dd"))
 
-                        ' 需求日期
-                        If Not IsDBNull(drH("ReqDate")) Then
-                            oPR.DocDueDate = Convert.ToDateTime(drH("ReqDate"))
+                        ' 需求日期 (必填) - 設定 DocDueDate (單頭沒有 RequiredDate 屬性)
+                        If IsDBNull(drH("ReqDate")) Then
+                            Throw New Exception("需求日期為必填欄位")
                         End If
+                        Dim reqDateValue As DateTime = Convert.ToDateTime(drH("ReqDate"))
+                        oPR.DocDueDate = reqDateValue
+                        oPR.RequriedDate = reqDateValue  ' SAP API 有 typo，少一個 'i'
+                        importLog.AppendLine("  DocDueDate: " & reqDateValue.ToString("yyyy-MM-dd"))
+                        importLog.AppendLine("  RequriedDate: " & reqDateValue.ToString("yyyy-MM-dd"))
 
                         ' 幣別
                         If Not IsDBNull(drH("DocCurrency")) Then
                             docCurrency = drH("DocCurrency").ToString()
                             oPR.DocCurrency = docCurrency
+                            importLog.AppendLine("  DocCurrency: " & docCurrency)
                         End If
 
                         ' 匯率
@@ -1889,26 +1913,35 @@ Partial Public Class PurchaseRequestForm
                             docRate = Convert.ToDouble(drH("DocRate"))
                             If docCurrency <> "TWD" AndAlso docCurrency <> "NTD" Then
                                 oPR.DocRate = docRate
+                                importLog.AppendLine("  DocRate: " & docRate)
                             End If
                         End If
 
                         ' 備註
                         If Not IsDBNull(drH("Comments")) Then
                             oPR.Comments = drH("Comments").ToString()
+                            importLog.AppendLine("  Comments: " & Left(oPR.Comments, 50) & If(Len(oPR.Comments) > 50, "...", ""))
                         End If
 
-                        ' 請購人代碼 -> Requester (員工代碼)
-                        If Not IsDBNull(drH("ReqCode")) Then
-                            oPR.Requester = drH("ReqCode").ToString()
+                        ' 請購人代碼 -> Requester 和 ReqCode (員工代碼)
+                        If Not IsDBNull(drH("ReqCode")) AndAlso drH("ReqCode").ToString() <> "" Then
+                            Dim reqCode As String = drH("ReqCode").ToString()
+                            oPR.Requester = reqCode
+                            oPR.ReqCode = reqCode
+                            importLog.AppendLine("  Requester: " & reqCode)
+                            importLog.AppendLine("  ReqCode: " & reqCode)
                         End If
 
-                        ' 請購類型: 12 = 員工
-                        oPR.ReqType = 12
+                        ' 請購類型: 171
+                        oPR.ReqType = 171
+                        importLog.AppendLine("  ReqType: 171")
+                        importLog.AppendLine()
 
                     End Using
                 End Using
 
                 ' 讀取明細
+                importLog.AppendLine("【單身 Lines】")
                 Dim sqlL As String = "SELECT * FROM jPRQ1 WHERE jID=@jID ORDER BY LineNum"
                 Using cmdL As New SqlCommand(sqlL, conn)
                     cmdL.Parameters.AddWithValue("@jID", jID)
@@ -1917,58 +1950,87 @@ Partial Public Class PurchaseRequestForm
                         While drL.Read()
                             If lineIndex > 0 Then oPR.Lines.Add()
 
+                            importLog.AppendLine("  --- Line " & (lineIndex + 1) & " ---")
+
                             ' 料號 (必填)
                             oPR.Lines.ItemCode = drL("ItemCode").ToString()
+                            importLog.AppendLine("    ItemCode: " & oPR.Lines.ItemCode)
 
-                            ' 說明 - 若有自訂說明，寫入 U_LineText UDF (不設定 ItemDescription)
+                            ' 供應商代碼 - 在明細設定 (從表頭取得)
+                            If cardCode <> "" Then
+                                oPR.Lines.LineVendor = cardCode
+                                importLog.AppendLine("    LineVendor: " & cardCode)
+                            End If
+
+                            ' 說明 - 若有自訂說明，嘗試寫入 U_LineText UDF (不設定 ItemDescription)
                             If Not IsDBNull(drL("U_Linetext")) AndAlso drL("U_Linetext").ToString() <> "" Then
-                                oPR.Lines.UserFields.Fields.Item("U_LineText").Value = drL("U_Linetext").ToString()
+                                Try
+                                    oPR.Lines.UserFields.Fields.Item("U_LineText").Value = drL("U_Linetext").ToString()
+                                    importLog.AppendLine("    U_LineText: " & Left(drL("U_Linetext").ToString(), 30))
+                                Catch
+                                    importLog.AppendLine("    U_LineText: (UDF 不存在，跳過)")
+                                End Try
                             End If
 
                             ' 數量
                             oPR.Lines.Quantity = Convert.ToDouble(drL("Quantity"))
+                            importLog.AppendLine("    Quantity: " & oPR.Lines.Quantity)
 
                             ' 單價 (未稅)
                             If Not IsDBNull(drL("Price")) Then
                                 oPR.Lines.UnitPrice = Convert.ToDouble(drL("Price"))
+                                importLog.AppendLine("    UnitPrice: " & oPR.Lines.UnitPrice)
                             End If
 
                             ' 倉庫
                             If Not IsDBNull(drL("WhsCode")) AndAlso drL("WhsCode").ToString() <> "" Then
                                 oPR.Lines.WarehouseCode = drL("WhsCode").ToString()
+                                importLog.AppendLine("    WarehouseCode: " & oPR.Lines.WarehouseCode)
                             End If
 
                             ' 需求日期
                             If Not IsDBNull(drL("ShipDate")) Then
                                 oPR.Lines.RequiredDate = Convert.ToDateTime(drL("ShipDate"))
+                                importLog.AppendLine("    RequiredDate: " & oPR.Lines.RequiredDate.ToString("yyyy-MM-dd"))
                             End If
 
                             ' 稅碼 (VatGroup) - 轉換為 SAP 稅碼: 1=J1(應稅), 2=J0(零稅), 3=JX(免稅)
                             If Not IsDBNull(drL("VatGroup")) AndAlso drL("VatGroup").ToString() <> "" Then
                                 Dim vatCode As String = drL("VatGroup").ToString()
+                                Dim sapVatCode As String = vatCode
                                 Select Case vatCode
-                                    Case "1" : oPR.Lines.VatGroup = "J1"  ' 應稅
-                                    Case "2" : oPR.Lines.VatGroup = "J0"  ' 零稅
-                                    Case "3" : oPR.Lines.VatGroup = "JX"  ' 免稅
-                                    Case Else : oPR.Lines.VatGroup = vatCode  ' 若已是 SAP 稅碼則直接使用
+                                    Case "1" : sapVatCode = "J1"  ' 應稅
+                                    Case "2" : sapVatCode = "J0"  ' 零稅
+                                    Case "3" : sapVatCode = "JX"  ' 免稅
                                 End Select
+                                oPR.Lines.VatGroup = sapVatCode
+                                importLog.AppendLine("    VatGroup: " & vatCode & " -> " & sapVatCode)
                             End If
 
                             ' 成本中心
                             If Not IsDBNull(drL("CostingCode")) AndAlso drL("CostingCode").ToString() <> "" Then
                                 oPR.Lines.CostingCode = drL("CostingCode").ToString()
+                                importLog.AppendLine("    CostingCode: " & oPR.Lines.CostingCode)
                             End If
                             If Not IsDBNull(drL("CostingCode2")) AndAlso drL("CostingCode2").ToString() <> "" Then
                                 oPR.Lines.CostingCode2 = drL("CostingCode2").ToString()
+                                importLog.AppendLine("    CostingCode2: " & oPR.Lines.CostingCode2)
                             End If
 
-                            ' 專案
-                            If Not IsDBNull(drL("Project")) AndAlso drL("Project").ToString() <> "" Then
-                                oPR.Lines.ProjectCode = drL("Project").ToString()
-                            End If
+                            ' 專案 - 安全讀取，欄位可能不存在
+                            Try
+                                If HasColumn(drL, "Project") AndAlso Not IsDBNull(drL("Project")) AndAlso drL("Project").ToString() <> "" Then
+                                    oPR.Lines.ProjectCode = drL("Project").ToString()
+                                    importLog.AppendLine("    ProjectCode: " & oPR.Lines.ProjectCode)
+                                End If
+                            Catch
+                                ' 欄位不存在，忽略
+                            End Try
 
                             lineIndex += 1
                         End While
+                        importLog.AppendLine()
+                        importLog.AppendLine("共 " & lineIndex & " 筆明細")
                     End Using
                 End Using
             End Using
@@ -1995,7 +2057,26 @@ Partial Public Class PurchaseRequestForm
 
         Catch ex As Exception
             errMsg = ex.Message
-            ShowError("SAP 過帳失敗: " & errMsg)
+
+            ' ===== 除錯用：寫入 Log 檔案 =====
+            Try
+                importLog.AppendLine()
+                importLog.AppendLine("========================================")
+                importLog.AppendLine("錯誤訊息: " & errMsg)
+                importLog.AppendLine("========================================")
+
+                Dim logDir As String = Server.MapPath("~/Logs/")
+                If Not System.IO.Directory.Exists(logDir) Then
+                    System.IO.Directory.CreateDirectory(logDir)
+                End If
+                Dim logFile As String = logDir & "SAP_PR_Import_Error_" & DateTime.Now.ToString("yyyyMMdd_HHmmss") & ".txt"
+                System.IO.File.WriteAllText(logFile, importLog.ToString(), System.Text.Encoding.UTF8)
+
+                ShowError("SAP 過帳失敗: " & errMsg & " (Log 已存至 " & logFile & ")")
+            Catch logEx As Exception
+                ShowError("SAP 過帳失敗: " & errMsg & " (Log 寫入失敗: " & logEx.Message & ")")
+            End Try
+
             UpdateSAPPostStatus(jID, 0, 0, "E", errMsg)
             Return False ' 失敗
         Finally
