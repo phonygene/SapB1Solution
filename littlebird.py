@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import queue
+import signal
 import threading
 import time
 import random
@@ -23,6 +24,7 @@ FileSystemEventHandler = None
 # ---- Logging Configuration ----
 LOG_FILE = Path(__file__).resolve().parent / "littlebird.log"
 
+
 def setup_logging():
     """設置日誌，同時輸出到終端和檔案"""
     # 清空舊的 handlers
@@ -32,8 +34,7 @@ def setup_logging():
 
     # 格式
     formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # 終端輸出
@@ -43,14 +44,16 @@ def setup_logging():
     root_logger.addHandler(console_handler)
 
     # 檔案輸出
-    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8', mode='a')
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8", mode="a")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
 
     return root_logger
 
+
 logger = logging.getLogger(__name__)
+
 
 def log(msg: str, level: str = "INFO"):
     """統一的日誌函數"""
@@ -62,6 +65,7 @@ def log(msg: str, level: str = "INFO"):
         logger.debug(msg)
     else:
         logger.info(msg)
+
 
 # ---- Configuration ----
 BASE_DIR = Path(__file__).resolve().parent
@@ -95,7 +99,7 @@ AGENT_WINDOWS = {
 DEBOUNCE_SECONDS = 1.0
 DRY_RUN = False
 RESTORE_FOCUS = True
-RESTORE_CLIPBOARD = False # 建議 False，頻繁讀寫剪貼簿容易造成衝突
+RESTORE_CLIPBOARD = False  # 建議 False，頻繁讀寫剪貼簿容易造成衝突
 
 # 強化剪貼簿重試參數
 CLIPBOARD_RETRY_COUNT = 10
@@ -203,14 +207,22 @@ KLF_ACTIVATE = 0x00000001
 
 # 英文輸入法代碼
 EN_US_LAYOUT = "00000409"  # 美式英文
-ENGLISH_LANG_ID = 0x0409   # 英文語言識別碼
+ENGLISH_LANG_ID = 0x0409  # 英文語言識別碼
 
 # 輸入法切換重試參數
 IME_SWITCH_RETRY_COUNT = 5
 IME_SWITCH_RETRY_DELAY = 0.15
 
 # 緊急解鎖熱鍵
-ABORT_HOTKEY = '<ctrl>+<alt>+q'
+ABORT_HOTKEY = "<ctrl>+<alt>+q"
+
+# 停止熱鍵（避免誤觸 Ctrl+C）
+STOP_HOTKEY = "<ctrl>+<shift>+c"
+shutdown_event = threading.Event()
+
+
+def _handle_sigint(_signum, _frame):
+    log("[WARN] Ctrl+C 已忽略，請使用 Ctrl+Shift+C 停止。", "WARN")
 
 
 def is_admin() -> bool:
@@ -277,7 +289,9 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
                 log("[IME] Already in English input mode")
             return True
 
-        log(f"[IME] Switching to English input (attempt {attempt + 1}/{IME_SWITCH_RETRY_COUNT})...")
+        log(
+            f"[IME] Switching to English input (attempt {attempt + 1}/{IME_SWITCH_RETRY_COUNT})..."
+        )
 
         try:
             # 方法 1：載入並啟用英文輸入法（系統全域）
@@ -321,11 +335,15 @@ def _switch_to_english_input(hwnd: int = None) -> bool:
         time.sleep(IME_SWITCH_RETRY_DELAY)
 
     # 所有嘗試都失敗
-    log(f"[ERROR] Failed to switch to English input after {IME_SWITCH_RETRY_COUNT} attempts", "ERROR")
+    log(
+        f"[ERROR] Failed to switch to English input after {IME_SWITCH_RETRY_COUNT} attempts",
+        "ERROR",
+    )
     return False
 
 
 # ---- Input Blocker ----
+
 
 class InputBlocker:
     """管理輸入鎖定狀態，防止用戶操作干擾自動化流程"""
@@ -406,6 +424,7 @@ class InputBlocker:
 
 # ---- Tray Icon ----
 
+
 class TrayIcon:
     """系統托盤圖示管理，顯示輸入鎖定狀態"""
 
@@ -424,6 +443,7 @@ class TrayIcon:
         try:
             import pystray
             from PIL import Image, ImageDraw
+
             self._pystray = pystray
             self._pil_available = True
             return True
@@ -435,8 +455,9 @@ class TrayIcon:
     def _create_icon_image(self, color):
         """創建圓形燈號圖示"""
         from PIL import Image, ImageDraw
+
         size = 64
-        image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
         # 繪製圓形燈號
         margin = 4
@@ -446,10 +467,10 @@ class TrayIcon:
     def _create_menu(self):
         """創建右鍵選單"""
         return self._pystray.Menu(
-            self._pystray.MenuItem('Littlebird 輸入鎖定', lambda: None, enabled=False),
+            self._pystray.MenuItem("Littlebird 輸入鎖定", lambda: None, enabled=False),
             self._pystray.Menu.SEPARATOR,
-            self._pystray.MenuItem('強制解鎖 (Ctrl+Alt+Q)', self._on_unlock),
-            self._pystray.MenuItem('退出', self._on_exit)
+            self._pystray.MenuItem("強制解鎖 (Ctrl+Alt+Q)", self._on_unlock),
+            self._pystray.MenuItem("退出", self._on_exit),
         )
 
     def update_status(self, locked: bool):
@@ -457,7 +478,11 @@ class TrayIcon:
         if self.icon and self._pil_available:
             color = self.RED if locked else self.GREEN
             self.icon.icon = self._create_icon_image(color)
-            self.icon.title = "Littlebird: 已鎖定 (Ctrl+Alt+Q 解鎖)" if locked else "Littlebird: 運行中"
+            self.icon.title = (
+                "Littlebird: 已鎖定 (Ctrl+Alt+Q 解鎖)"
+                if locked
+                else "Littlebird: 運行中"
+            )
 
     def start(self):
         """啟動托盤圖示（非阻塞）"""
@@ -469,7 +494,7 @@ class TrayIcon:
                 "littlebird",
                 icon=self._create_icon_image(self.GREEN),
                 title="Littlebird: 運行中",
-                menu=self._create_menu()
+                menu=self._create_menu(),
             )
             self._thread = threading.Thread(target=self.icon.run, daemon=True)
             self._thread.start()
@@ -501,12 +526,19 @@ class TrayIcon:
 
 # ---- Hotkey Listener ----
 
-class HotkeyListener:
-    """全域熱鍵監聽，用於緊急解鎖"""
 
-    def __init__(self, input_blocker: InputBlocker, tray_icon: TrayIcon):
+class HotkeyListener:
+    """全域熱鍵監聽，用於緊急解鎖與停止"""
+
+    def __init__(
+        self,
+        input_blocker: InputBlocker | None,
+        tray_icon: TrayIcon | None,
+        shutdown_event: threading.Event,
+    ):
         self.input_blocker = input_blocker
         self.tray_icon = tray_icon
+        self.shutdown_event = shutdown_event
         self._listener = None
 
     def start(self):
@@ -516,13 +548,27 @@ class HotkeyListener:
 
             def on_abort():
                 log("[HOTKEY] Ctrl+Alt+Q 被按下 - 中止操作")
+                if not self.input_blocker:
+                    log("[WARN] 未啟用輸入鎖定，無法執行中止操作。", "WARN")
+                    return
+
                 self.input_blocker.request_abort()
                 if self.tray_icon:
                     self.tray_icon.update_status(False)
 
-            self._listener = GlobalHotKeys({ABORT_HOTKEY: on_abort})
+            def on_stop():
+                log("[HOTKEY] Ctrl+Shift+C 被按下 - 停止程式")
+                self.shutdown_event.set()
+                if self.input_blocker:
+                    self.input_blocker.request_abort()
+                if self.tray_icon:
+                    self.tray_icon.update_status(False)
+
+            self._listener = GlobalHotKeys(
+                {ABORT_HOTKEY: on_abort, STOP_HOTKEY: on_stop}
+            )
             self._listener.start()
-            log(f"[OK] 熱鍵監聽已啟動 ({ABORT_HOTKEY})")
+            log(f"[OK] 熱鍵監聽已啟動 (Abort: {ABORT_HOTKEY}, Stop: {STOP_HOTKEY})")
             return True
         except ImportError as e:
             log(f"[WARN] 無法載入熱鍵監聽依賴: {e}", "WARN")
@@ -611,9 +657,9 @@ def _release_modifiers():
     """釋放所有修飾鍵，避免組合鍵殘留導致 Enter 變成 Shift+Enter 等問題"""
     if not pyautogui:
         return
-    pyautogui.keyUp('ctrl')
-    pyautogui.keyUp('alt')
-    pyautogui.keyUp('shift')
+    pyautogui.keyUp("ctrl")
+    pyautogui.keyUp("alt")
+    pyautogui.keyUp("shift")
     time.sleep(0.05)
 
 
@@ -680,7 +726,10 @@ def _set_clipboard_text(text: str) -> bool:
         time.sleep(random.uniform(0.01, CLIPBOARD_RETRY_DELAY_MAX))
     else:
         err = GetLastError()
-        log(f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts (LastError={err})", "ERROR")
+        log(
+            f"[ERROR] Failed to open clipboard after {CLIPBOARD_RETRY_COUNT} attempts (LastError={err})",
+            "ERROR",
+        )
         return False
 
     try:
@@ -768,7 +817,7 @@ def find_window(config: dict) -> int | None:
 
     if not candidates:
         return None
-    
+
     # 如果找到多個，回傳第一個 (假設設定檔夠精確)
     return candidates[0]
 
@@ -777,7 +826,7 @@ def force_focus_window(hwnd: int) -> bool:
     """Aggressively attempt to focus the window."""
     if not hwnd:
         return False
-    
+
     current_fg = GetForegroundWindow()
     if current_fg == hwnd:
         return True
@@ -789,7 +838,7 @@ def force_focus_window(hwnd: int) -> bool:
 
     # 嘗試直接切換
     SetForegroundWindow(hwnd)
-    
+
     # 檢查是否成功
     for _ in range(5):
         if GetForegroundWindow() == hwnd:
@@ -797,7 +846,7 @@ def force_focus_window(hwnd: int) -> bool:
         time.sleep(0.05)
         # 如果還沒切過去，再次嘗試
         SetForegroundWindow(hwnd)
-    
+
     # 如果還是失敗，嘗試 AttachThreadInput hack (進階手段，通常不需要但備用)
     # 這裡保持簡單，失敗就回傳 False
     return GetForegroundWindow() == hwnd
@@ -911,6 +960,7 @@ def route_event(path: Path) -> tuple[str, str] | None:
 COMPLETION_POLL_INTERVAL = 3.0  # 每 3 秒檢查一次
 COMPLETION_TIMEOUT = 300.0  # 最多等待 5 分鐘
 
+
 def _wait_for_agent_completion(agent: str) -> bool:
     """等待 Agent 狀態變回 idle，返回是否成功"""
     status_path = _status_path_for(agent)
@@ -922,7 +972,9 @@ def _wait_for_agent_completion(agent: str) -> bool:
         status = _read_status(status_path)
         if status == IDLE_STATUS or status == "":
             return True
-        log(f"[WAIT] {agent} still {status}, checking again in {COMPLETION_POLL_INTERVAL}s...")
+        log(
+            f"[WAIT] {agent} still {status}, checking again in {COMPLETION_POLL_INTERVAL}s..."
+        )
         time.sleep(COMPLETION_POLL_INTERVAL)
 
     log(f"[WARN] Timeout waiting for {agent} to complete", "WARN")
@@ -967,7 +1019,7 @@ def worker():
         # 但 last_sent 的讀寫需要 thread safety，雖然 Python dict 操作是 atomic 的，
         # 為了保險起見，可以加一個小鎖，或者乾脆讓 gui_action_lock 涵蓋大一點。
         # 為了效能，這裡暫時不鎖，允許極少數的 race condition 進入下一層。
-        
+
         last_time = last_sent.get(key, 0.0)
         if now - last_time < DEBOUNCE_SECONDS:
             continue
@@ -1024,7 +1076,10 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
             if click_cfg and _click_focus(hwnd, click_cfg):
                 pass
             else:
-                log(f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.", "WARN")
+                log(
+                    f"[WARN] Failed to focus window for {target}. Aborting to avoid mis-typing.",
+                    "WARN",
+                )
                 return
 
         # 焦點切換後給一點點緩衝，等待 Windows 動畫或 Input Queue 就緒
@@ -1044,7 +1099,10 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         # 切換到英文輸入法，避免中文輸入法干擾
         # 如果切換失敗，中止操作以避免中文輸入造成卡死
         if not _switch_to_english_input(hwnd):
-            log(f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.", "ERROR")
+            log(
+                f"[ERROR] Cannot switch to English input for {target}. Aborting to prevent IME issues.",
+                "ERROR",
+            )
             return
         time.sleep(0.1)
 
@@ -1070,7 +1128,10 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
                 _set_clipboard_text(original_clip)
         else:
             # 萬不得已才用 typewrite，且加上 interval
-            log("[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.", "WARN")
+            log(
+                "[WARN] Clipboard absolutely unavailable; falling back to slow typewrite.",
+                "WARN",
+            )
             # 切換到英文輸入法通常很難控制，這裡只能祈禱
             pyautogui.typewrite(message, interval=0.01)
             _release_modifiers()  # 防呆：typewrite 後釋放修飾鍵
@@ -1084,7 +1145,10 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
         if GetForegroundWindow() != hwnd:
             log(f"[WARN] Focus lost before Enter, re-focusing {target}...", "WARN")
             if not force_focus_window(hwnd):
-                log(f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!", "ERROR")
+                log(
+                    f"[ERROR] Failed to re-focus {target}, Enter may go to wrong window!",
+                    "ERROR",
+                )
             time.sleep(0.1)
 
         # 發送訊息並驗證
@@ -1100,18 +1164,25 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
             # 嚴格確認焦點在目標視窗
             current_fg = GetForegroundWindow()
             if current_fg != hwnd:
-                log(f"[RETRY {attempt+1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}...")
+                log(
+                    f"[RETRY {attempt + 1}] Focus wrong (current={current_fg}, target={hwnd}), re-focusing {target}..."
+                )
                 force_focus_window(hwnd)
                 time.sleep(0.3)
 
                 # 再次確認
                 current_fg = GetForegroundWindow()
                 if current_fg != hwnd:
-                    log(f"[ERROR] Still not focused after retry, current={current_fg}", "ERROR")
+                    log(
+                        f"[ERROR] Still not focused after retry, current={current_fg}",
+                        "ERROR",
+                    )
                     continue  # 跳過這次嘗試，進入下一次重試
 
             # 焦點確認正確，確保修飾鍵已釋放，然後按 Enter
-            log(f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt+1})")
+            log(
+                f"[SEND] Focus confirmed (hwnd={hwnd}), pressing Enter for {target} (attempt {attempt + 1})"
+            )
 
             _release_modifiers()  # 防呆：Enter 前釋放修飾鍵
             pyautogui.press("enter")
@@ -1125,11 +1196,16 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
                 time.sleep(0.1)
                 actual_status = _read_status(status_path)
                 if actual_status == THINKING_STATUS:
-                    log(f"[OK] Message sent to {target} (verified: status={actual_status})")
+                    log(
+                        f"[OK] Message sent to {target} (verified: status={actual_status})"
+                    )
                     send_success = True
                     break
                 else:
-                    log(f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'", "WARN")
+                    log(
+                        f"[WARN] Status verification failed: expected '{THINKING_STATUS}', got '{actual_status}'",
+                        "WARN",
+                    )
             else:
                 # Manager 不需要驗證
                 if status_path and target == "manager":
@@ -1139,7 +1215,10 @@ def _process_single_event(target: str, message: str, wait_for_completion: bool =
                 break
 
         if not send_success:
-            log(f"[ERROR] Failed to send message to {target} after {max_retries} attempts", "ERROR")
+            log(
+                f"[ERROR] Failed to send message to {target} after {max_retries} attempts",
+                "ERROR",
+            )
             return
 
         # 復原焦點
@@ -1176,9 +1255,10 @@ def load_deps():
     global pyautogui, Observer, FileSystemEventHandler
     try:
         import pyautogui as _pyautogui
+
         # 調整 pyautogui 的保護設定
         _pyautogui.FAILSAFE = True
-        _pyautogui.PAUSE = 0.05 # 每個動作後的微小暫停
+        _pyautogui.PAUSE = 0.05  # 每個動作後的微小暫停
     except ImportError as exc:
         raise SystemExit("pyautogui is required: pip install pyautogui") from exc
     try:
@@ -1212,11 +1292,23 @@ def main():
     log(f"=== Littlebird started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
     log(f"Log file: {LOG_FILE}")
 
+    signal.signal(signal.SIGINT, _handle_sigint)
+
     parser = argparse.ArgumentParser(description="Littlebird file watcher")
-    parser.add_argument("--list-windows", action="store_true", help="List visible windows")
-    parser.add_argument("--dry-run", action="store_true", help="Print actions without typing")
-    parser.add_argument("--debounce", type=float, default=DEBOUNCE_SECONDS, help="Debounce seconds")
-    parser.add_argument("--no-lock", action="store_true", help="Disable input locking (run without admin)")
+    parser.add_argument(
+        "--list-windows", action="store_true", help="List visible windows"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print actions without typing"
+    )
+    parser.add_argument(
+        "--debounce", type=float, default=DEBOUNCE_SECONDS, help="Debounce seconds"
+    )
+    parser.add_argument(
+        "--no-lock",
+        action="store_true",
+        help="Disable input locking (run without admin)",
+    )
     args = parser.parse_args()
 
     if args.list_windows:
@@ -1246,15 +1338,18 @@ def main():
         tray_icon.start()
 
         # 初始化 HotkeyListener
-        hotkey_listener = HotkeyListener(input_blocker, tray_icon)
+        hotkey_listener = HotkeyListener(input_blocker, tray_icon, shutdown_event)
         hotkey_listener.start()
 
         log(f"[INFO] 緊急解鎖熱鍵: Ctrl+Alt+Q")
+        log(f"[INFO] 停止熱鍵: Ctrl+Shift+C")
     else:
         log("[INFO] 輸入鎖定功能已停用 (--no-lock)")
         input_blocker = None
         tray_icon = None
-        hotkey_listener = None
+        hotkey_listener = HotkeyListener(None, None, shutdown_event)
+        hotkey_listener.start()
+        log(f"[INFO] 停止熱鍵: Ctrl+Shift+C")
 
     class WatchHandler(FileSystemEventHandler):
         def on_modified(self, event):
@@ -1287,15 +1382,15 @@ def main():
 
     observer.start()
     log(f"Littlebird running. Watching {len(WATCH_PATHS)} paths.")
-    log("Press Ctrl+C to stop.")
+    log("Press Ctrl+Shift+C to stop.")
 
     try:
-        while True:
+        while not shutdown_event.is_set():
             time.sleep(0.5)
-    except KeyboardInterrupt:
-        log("[INFO] 收到中斷信號，正在停止...")
-        observer.stop()
+
+        log("[INFO] 收到停止熱鍵，正在停止...")
     finally:
+        observer.stop()
         observer.join()
         event_queue.put(None)
 
