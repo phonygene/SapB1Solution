@@ -1,6 +1,7 @@
 # Skills 資源索引
 
-> 🔴 **維護規則**：變更 `skills/` 任何檔案時，必須同步更新此索引
+> 🔗 **核心規則**：`claude-config/core/financial-rules.yaml`（觸發式規則）
+> 本目錄僅保留專案特定的參考資料和錯誤案例
 
 ---
 
@@ -9,55 +10,40 @@
 | 觸發條件 | 資源檔案 | 說明 |
 |----------|----------|------|
 | **執行 SQL 查詢（MCP 工具）** | `database-guide.md` | 🔴 **必讀** - 選擇正確的資料庫 |
-| 建立/修改 Slash Command | `slash-command-standards.md` | 指令格式規範、frontmatter 語法 |
-| 後端開發（VB.NET、資料庫） | `backend-checklist.md` | 資料庫操作、金額處理、錯誤處理 |
-| 資料存取（ADO.NET、ViewState） | `aspnet-data.md` | 參數化查詢型別、資料儲存位置 |
-| UI/前端開發（ASPX、JavaScript） | `ui-checklist.md` | 控制項、CSS、PostBack 處理 |
-| SAP B1 整合（Service Layer、DI API） | `sap-checklist.md` | Session 管理、COM 物件釋放 |
-| UI 設計（顏色、樣式、元件） | `ui-design-system.md` | 設計規範、禁止事項、允許變更 |
-| 所有開發任務 | `general-checklist.md` | Git 規範、檔案編碼、控制項宣告 |
-| **工具執行失敗/重試** | `work-logs/insights/tool-errors.md` | 錯誤記錄與已知解決方案 |
-| **回復上次工作狀態 / Session 整理** | `session-recovery.md` | 多 Session 整合與最新狀態回復 |
+| 後端開發問題排查 | `backend-checklist.md` | PostBack、ViewState 問題模式 |
+| SAP B1 整合 | `sap-checklist.md` | SAP 表格參考、欄位長度 |
+| UTF-8 BOM 操作 | `general-checklist.md` | 驗證和修復命令 |
+| MSBuild 執行 | `general-checklist.md` | Windows 環境 Bash 規範 |
+
+---
+
+## 核心規則（在 claude-config/core/）
+
+| ID | 觸發時機 | 檔案 |
+|----|---------|------|
+| FIN-001~003 | 金額處理、Save/Sync | `financial-rules.yaml` |
+| SAP-001~002 | SAP 整合 | `financial-rules.yaml` |
+| DB-001~002 | 資料庫操作 | `financial-rules.yaml` |
+| ASPX-001 | 控制項新增 | `financial-rules.yaml` |
+| ENCODE-001 | 檔案編碼 | `financial-rules.yaml` |
 
 ---
 
 ## 檔案清單
 
-| 檔案 | 適用 Agent | 更新日期 |
-|------|-----------|----------|
-| `database-guide.md` | All | 2026-01-15 (新建) |
-| `aspnet-data.md` | All (Backend 重點) | 2026-01-13 (新建) |
-| `backend-checklist.md` | Backend | 2026-01-07 |
-| `general-checklist.md` | All | 2026-01-08 (錯誤處理規範) |
-| `sap-checklist.md` | Backend | 2026-01-07 |
-| `slash-command-standards.md` | All | 2026-01-07 |
-| `ui-checklist.md` | UI-UX | 2026-01-07 |
-| `ui-design-system.md` | UI-UX | 2026-01-07 |
-| `session-recovery.md` | All | 2026-01-26 (新建) |
-| `work-logs/insights/tool-errors.md` | All | 2026-01-08 (新建) |
-
----
-
-## 協作流程命令
-
-| 命令 | 用途 | 執行者 |
-|------|------|--------|
-| `/blueprint` | 分析任務、建立藍圖、分配 Agent | Manager |
-| `/claim {agent-id} {task-id}` | 領取任務、自動初始化角色 | Agent |
-| `/integrate {task-id}` | 智能整合所有 Agent 的成果 | Super Agent |
-
-### 相關資源位置
-
-| 資源 | 路徑 |
-|------|------|
-| 藍圖範本 | `.agent-workspace/blueprints/_TEMPLATE.md` |
-| 副本工作區 | `.agent-workspace/working/{agent-id}/{task-id}/` |
-| Agent 配置檔 | `.claude/agents/{BACKEND,UI-UX,SUPER,MANAGER}.md` |
+| 檔案 | 內容 | 更新日期 |
+|------|------|----------|
+| `database-guide.md` | MCP SQL 使用指南 | 2026-01-15 |
+| `backend-checklist.md` | 問題模式、錯誤案例 | 2026-01-29 |
+| `sap-checklist.md` | SAP 表格參考 | 2026-01-29 |
+| `general-checklist.md` | BOM 操作、MSBuild 規範 | 2026-01-29 |
+| `ui-checklist.md` | UI 開發參考 | 2026-01-07 |
+| `ui-design-system.md` | 設計規範 | 2026-01-07 |
 
 ---
 
 ## 使用方式
 
-1. **執行任務前**：讀取此索引，比對觸發條件
-2. **找到匹配**：讀取對應的資源檔案
-3. **變更 skills/**：完成後更新此索引的檔案清單與更新日期
+1. **核心規則**：觸發式規則會自動生效，不需手動查閱
+2. **問題排查**：遇到特定問題時查閱對應檔案的「常見問題模式」
+3. **參考資料**：需要 SAP 表格對照、欄位長度等時查閱

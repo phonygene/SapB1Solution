@@ -1,34 +1,13 @@
-# SAP B1 整合檢查清單
+# SAP B1 整合參考
 
-> 涉及 SAP Business One 整合時使用
+> 🔗 **核心規則已移至**：`claude-config/core/financial-rules.yaml`
+> 本檔案僅保留 SAP 特定的參考資料
 
 ---
 
-## Service Layer
+## [AI-Context] 註解範例
 
-- [ ] 呼叫前檢查 Session 是否有效
-- [ ] 處理 Session 過期的情況
-- [ ] 正確處理 HTTP 錯誤碼
-
-## DI API
-
-- [ ] COM 物件使用後釋放
-  ```vb
-  Marshal.ReleaseComObject(oDoc)
-  oDoc = Nothing
-  ```
-- [ ] 檢查 `GetLastErrorCode()`
-- [ ] 記錄 `GetLastErrorDescription()`
-
-## 資料格式
-
-- [ ] 日期格式：`yyyy-MM-dd`
-- [ ] 金額使用 `Decimal`
-- [ ] 字串長度符合 SAP 欄位限制
-
-## 欄位對應
-
-使用 `[AI-Context]` 註解標記 SAP 欄位對應：
+使用 `[AI-Context]` 標記 SAP 欄位對應：
 
 ```vb
 ' [AI-Context] SAP Table: OEXD (費用申請主表), 欄位: DocTotal
@@ -38,7 +17,9 @@ Dim totalAmount As Decimal = ...
 Dim lineAmount As Decimal = ...
 ```
 
-## 常用 SAP 表格
+---
+
+## 常用 SAP 表格參考
 
 | 表格 | 說明 |
 |------|------|
@@ -50,9 +31,23 @@ Dim lineAmount As Decimal = ...
 | INV1 | 銷售發票明細 |
 | ORDR | 銷售訂單主表 |
 | RDR1 | 銷售訂單明細 |
+| OPRQ | 採購申請主表 |
+| PRQ1 | 採購申請明細 |
 
 ---
 
-## 從錯誤中學習（持續新增）
+## SAP 欄位長度限制（常見）
+
+| 欄位 | 長度 | 說明 |
+|------|------|------|
+| ItemCode | 50 | 物料編號 |
+| ItemName | 100 | 物料名稱 |
+| CardCode | 15 | 業務夥伴代碼 |
+| CardName | 100 | 業務夥伴名稱 |
+| Comments | 254 | 備註 |
+
+---
+
+## 從錯誤中學習
 
 *（待累積）*
