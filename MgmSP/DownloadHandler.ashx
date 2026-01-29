@@ -1,1 +1,1 @@
-<%@ WebHandler Language="VB" Class="DownloadHandler" CodeBehind="DownloadHandler.ashx.vb" %>
+﻿<%@ WebHandler Language="VB" Class="MgmSP.DownloadHandler" CodeBehind="DownloadHandler.ashx.vb" %>
