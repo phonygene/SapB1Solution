@@ -12,7 +12,11 @@
       "Bash(mkdir:*)",
       "Bash(if not exist:*)",
       "Bash(findstr:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(gh repo create:*)",
+      "Bash(find:*)",
+      "mcp__plugin_oh-my-claudecode_omc-tools__lsp_servers",
+      "Bash(pip install:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
