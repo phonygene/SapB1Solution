@@ -1,7 +1,7 @@
 {
   "tool_name": "PowerShell",
-  "tool_input_preview": "{\"command\":\"& 'C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe' -NoProfile -ExecutionPolicy Bypass -File 'C:\\\\Users\\\\Green\\\\.claude\\\\tools\\\\nightly-backup.ps1' 2>&1 | Select-Object -Las...",
-  "error": "Exit code 2\nTo push the current branch and set the remote as upstream, use\r\n\r\n    git push --set-upstream origin master\r\n\r\nTo have this happen automatically for branches without a tracking\r\nupstream, see 'push.autoSetupRemote' in 'git help config'.\r\n\r\n\r\n2026-05-13T18:54:06.9541997+08:00 PUSH-DETAIL SapB1Solution_Claude: git : To https://github.com/phonygene/SapB1Solution.git\r\nAt C:\\Users\\Green\\.claude\\tools\\nightly-backup.ps1:70 char:27\r\n+             $pushOutput = git push origin 2>&1 | Out-Str...",
-  "timestamp": "2026-05-13T10:58:55.083Z",
-  "retry_count": 1
+  "tool_input_preview": "{\"command\":\"& 'C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe' -NoProfile -ExecutionPolicy Bypass -File 'C:\\\\Users\\\\Green\\\\.claude\\\\tools\\\\verify\\\\run-all.ps1' 2>&1 | Select-String -Pa...",
+  "error": "Exit code 1\n=== Running verify-permissions.ps1 ===\r\nPASS verify-permissions.ps1\r\n=== Running verify-no-orphan-repos.ps1 ===\r\nFAIL: session-forge no GitHub phonygene remote\r\nWARN: session-forge gh repo view failed (gh auth?)\r\n=== Running verify-scheduled-tasks.ps1 ===\r\nWARN: task NightlyBackup LastTaskResult=2 (non-zero, investigate logs)\r\nPASS verify-scheduled-tasks.ps1\r\n=== Running verify-sap-precommit.ps1 ===\r\nPASS verify-sap-precommit.ps1 (static checks only — see header note for dynamic veri...",
+  "timestamp": "2026-05-13T11:17:02.861Z",
+  "retry_count": 3
 }
